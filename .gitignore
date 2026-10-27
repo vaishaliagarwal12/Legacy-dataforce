@@ -1,0 +1,18 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Secrets
+.env
+
+# Editors
+.vscode/
+.idea/
+# Local database data and backups
+backup_scope_b.sql
+phase9_scope_a_demo.sql
+placement_internship_db.sql
+seed.sql

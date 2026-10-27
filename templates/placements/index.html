@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block title %}Placement Offers & Recruitment Outcomes | Placement Portal{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Home</a></li>
+<li class="breadcrumb-item active" aria-current="page">Placements</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h2 class="h4 fw-bold mb-1">Campus Placement Offers & Outcomes</h2>
+        <p class="text-secondary small mb-0">Record and manage student placement offers, enforce single accepted offer rules, and track multiple offer recipients.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#issueOfferModal">
+            <i class="bi bi-award me-1"></i> Issue Placement Offer
+        </button>
+    </div>
+</div>
+
+<!-- Tabs: All Offers vs Multi-Offer Analytics -->
+<ul class="nav nav-pills mb-4 gap-2" id="placementTabs" role="tablist">
+    <li class="nav-item">
+        <a href="/placements" class="nav-link {% if not show_multi %}active{% endif %}">
+            <i class="bi bi-list-check me-1"></i> All Placement Offers ({{ offers|length }})
+        </a>
+    </li>
+    <li class="nav-item">
+        <a href="/placements?view=multiple" class="nav-link {% if show_multi %}active{% endif %}">
+            <i class="bi bi-stars me-1"></i> Multiple Offer Achievers ({{ multi_offer_students|length }})
+        </a>
+    </li>
+</ul>
+
+{% if show_multi %}
+<!-- Multi-Offer Achievers View -->
+<div class="table-card mb-4">
+    <div class="table-card-header bg-primary-subtle border-primary-subtle">
+        <div>
+            <h5 class="fw-bold mb-0 text-primary">
+                <i class="bi bi-trophy-fill me-2"></i>Star Performers: Students with Multiple Placement Offers
+            </h5>
+            <small class="text-muted">Aggregating students holding &ge; 2 offers, package comparisons, and final decisions.</small>
+        </div>
+        <div>
+            <input type="text" class="form-control form-control-sm" placeholder="Quick search..." data-table-search="multiTable">
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table custom-table" id="multiTable">
+            <thead>
+                <tr>
+                    <th>Student Name</th>
+                    <th>Roll No</th>
+                    <th>Branch</th>
+                    <th>CGPA</th>
+                    <th>Total Offers</th>
+                    <th>Highest Package</th>
+                    <th>Lowest Package</th>
+                    <th>Offers Breakdown</th>
+                    <th>Accepted Organization</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in multi_offer_students %}
+                <tr>
+                    <td>
+                        <a href="/students/{{ m.Student_ID }}" class="text-dark fw-bold text-decoration-none">
+                            {{ m.First_Name }} {{ m.Last_Name }}
+                        </a>
+                    </td>
+                    <td><span class="code-font text-primary">{{ m.Roll_No }}</span></td>
+                    <td><span class="badge bg-light text-dark border">{{ m.Branch }}</span></td>
+                    <td><strong>{{ "%.2f"|format(m.CGPA) }}</strong></td>
+                    <td>
+                        <span class="badge bg-primary rounded-pill fs-6 px-3">
+                            {{ m.Total_Offers }} Offers
+                        </span>
+                    </td>
+                    <td><span class="fw-bold text-success">{{ m.Highest_Package }} LPA</span></td>
+                    <td><span class="text-muted">{{ m.Lowest_Package }} LPA</span></td>
+                    <td><small class="text-muted">{{ m.Offers_Breakdown }}</small></td>
+                    <td>
+                        {% if m.Accepted_Company %}
+                            <span class="badge badge-soft-success fw-bold">
+                                <i class="bi bi-check-circle-fill me-1"></i>{{ m.Accepted_Company }} ({{ m.Accepted_Package }} LPA)
+                            </span>
+                        {% else %}
+                            <span class="badge badge-soft-warning">Decision Pending</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9" class="text-center py-4 text-muted">No students currently hold multiple placement offers.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% else %}
+<!-- All Placement Offers View -->
+<div class="table-card mb-4">
+    <div class="table-filter-bar">
+        <form method="GET" action="/placements" class="row g-2 align-items-end">
+            <div class="col-12 col-md-5">
+                <label class="form-label small fw-semibold">Search Offers</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                    <input type="text" name="search" class="form-control" placeholder="Search by student, roll no, company, role..." value="{{ search_query or '' }}">
+                </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <label class="form-label small fw-semibold">Offer Status</label>
+                <select name="status" class="form-select form-select-sm">
+                    <option value="">All Statuses</option>
+                    {% for st in ['Offered', 'Accepted', 'Joined', 'Declined'] %}
+                        <option value="{{ st }}" {% if selected_status == st %}selected{% endif %}>{{ st }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-6 col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100">
+                    <i class="bi bi-funnel-fill me-1"></i> Filter
+                </button>
+                <a href="/placements" class="btn btn-outline-secondary btn-sm" title="Clear Filters">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table custom-table" id="placementsTable">
+            <thead>
+                <tr>
+                    <th>Student Name</th>
+                    <th>Roll No</th>
+                    <th>Branch</th>
+                    <th>Recruiting Company</th>
+                    <th>Designated Role</th>
+                    <th>CTC (LPA)</th>
+                    <th>Year</th>
+                    <th>Status</th>
+                    <th>Update Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in offers %}
+                <tr>
+                    <td>
+                        <a href="/students/{{ o.Student_ID }}" class="text-dark fw-semibold text-decoration-none">
+                            {{ o.First_Name }} {{ o.Last_Name }}
+                        </a>
+                    </td>
+                    <td><span class="code-font text-primary">{{ o.Roll_No }}</span></td>
+                    <td><span class="badge bg-light text-dark border">{{ o.Branch }}</span></td>
+                    <td>
+                        <a href="/companies/{{ o.Company_ID }}" class="text-decoration-none fw-bold text-dark">
+                            {{ o.Company_Name }}
+                        </a>
+                    </td>
+                    <td>{{ o.Role }}</td>
+                    <td><span class="fw-bold text-success">{{ o.Package }} LPA</span></td>
+                    <td>{{ o.Placement_Year }}</td>
+                    <td>
+                        <span class="badge {% if o.Offer_Status in ['Accepted', 'Joined'] %}badge-soft-success{% elif o.Offer_Status == 'Declined' %}badge-soft-danger{% else %}badge-soft-primary{% endif %}">
+                            {{ o.Offer_Status }}
+                        </span>
+                    </td>
+                    <td>
+                        <!-- Quick status update actions enforcing institutional rules -->
+                        <form method="POST" action="/placements/{{ o.Placement_ID }}/status" class="d-inline-flex gap-1">
+                            {% if o.Offer_Status != 'Accepted' and o.Offer_Status != 'Joined' %}
+                                <button type="submit" name="status" value="Accepted" class="btn btn-xs btn-outline-success py-0 px-2" title="Mark as Accepted (Enforces single accepted rule)">
+                                    Accept
+                                </button>
+                            {% endif %}
+                            {% if o.Offer_Status == 'Accepted' %}
+                                <button type="submit" name="status" value="Joined" class="btn btn-xs btn-outline-primary py-0 px-2" title="Mark as Joined">
+                                    Join
+                                </button>
+                            {% endif %}
+                            {% if o.Offer_Status != 'Declined' and o.Offer_Status != 'Joined' %}
+                                <button type="submit" name="status" value="Declined" class="btn btn-xs btn-outline-danger py-0 px-2" title="Mark as Declined">
+                                    Decline
+                                </button>
+                            {% endif %}
+                        </form>
+                    </td>
+                    <td class="text-end">
+                        <button type="button" class="btn btn-outline-danger btn-sm"
+                                data-bs-toggle="modal" 
+                                data-bs-target="#deleteConfirmModal"
+                                data-delete-url="/placements/{{ o.Placement_ID }}/delete"
+                                data-item-name="Offer #{{ o.Placement_ID }} ({{ o.Company_Name }} - {{ o.Package }} LPA for {{ o.First_Name }} {{ o.Last_Name }})"
+                                title="Delete Offer">
+                            <i class="bi bi-trash3"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="10" class="text-center py-5 text-muted">No placement offers matching your filter.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal: Issue New Placement Offer -->
+<div class="modal fade" id="issueOfferModal" tabindex="-1" aria-labelledby="issueOfferLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="issueOfferLabel">
+                    <i class="bi bi-award-fill me-2"></i> Issue New Placement Offer
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="/placements/new" class="needs-validation" novalidate>
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <!-- Student Selector -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="Student_ID">Select Student <span class="text-danger">*</span></label>
+                            <select class="form-select" id="Student_ID" name="Student_ID" required>
+                                <option value="">Choose student...</option>
+                                {% for s in all_students %}
+                                    <option value="{{ s.Student_ID }}">
+                                        {{ s.Roll_No }} &bull; {{ s.First_Name }} {{ s.Last_Name }} ({{ s.Branch }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="invalid-feedback">Student is required.</div>
+                        </div>
+
+                        <!-- Company Selector -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="Company_ID">Recruiting Company <span class="text-danger">*</span></label>
+                            <select class="form-select" id="Company_ID" name="Company_ID" required>
+                                <option value="">Choose company...</option>
+                                {% for c in all_companies %}
+                                    <option value="{{ c.Company_ID }}">{{ c.Company_Name }} ({{ c.Tier }})</option>
+                                {% endfor %}
+                            </select>
+                            <div class="invalid-feedback">Company is required.</div>
+                        </div>
+
+                        <!-- Associated Opportunity (Enforces Placement Type) -->
+                        <div class="col-12">
+                            <label class="form-label" for="Opportunity_ID">Opportunity Opening (Must be Placement Type) <span class="text-danger">*</span></label>
+                            <select class="form-select" id="Opportunity_ID" name="Opportunity_ID" required>
+                                <option value="">Choose opportunity...</option>
+                                {% for opp in all_opportunities %}
+                                    <option value="{{ opp.Opportunity_ID }}">
+                                        Opp #{{ opp.Opportunity_ID }}: {{ opp.Role_Title }} ({{ opp.Job_Type }} &bull; {{ opp.Package }} LPA)
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted d-block mt-1">Rule: The opportunity must be of type 'Placement'. Internship-only opportunities will be rejected.</small>
+                            <div class="invalid-feedback">Opportunity is required.</div>
+                        </div>
+
+                        <!-- Role Title -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="Role">Offer Designation / Role <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="Role" name="Role" placeholder="e.g. Software Engineer" required>
+                            <div class="invalid-feedback">Role designation is required.</div>
+                        </div>
+
+                        <!-- Package LPA -->
+                        <div class="col-12 col-md-3">
+                            <label class="form-label" for="Package">Package (LPA) <span class="text-danger">*</span></label>
+                            <input type="number" step="0.1" class="form-control" id="Package" name="Package" placeholder="e.g. 12.5" min="1" required>
+                            <div class="invalid-feedback">Valid CTC required.</div>
+                        </div>
+
+                        <!-- Placement Year -->
+                        <div class="col-12 col-md-3">
+                            <label class="form-label" for="Placement_Year">Placement Year <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="Placement_Year" name="Placement_Year" value="2024" min="2000" max="2100" required>
+                        </div>
+
+                        <!-- Initial Status -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="Offer_Status">Initial Offer Status</label>
+                            <select class="form-select" id="Offer_Status" name="Offer_Status">
+                                <option value="Offered" selected>Offered</option>
+                                <option value="Accepted">Accepted</option>
+                            </select>
+                            <small class="text-muted">If 'Accepted' is selected, student must not currently hold any other accepted offer.</small>
+                        </div>
+
+                        <!-- PPO -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="Is_PPO">Pre-Placement Offer (PPO)?</label>
+                            <select class="form-select" id="Is_PPO" name="Is_PPO">
+                                <option value="No" selected>No (Campus Drive)</option>
+                                <option value="Yes">Yes (Converted from Internship)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4">
+                        <i class="bi bi-check-circle me-1"></i> Issue Offer Record
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

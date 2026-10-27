@@ -1,0 +1,378 @@
+{% extends "base.html" %}
+
+{% block title %}Internships & Academic Compliance | Placement Portal{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Home</a></li>
+<li class="breadcrumb-item active" aria-current="page">Internships</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h2 class="h4 fw-bold mb-1">Internships & Academic Requirements</h2>
+        <p class="text-secondary small mb-0">Track Mandatory degree-fulfilling internships with dynamically resolved prerequisite SGPAs and Additional industry experiences.</p>
+    </div>
+    <div>
+        <a href="/internships/new" class="btn btn-primary btn-sm">
+            <i class="bi bi-briefcase me-1"></i> Record New Internship
+        </a>
+    </div>
+</div>
+
+<!-- Navigation Tabs -->
+<ul class="nav nav-pills mb-4 gap-2" id="internshipTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <a href="/internships?type=All" class="nav-link {% if active_tab == 'All' %}active{% endif %}">
+            <i class="bi bi-collection-fill me-1"></i> All Internships ({{ all_internships|length }})
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a href="/internships?type=Mandatory" class="nav-link {% if active_tab == 'Mandatory' %}active{% endif %}">
+            <i class="bi bi-award-fill me-1"></i> Mandatory (Dynamic SGPA) ({{ mandatory_internships|length }})
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a href="/internships?type=Additional" class="nav-link {% if active_tab == 'Additional' %}active{% endif %}">
+            <i class="bi bi-plus-square-fill me-1"></i> Additional ({{ additional_internships|length }})
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a href="/internships?type=Missing" class="nav-link {% if active_tab == 'Missing' %}active btn-danger text-white{% else %}text-danger border border-danger-subtle{% endif %}">
+            <i class="bi bi-shield-exclamation me-1"></i> Missing Mandatory Audit ({{ missing_students|length }})
+        </a>
+    </li>
+</ul>
+
+<!-- Content according to Active Tab -->
+
+{% if active_tab == 'Mandatory' %}
+<!-- Tab 1: Mandatory Internships with Dynamic Prerequisite SGPA -->
+<div class="table-card mb-4">
+    <div class="table-card-header">
+        <div>
+            <h5 class="fw-bold mb-0">Mandatory Internships & Dynamic 3NF Prerequisite SGPAs</h5>
+            <small class="text-muted">Demonstrates <code>INTERNSHIP &rarr; REQUIREMENT &rarr; SEMESTER_RESULT</code> join with zero duplicated SGPA storage.</small>
+        </div>
+        <div class="d-flex gap-2">
+            <input type="text" class="form-control form-control-sm" placeholder="Search table..." data-table-search="mandatoryTable">
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table custom-table" id="mandatoryTable">
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Roll No</th>
+                    <th>Branch</th>
+                    <th>Internship #</th>
+                    <th>Academic Requirement</th>
+                    <th>Required Sem</th>
+                    <th>Prerequisite SGPA (Dynamic)</th>
+                    <th>Company & Role</th>
+                    <th>Credits</th>
+                    <th>Dates</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in mandatory_internships %}
+                <tr>
+                    <td>
+                        <a href="/students/{{ item.Student_ID }}" class="text-dark fw-semibold text-decoration-none">
+                            {{ item.Student_Name }}
+                        </a>
+                    </td>
+                    <td><span class="code-font text-primary">{{ item.Roll_No }}</span></td>
+                    <td><span class="badge bg-light text-dark border">{{ item.Branch }}</span></td>
+                    <td><span class="badge badge-soft-primary">Mandatory #{{ item.Internship_No }}</span></td>
+                    <td>
+                        <strong>{{ item.Prescribed_Period }}</strong><br>
+                        <small class="text-muted">Report in Sem {{ 5 if item.Internship_No == 1 else 7 }}</small>
+                    </td>
+                    <td><span class="badge bg-secondary-subtle text-secondary">Semester {{ item.Required_Result_Semester }}</span></td>
+                    <td>
+                        <!-- Dynamically fetched prerequisite SGPA -->
+                        {% if item.Prerequisite_Semester_SGPA is not none %}
+                            <span class="badge badge-soft-success fw-bold fs-6">
+                                <i class="bi bi-link-45deg me-1"></i>{{ "%.2f"|format(item.Prerequisite_Semester_SGPA) }} SGPA
+                            </span>
+                            <div class="small text-muted">{{ item.Prerequisite_Credits }} Credits</div>
+                        {% else %}
+                            <span class="badge badge-soft-warning small">Result Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <strong>{{ item.Company_Name }}</strong><br>
+                        <small class="text-muted">{{ item.Role }}</small>
+                    </td>
+                    <td><span class="fw-bold">4 Cr</span></td>
+                    <td><small class="code-font text-muted">{{ item.Report_Grade or 'Submitted' }}</small></td>
+                    <td class="text-end">
+                        <button type="button" class="btn btn-outline-danger btn-sm"
+                                data-bs-toggle="modal" 
+                                data-bs-target="#deleteConfirmModal"
+                                data-delete-url="/internships/{{ item.Internship_ID }}/delete"
+                                data-item-name="Mandatory Internship #{{ item.Internship_No }} for {{ item.Full_Name }}"
+                                title="Delete Internship">
+                            <i class="bi bi-trash3"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="11" class="text-center py-4 text-muted">No mandatory internships recorded yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% elif active_tab == 'Additional' %}
+<!-- Tab 2: Additional Internships -->
+<div class="table-card mb-4">
+    <div class="table-card-header">
+        <div>
+            <h5 class="fw-bold mb-0">Additional Voluntary Internships</h5>
+            <small class="text-muted">Extracurricular industry experience (Requirement_ID is NULL by schema domain rule).</small>
+        </div>
+        <div class="d-flex gap-2">
+            <input type="text" class="form-control form-control-sm" placeholder="Search table..." data-table-search="additionalTable">
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table custom-table" id="additionalTable">
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Roll No</th>
+                    <th>Branch</th>
+                    <th>Internship #</th>
+                    <th>Company Name</th>
+                    <th>Role Title</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Requirement Link</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in additional_internships %}
+                <tr>
+                    <td>
+                        <a href="/students/{{ item.Student_ID }}" class="text-dark fw-semibold text-decoration-none">
+                            {{ item.First_Name }} {{ item.Last_Name }}
+                        </a>
+                    </td>
+                    <td><span class="code-font text-primary">{{ item.Roll_No }}</span></td>
+                    <td><span class="badge bg-light text-dark border">{{ item.Branch }}</span></td>
+                    <td><span class="badge bg-secondary-subtle text-secondary">Additional #{{ item.Internship_No }}</span></td>
+                    <td><strong>{{ item.Company_Name }}</strong></td>
+                    <td>{{ item.Role_Title }}</td>
+                    <td><span class="code-font text-muted">{{ item.Start_Date }}</span></td>
+                    <td><span class="code-font text-muted">{{ item.End_Date }}</span></td>
+                    <td><span class="text-muted small">&mdash; None (Independent) &mdash;</span></td>
+                    <td class="text-end">
+                        <button type="button" class="btn btn-outline-danger btn-sm"
+                                data-bs-toggle="modal" 
+                                data-bs-target="#deleteConfirmModal"
+                                data-delete-url="/internships/{{ item.Internship_ID }}/delete"
+                                data-item-name="Additional Internship for {{ item.First_Name }} {{ item.Last_Name }}"
+                                title="Delete Internship">
+                            <i class="bi bi-trash3"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="10" class="text-center py-4 text-muted">No additional internships recorded.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% elif active_tab == 'Missing' %}
+<!-- Tab 3: Missing Mandatory Internships Audit -->
+<div class="table-card mb-4 border-danger">
+    <div class="table-card-header bg-danger-subtle border-danger-subtle">
+        <div>
+            <h5 class="fw-bold mb-0 text-danger">
+                <i class="bi bi-shield-slash me-2"></i>Graduation Clearance Audit: Missing Mandatory Internships
+            </h5>
+            <small class="text-muted">Active students currently missing Mandatory Internship #1 (Summer after 2nd yr) or Mandatory Internship #2 (Summer after 3rd yr).</small>
+        </div>
+        <div class="d-flex gap-2">
+            <input type="text" class="form-control form-control-sm" placeholder="Search missing students..." data-table-search="missingTable">
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table custom-table" id="missingTable">
+            <thead>
+                <tr>
+                    <th>Roll No</th>
+                    <th>Student Name</th>
+                    <th>Branch</th>
+                    <th>Graduation Batch</th>
+                    <th>CGPA</th>
+                    <th>Mandatory #1 (Summer 2nd Yr)</th>
+                    <th>Mandatory #2 (Summer 3rd Yr)</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in missing_students %}
+                <tr>
+                    <td>
+                        <a href="/students/{{ item.Student_ID }}" class="code-font fw-bold text-decoration-none text-danger">
+                            {{ item.Roll_No }}
+                        </a>
+                    </td>
+                    <td>
+                        <a href="/students/{{ item.Student_ID }}" class="text-dark fw-semibold text-decoration-none">
+                            {{ item.First_Name }} {{ item.Last_Name or '' }}
+                        </a>
+                    </td>
+                    <td><span class="badge bg-light text-dark border">{{ item.Branch }}</span></td>
+                    <td><span class="badge bg-secondary-subtle text-secondary">{{ item.Batch_Year }}</span></td>
+                    <td><strong>{{ "%.2f"|format(item.CGPA) }}</strong></td>
+                    <td>
+                        {% if item.Mandatory_I1_Status == 'Completed' %}
+                            <span class="badge badge-soft-success"><i class="bi bi-check-lg me-1"></i> Completed ({{ item.I1_Company }})</span>
+                        {% else %}
+                            <span class="badge badge-soft-danger"><i class="bi bi-x-lg me-1"></i> Missing Requirement #1</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.Mandatory_I2_Status == 'Completed' %}
+                            <span class="badge badge-soft-success"><i class="bi bi-check-lg me-1"></i> Completed ({{ item.I2_Company }})</span>
+                        {% else %}
+                            <span class="badge badge-soft-danger"><i class="bi bi-x-lg me-1"></i> Missing Requirement #2</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="/internships/new?student_id={{ item.Student_ID }}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-plus-lg me-1"></i> Record
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="10" class="text-center py-5 text-success">
+                        <i class="bi bi-patch-check-fill fs-1 d-block mb-2 text-success"></i>
+                        Congratulations! All active students have completed both mandatory academic internships!
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% else %}
+<!-- Tab 4: All Internships Overview -->
+<div class="table-card mb-4">
+    <div class="table-card-header">
+        <div>
+            <h5 class="fw-bold mb-0">All Student Internships</h5>
+            <small class="text-muted">Consolidated listing of mandatory degree and additional career internships</small>
+        </div>
+        <div class="d-flex gap-2">
+            <input type="text" class="form-control form-control-sm" placeholder="Quick search..." data-table-search="allTable">
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table custom-table" id="allTable">
+            <thead>
+                <tr>
+                    <th>Roll No</th>
+                    <th>Student Name</th>
+                    <th>Type</th>
+                    <th>Internship #</th>
+                    <th>Company Name</th>
+                    <th>Role Title</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Requirement</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in all_internships %}
+                <tr>
+                    <td><a href="/students/{{ item.Student_ID }}" class="code-font fw-semibold text-primary text-decoration-none">{{ item.Roll_No }}</a></td>
+                    <td>{{ item.First_Name }} {{ item.Last_Name }}</td>
+                    <td>
+                        {% if item.Internship_Type == 'Mandatory' %}
+                            <span class="badge badge-soft-primary">Mandatory</span>
+                        {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary">Additional</span>
+                        {% endif %}
+                    </td>
+                    <td>#{{ item.Internship_No }}</td>
+                    <td><strong>{{ item.Company_Name }}</strong></td>
+                    <td>{{ item.Role_Title }}</td>
+                    <td><small class="code-font text-muted">{{ item.Start_Date }}</small></td>
+                    <td><small class="code-font text-muted">{{ item.End_Date }}</small></td>
+                    <td>
+                        {% if item.Requirement_ID %}
+                            <span class="badge bg-info-subtle text-info border">Requirement #{{ item.Requirement_ID }}</span>
+                        {% else %}
+                            <span class="text-muted small">&mdash;</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <button type="button" class="btn btn-outline-danger btn-sm"
+                                data-bs-toggle="modal" 
+                                data-bs-target="#deleteConfirmModal"
+                                data-delete-url="/internships/{{ item.Internship_ID }}/delete"
+                                data-item-name="Internship #{{ item.Internship_No }} at {{ item.Company_Name }} for {{ item.First_Name }} {{ item.Last_Name }}"
+                                title="Delete Internship">
+                            <i class="bi bi-trash3"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="10" class="text-center py-4 text-muted">No internship records found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Academic Requirements Reference Card -->
+<div class="row g-3">
+    <div class="col-12 col-md-6">
+        <div class="p-3 bg-white rounded-3 border shadow-sm">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <span class="badge bg-primary">Requirement #1</span>
+                <h6 class="mb-0 fw-bold">First Mandatory Internship</h6>
+            </div>
+            <p class="small text-secondary mb-2">Undertaken in the summer vacation after the <strong>2nd Year</strong> (Semester 4). Requires verified academic performance in <strong>Semester 3 (Prerequisite SGPA)</strong>.</p>
+            <div class="small text-muted">
+                <span>Evaluation: <strong>Semester 5</strong></span> &bull; 
+                <span>Weightage: <strong>4 Academic Credits</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <div class="p-3 bg-white rounded-3 border shadow-sm">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <span class="badge bg-indigo text-white" style="background-color: var(--brand-indigo);">Requirement #2</span>
+                <h6 class="mb-0 fw-bold">Second Mandatory Internship</h6>
+            </div>
+            <p class="small text-secondary mb-2">Undertaken in the summer vacation after the <strong>3rd Year</strong> (Semester 6). Requires verified academic performance in <strong>Semester 5 (Prerequisite SGPA)</strong>.</p>
+            <div class="small text-muted">
+                <span>Evaluation: <strong>Semester 7</strong></span> &bull; 
+                <span>Weightage: <strong>4 Academic Credits</strong></span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Placement & Internship Portal{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">Executive Dashboard</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h2 class="h4 fw-bold mb-1">Placement & Academic Internship Dashboard</h2>
+        <p class="text-secondary small mb-0">Unified institutional overview of student careers, industry recruitment drives, and academic compliance.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="/reports" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-file-earmark-bar-graph me-1"></i> Generate Report
+        </a>
+        <a href="/students/new" class="btn btn-primary btn-sm">
+            <i class="bi bi-person-plus-fill me-1"></i> Register Student
+        </a>
+    </div>
+</div>
+
+<!-- KPI Metric Cards Grid -->
+<div class="row g-3 mb-4">
+    <!-- Total Students Card -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-header">
+                <div>
+                    <span class="stat-title">Active Students</span>
+                    <h3 class="stat-value mt-1">{{ stats.students.active }}</h3>
+                </div>
+                <div class="stat-icon icon-blue">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+            </div>
+            <div class="stat-subtext">
+                <span>Avg CGPA: <strong>{{ stats.students.avg_cgpa }}</strong> / 10.0</span>
+                <span class="ms-auto text-muted">{{ stats.students.total }} registered</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Placement Rate Card -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-header">
+                <div>
+                    <span class="stat-title">Placement Rate</span>
+                    <h3 class="stat-value mt-1">{{ stats.placements.placement_rate }}%</h3>
+                </div>
+                <div class="stat-icon icon-emerald">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+            </div>
+            <div class="progress mt-2" style="height: 6px;">
+                <div class="progress-bar bg-success" role="progressbar" style="width: {{ stats.placements.placement_rate }}%" aria-valuenow="{{ stats.placements.placement_rate }}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            <div class="stat-subtext mt-2">
+                <span><strong>{{ stats.placements.placed_students }}</strong> students placed</span>
+                <span class="ms-auto text-success fw-medium">{{ stats.placements.total_offers }} offers</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Average & Highest Package -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-header">
+                <div>
+                    <span class="stat-title">Average Package</span>
+                    <h3 class="stat-value mt-1">{{ stats.placements.avg_package }} <small class="fs-6 fw-normal text-muted">LPA</small></h3>
+                </div>
+                <div class="stat-icon icon-amber">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+            </div>
+            <div class="stat-subtext">
+                <span class="badge badge-soft-warning">Highest: {{ stats.placements.highest_package }} LPA</span>
+                <span class="ms-auto text-muted">Min: {{ stats.placements.lowest_package }} LPA</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Internships Summary -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-header">
+                <div>
+                    <span class="stat-title">Total Internships</span>
+                    <h3 class="stat-value mt-1">{{ stats.internships.total }}</h3>
+                </div>
+                <div class="stat-icon icon-teal">
+                    <i class="bi bi-briefcase-fill"></i>
+                </div>
+            </div>
+            <div class="stat-subtext">
+                <span>{{ stats.internships.mandatory }} Mandatory</span>
+                <span class="text-muted">&bull;</span>
+                <span>{{ stats.internships.additional }} Additional</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Secondary Banner: Institutional Highlights & Missing Mandatory Alert -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-8">
+        <div class="p-3 bg-white rounded-3 border d-flex flex-wrap align-items-center justify-content-between gap-3 shadow-sm">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon icon-indigo">
+                    <i class="bi bi-building"></i>
+                </div>
+                <div>
+                    <h6 class="mb-0 fw-bold">Industry Corporate Partnerships</h6>
+                    <small class="text-secondary">{{ stats.companies.total }} Companies registered ({{ stats.companies.tier1 }} Tier-1), {{ stats.companies.drives }} Active Drives & {{ stats.companies.opportunities }} Job Opportunities.</small>
+                </div>
+            </div>
+            <a href="/companies" class="btn btn-sm btn-outline-secondary">View Directory</a>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-4">
+        <div class="p-3 bg-white rounded-3 border d-flex align-items-center justify-content-between shadow-sm {% if stats.internships.missing_mandatory_count > 0 %}border-warning{% endif %}">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon {% if stats.internships.missing_mandatory_count > 0 %}icon-rose{% else %}icon-emerald{% endif %}">
+                    <i class="bi bi-shield-exclamation"></i>
+                </div>
+                <div>
+                    <h6 class="mb-0 fw-bold">Mandatory Internships</h6>
+                    <small class="text-secondary">
+                        {% if stats.internships.missing_mandatory_count > 0 %}
+                            <strong class="text-danger">{{ stats.internships.missing_mandatory_count }}</strong> students missing requirements
+                        {% else %}
+                            All active students compliant!
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+            <a href="/internships?type=Missing" class="btn btn-sm btn-outline-danger">Audit</a>
+        </div>
+    </div>
+</div>
+
+<!-- Year-wise & Branch-wise Charts Grid -->
+<div class="row g-3 mb-4">
+    <!-- Chart 1: Year-wise Placement Trends -->
+    <div class="col-12 col-lg-7">
+        <div class="chart-card h-100">
+            <div class="chart-header">
+                <div>
+                    <h5 class="chart-title">Year-wise Placement Trends & Package Growth</h5>
+                    <small class="text-muted">Volume of offers, accepted positions, and average CTC across academic batches</small>
+                </div>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Annual Batch Analysis</span>
+            </div>
+            <div class="chart-container" style="height: 300px;">
+                <canvas id="yearwisePlacementChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart 2: Branch-wise Distribution -->
+    <div class="col-12 col-lg-5">
+        <div class="chart-card h-100">
+            <div class="chart-header">
+                <div>
+                    <h5 class="chart-title">Branch-wise Performance</h5>
+                    <small class="text-muted">Students, placements, and internships by engineering discipline</small>
+                </div>
+            </div>
+            <div class="chart-container" style="height: 300px;">
+                <canvas id="branchwiseChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Secondary Charts: Offer Status & Internship Breakdown -->
+<div class="row g-3 mb-4">
+    <!-- Chart 3: Placement Offer Status Breakdown -->
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="chart-card h-100">
+            <div class="chart-header">
+                <div>
+                    <h5 class="chart-title">Placement Status Pipeline</h5>
+                    <small class="text-muted">Offered &bull; Accepted &bull; Joined &bull; Declined</small>
+                </div>
+            </div>
+            <div class="chart-container" style="height: 240px;">
+                <canvas id="offerStatusChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart 4: Internship Category Breakdown -->
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="chart-card h-100">
+            <div class="chart-header">
+                <div>
+                    <h5 class="chart-title">Academic Internship Distribution</h5>
+                    <small class="text-muted">Req #1 (Sem 3) &bull; Req #2 (Sem 5) &bull; Additional</small>
+                </div>
+            </div>
+            <div class="chart-container" style="height: 240px;">
+                <canvas id="internshipBreakdownChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions Card -->
+    <div class="col-12 col-lg-4">
+        <div class="chart-card h-100">
+            <div class="chart-header">
+                <div>
+                    <h5 class="chart-title">Direct Portal Shortcuts</h5>
+                    <small class="text-muted">Fast operational navigation</small>
+                </div>
+            </div>
+            <div class="d-flex flex-column gap-2 mt-2">
+                <a href="/placements" class="btn btn-light text-start d-flex justify-content-between align-items-center p-2 rounded-2 border">
+                    <span><i class="bi bi-award text-primary me-2"></i> Issue & Manage Placements</span>
+                    <i class="bi bi-chevron-right text-muted"></i>
+                </a>
+                <a href="/internships/new" class="btn btn-light text-start d-flex justify-content-between align-items-center p-2 rounded-2 border">
+                    <span><i class="bi bi-briefcase text-success me-2"></i> Record Student Internship</span>
+                    <i class="bi bi-chevron-right text-muted"></i>
+                </a>
+                <a href="/internships" class="btn btn-light text-start d-flex justify-content-between align-items-center p-2 rounded-2 border">
+                    <span><i class="bi bi-arrow-left-right text-indigo me-2"></i> Prerequisite SGPA Dynamic Join</span>
+                    <i class="bi bi-chevron-right text-muted"></i>
+                </a>
+                <a href="/companies/new" class="btn btn-light text-start d-flex justify-content-between align-items-center p-2 rounded-2 border">
+                    <span><i class="bi bi-building-add text-warning me-2"></i> Register New Company</span>
+                    <i class="bi bi-chevron-right text-muted"></i>
+                </a>
+                <a href="/reports" class="btn btn-light text-start d-flex justify-content-between align-items-center p-2 rounded-2 border">
+                    <span><i class="bi bi-file-earmark-spreadsheet text-danger me-2"></i> Multi-Filter Export & CSV</span>
+                    <i class="bi bi-chevron-right text-muted"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Placement Offers Table -->
+<div class="table-card mb-4">
+    <div class="table-card-header">
+        <div>
+            <h5 class="fw-bold mb-0">Recent Placement Offers</h5>
+            <small class="text-muted">Latest student offers issued by participating recruiting organizations</small>
+        </div>
+        <a href="/placements" class="btn btn-sm btn-outline-primary">View All Offers</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table custom-table">
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Roll No</th>
+                    <th>Branch</th>
+                    <th>Company</th>
+                    <th>Role</th>
+                    <th>Package (LPA)</th>
+                    <th>Offer Status</th>
+                    <th>Year</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for offer in recent_offers %}
+                <tr>
+                    <td>
+                        <a href="/students/{{ offer.Student_ID }}" class="fw-semibold text-decoration-none text-primary">
+                            {{ offer.First_Name }} {{ offer.Last_Name }}
+                        </a>
+                    </td>
+                    <td><span class="code-font">{{ offer.Roll_No }}</span></td>
+                    <td><span class="badge bg-light text-dark border">{{ offer.Branch }}</span></td>
+                    <td><strong>{{ offer.Company_Name }}</strong></td>
+                    <td>{{ offer.Role }}</td>
+                    <td><span class="fw-bold text-success">{{ offer.Package }} LPA</span></td>
+                    <td>
+                        <span class="badge {% if offer.Offer_Status in ['Accepted', 'Joined'] %}badge-soft-success{% elif offer.Offer_Status == 'Declined' %}badge-soft-danger{% else %}badge-soft-primary{% endif %}">
+                            {{ offer.Offer_Status }}
+                        </span>
+                    </td>
+                    <td>{{ offer.Placement_Year }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center py-4 text-muted">No placement offers recorded yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Embedded server-side JSON data directly injected into Chart.js
+    const yearData = {{ chart_yearwise | tojson }};
+    const branchData = {{ chart_branchwise | tojson }};
+    const statusData = {{ chart_status | tojson }};
+    const internData = {{ chart_internships | tojson }};
+
+    if (window.initDashboardCharts) {
+        window.initDashboardCharts(yearData, branchData, statusData, internData);
+    }
+});
+</script>
+{% endblock %}

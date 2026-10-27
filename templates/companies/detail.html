@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}{{ company.Company_Name }} | Company Profile{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Home</a></li>
+<li class="breadcrumb-item"><a href="/companies" class="text-decoration-none text-muted">Companies</a></li>
+<li class="breadcrumb-item active" aria-current="page">{{ company.Company_Name }}</li>
+{% endblock %}
+
+{% block content %}
+<!-- Company Header Card -->
+<div class="detail-header-card">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="avatar-badge" style="background: linear-gradient(135deg, var(--brand-indigo), var(--brand-blue));">
+                <i class="bi bi-building"></i>
+            </div>
+            <div>
+                <div class="d-flex align-items-center gap-2">
+                    <h2 class="h4 fw-bold mb-0">{{ company.Company_Name }}</h2>
+                    {% if company.Tier == 'Tier-1' %}
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Tier-1 Marquee</span>
+                    {% elif company.Tier == 'Tier-2' %}
+                        <span class="badge bg-info-subtle text-info border border-info-subtle">Tier-2 Core</span>
+                    {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary border">Tier-3 Services</span>
+                    {% endif %}
+                </div>
+                <div class="text-secondary small mt-1 d-flex flex-wrap align-items-center gap-3">
+                    <span><i class="bi bi-tag me-1"></i> {{ company.Industry or 'Technology' }}</span>
+                    <span>&bull;</span>
+                    <span><i class="bi bi-geo-alt me-1"></i> {{ company.Location or 'Global' }}</span>
+                    {% if company.Website %}
+                    <span>&bull;</span>
+                    <span><i class="bi bi-globe me-1"></i> <a href="{{ company.Website }}" target="_blank" class="text-decoration-none text-primary">{{ company.Website }}</a></span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <a href="/companies/{{ company.Company_ID }}/edit" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-pencil me-1"></i> Edit Company
+            </a>
+            <button type="button" class="btn btn-outline-danger btn-sm"
+                    data-bs-toggle="modal" 
+                    data-bs-target="#deleteConfirmModal"
+                    data-delete-url="/companies/{{ company.Company_ID }}/delete"
+                    data-item-name="{{ company.Company_Name }}"
+                    data-warning="Integrity Check: If this company has existing drives or placement offers, deletion will be blocked.">
+                <i class="bi bi-trash3 me-1"></i> Delete
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row g-2 mt-3 pt-3 border-top">
+        <div class="col-6 col-sm-3">
+            <small class="text-muted d-block">Recruitment Drives</small>
+            <span class="h5 fw-bold text-primary">{{ drives|length }} <small class="fs-6 text-muted">Drives</small></span>
+        </div>
+        <div class="col-6 col-sm-3">
+            <small class="text-muted d-block">Total Offers Issued</small>
+            <span class="h5 fw-bold text-success">{{ placements|length }} <small class="fs-6 text-muted">Offers</small></span>
+        </div>
+        <div class="col-6 col-sm-3">
+            <small class="text-muted d-block">HR Email</small>
+            <span class="small code-font text-dark">{{ company.HR_Email or 'Not listed' }}</span>
+        </div>
+        <div class="col-6 col-sm-3">
+            <small class="text-muted d-block">HR Phone</small>
+            <span class="small code-font text-dark">{{ company.HR_Phone or 'Not listed' }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Left Column: Drives, Opportunities & Selection Rounds -->
+    <div class="col-12 col-lg-7">
+        <div class="table-card mb-4">
+            <div class="table-card-header">
+                <div>
+                    <h5 class="fw-bold mb-0">Campus Recruitment Drives & Job Roles</h5>
+                    <small class="text-muted">Foreign-Key Chain: Company &rarr; Drive &rarr; Opportunity &rarr; Round</small>
+                </div>
+            </div>
+            <div class="p-3">
+                {% if drives %}
+                    {% for d in drives %}
+                    <div class="border rounded-3 p-3 mb-3 bg-white shadow-sm">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <h6 class="fw-bold text-primary mb-0">
+                                    <i class="bi bi-calendar2-check me-2"></i>{{ d.Drive_Name }}
+                                </h6>
+                                <small class="text-muted">Academic Year: {{ d.Academic_Year }} &bull; Date: {{ d.Drive_Date or 'Scheduled' }}</small>
+                            </div>
+                            <span class="badge {% if d.Drive_Status == 'Completed' %}badge-soft-success{% elif d.Drive_Status == 'In-Progress' %}badge-soft-warning{% else %}badge-soft-primary{% endif %}">
+                                {{ d.Drive_Status or 'Planned' }}
+                            </span>
+                        </div>
+
+                        <!-- Opportunities within this drive -->
+                        <div class="mt-3">
+                            <h6 class="small text-uppercase text-secondary fw-semibold mb-2">Open Job Profiles (OPPORTUNITY)</h6>
+                            {% set opps = drive_opportunities.get(d.Drive_ID, []) %}
+                            {% if opps %}
+                                <div class="list-group list-group-flush">
+                                    {% for opp in opps %}
+                                    <div class="list-group-item px-0 py-2">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <strong class="text-dark">{{ opp.Role_Title }}</strong>
+                                                <span class="badge bg-light text-dark border ms-1">{{ opp.Opportunity_Type or opp.Job_Type }}</span>
+                                                <div class="small text-muted mt-1">
+                                                    Package / Stipend: <strong class="text-success">{{ opp.Package_Stipend or opp.Package }} LPA</strong> &bull;
+                                                    Duration: <strong>{{ opp.Duration_Months or 6 }} Months</strong>
+                                                </div>
+                                                <div class="small mt-1">
+                                                    <span class="text-muted">Eligible:</span>
+                                                    {% if opp.Eligible_Branches %}
+                                                        {% if opp.Eligible_Branches is string %}
+                                                            {% for b in opp.Eligible_Branches.split(',') %}
+                                                                <span class="badge bg-secondary-subtle text-secondary me-1">{{ b.strip() }}</span>
+                                                            {% endfor %}
+                                                        {% else %}
+                                                            {% for b in opp.Eligible_Branches %}
+                                                                <span class="badge bg-secondary-subtle text-secondary me-1">{{ b }}</span>
+                                                            {% endfor %}
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <span class="text-muted small">All Branches</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                                {{ opp.Rounds_Count or 0 }} Rounds
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted small mb-0">No specific job opportunities registered under this drive.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center py-4 mb-0">No recruitment drives scheduled for this company yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Recruited Students / Offers Issued -->
+    <div class="col-12 col-lg-5">
+        <div class="table-card mb-4">
+            <div class="table-card-header">
+                <div>
+                    <h5 class="fw-bold mb-0">Recruited Students & Offers</h5>
+                    <small class="text-muted">Candidates with active offers from {{ company.Company_Name }}</small>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table custom-table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Role & Package</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in placements %}
+                        <tr>
+                            <td>
+                                <a href="/students/{{ p.Student_ID }}" class="text-decoration-none text-primary fw-semibold">
+                                    {{ p.First_Name }} {{ p.Last_Name }}
+                                </a><br>
+                                <small class="code-font text-muted">{{ p.Roll_No }} ({{ p.Branch }})</small>
+                            </td>
+                            <td>
+                                <div class="fw-medium">{{ p.Role }}</div>
+                                <span class="fw-bold text-success">{{ p.Package }} LPA</span>
+                            </td>
+                            <td>
+                                <span class="badge {% if p.Offer_Status in ['Accepted', 'Joined'] %}badge-soft-success{% elif p.Offer_Status == 'Declined' %}badge-soft-danger{% else %}badge-soft-primary{% endif %}">
+                                    {{ p.Offer_Status }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center py-4 text-muted">No student offers recorded for this company yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

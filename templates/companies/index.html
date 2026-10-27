@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Corporate Directory | Placement Portal{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Home</a></li>
+<li class="breadcrumb-item active" aria-current="page">Companies</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h2 class="h4 fw-bold mb-1">Corporate Recruiting Partners</h2>
+        <p class="text-secondary small mb-0">Browse participating recruiting organizations, tier rankings, and active campus drives.</p>
+    </div>
+    <div>
+        <a href="/companies/new" class="btn btn-primary btn-sm">
+            <i class="bi bi-building-add me-1"></i> Register Company
+        </a>
+    </div>
+</div>
+
+<!-- Search & Filter Card -->
+<div class="table-card mb-4">
+    <div class="table-filter-bar">
+        <form method="GET" action="/companies" class="row g-2 align-items-end">
+            <div class="col-12 col-md-5">
+                <label class="form-label small fw-semibold">Search Organizations</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                    <input type="text" name="search" class="form-control" placeholder="Search by name, industry, location..." value="{{ search_query or '' }}">
+                </div>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <label class="form-label small fw-semibold">Company Tier</label>
+                <select name="tier" class="form-select form-select-sm">
+                    <option value="">All Tiers</option>
+                    <option value="Tier-1" {% if selected_tier == 'Tier-1' %}selected{% endif %}>Tier-1 (Dream & Marquee)</option>
+                    <option value="Tier-2" {% if selected_tier == 'Tier-2' %}selected{% endif %}>Tier-2 (Core & Product)</option>
+                    <option value="Tier-3" {% if selected_tier == 'Tier-3' %}selected{% endif %}>Tier-3 (Mass & Services)</option>
+                </select>
+            </div>
+
+            <div class="col-6 col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100">
+                    <i class="bi bi-funnel-fill me-1"></i> Filter
+                </button>
+                <a href="/companies" class="btn btn-outline-secondary btn-sm" title="Clear Filters">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Companies Table -->
+    <div class="table-responsive">
+        <table class="table custom-table" id="companiesTable">
+            <thead>
+                <tr>
+                    <th>Company Name</th>
+                    <th>Industry Sector</th>
+                    <th>Headquarters / Location</th>
+                    <th>Tier Category</th>
+                    <th>HR Contact Email</th>
+                    <th>Active Drives</th>
+                    <th>Job Opportunities</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in companies %}
+                <tr>
+                    <td>
+                        <a href="/companies/{{ c.Company_ID }}" class="fw-bold text-decoration-none text-primary">
+                            {{ c.Company_Name }}
+                        </a>
+                        {% if c.Website %}
+                            <a href="{{ c.Website }}" target="_blank" class="text-muted ms-1 small" title="Visit Website">
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </a>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge bg-light text-dark border">{{ c.Industry or 'Technology' }}</span></td>
+                    <td>{{ c.Location or 'Global' }}</td>
+                    <td>
+                        {% if c.Tier == 'Tier-1' %}
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Tier-1 Marquee</span>
+                        {% elif c.Tier == 'Tier-2' %}
+                            <span class="badge bg-info-subtle text-info border border-info-subtle">Tier-2 Core</span>
+                        {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary border">Tier-3 Services</span>
+                        {% endif %}
+                    </td>
+                    <td><small class="text-muted code-font">{{ c.HR_Email or 'hr@company.com' }}</small></td>
+                    <td>
+                        <span class="badge bg-light text-dark border">
+                            <i class="bi bi-calendar-event me-1 text-primary"></i> {{ c.Drive_Count or 0 }} Drives
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-dark border">
+                            <i class="bi bi-briefcase me-1 text-teal"></i> {{ c.Opportunity_Count or 0 }} Openings
+                        </span>
+                    </td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm">
+                            <a href="/companies/{{ c.Company_ID }}" class="btn btn-outline-secondary" title="View Detail">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="/companies/{{ c.Company_ID }}/edit" class="btn btn-outline-primary" title="Edit Company">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button type="button" class="btn btn-outline-danger" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#deleteConfirmModal"
+                                    data-delete-url="/companies/{{ c.Company_ID }}/delete"
+                                    data-item-name="{{ c.Company_Name }}"
+                                    data-warning="Integrity Policy: If this company has recruitment drives, opportunities, or placement offers recorded, deletion will be blocked."
+                                    title="Delete Company">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center py-5 text-muted">
+                        <i class="bi bi-building-x fs-1 d-block mb-2 text-secondary"></i>
+                        No companies found matching your search.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="p-3 bg-light border-top d-flex justify-content-between align-items-center small text-muted">
+        <span>Showing <strong>{{ companies|length }}</strong> organizations</span>
+        <span>Corporate Relations Cell</span>
+    </div>
+</div>
+{% endblock %}

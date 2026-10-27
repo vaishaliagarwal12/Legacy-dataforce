@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Institutional Reports & Compliance Audits | Placement Portal{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Home</a></li>
+<li class="breadcrumb-item active" aria-current="page">Reports & Audits</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h2 class="h4 fw-bold mb-1">Accreditation & Placement Analytics Reports</h2>
+        <p class="text-secondary small mb-0">Multi-dimensional institutional reporting across engineering branches, placement compensation, and mandatory internship compliance.</p>
+    </div>
+    <div class="d-flex gap-2 no-print">
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+            <i class="bi bi-printer me-1"></i> Print Report
+        </button>
+        <a href="/reports/export?{{ current_query_string }}" class="btn btn-success btn-sm">
+            <i class="bi bi-file-earmark-excel me-1"></i> Export to CSV
+        </a>
+    </div>
+</div>
+
+<!-- Multi-Filter Control Form -->
+<div class="table-card mb-4 no-print">
+    <div class="p-3 bg-light border-bottom">
+        <h6 class="fw-bold mb-0 text-dark">
+            <i class="bi bi-sliders me-2 text-primary"></i> Report Filter Criteria
+        </h6>
+    </div>
+    <div class="p-3">
+        <form method="GET" action="/reports" class="row g-3">
+            <!-- Branch Filter -->
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label small fw-semibold">Engineering Department</label>
+                <select name="branch" class="form-select form-select-sm">
+                    <option value="">All Departments</option>
+                    {% for b in ['Computer Science', 'Electronics & Comm', 'Mechanical', 'Information Tech', 'Civil', 'Electrical'] %}
+                        <option value="{{ b }}" {% if filters.branch == b %}selected{% endif %}>{{ b }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Placement Status Filter -->
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label small fw-semibold">Placement Outcome</label>
+                <select name="placement_status" class="form-select form-select-sm">
+                    <option value="">All Students</option>
+                    <option value="Placed" {% if filters.placement_status == 'Placed' %}selected{% endif %}>Placed Candidates</option>
+                    <option value="Unplaced" {% if filters.placement_status == 'Unplaced' %}selected{% endif %}>Unplaced Candidates</option>
+                    <option value="Multiple" {% if filters.placement_status == 'Multiple' %}selected{% endif %}>Multiple Offers (&ge; 2)</option>
+                </select>
+            </div>
+
+            <!-- Internship Compliance Filter -->
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label small fw-semibold">Internship Policy Compliance</label>
+                <select name="internship_status" class="form-select form-select-sm">
+                    <option value="">All Internship Statuses</option>
+                    <option value="Complete" {% if filters.internship_status == 'Complete' %}selected{% endif %}>Both Mandatory Completed</option>
+                    <option value="Missing_Any" {% if filters.internship_status == 'Missing_Any' %}selected{% endif %}>Missing Any Mandatory (#1 or #2)</option>
+                    <option value="Missing_1" {% if filters.internship_status == 'Missing_1' %}selected{% endif %}>Missing Internship #1 (Sem 3 SGPA)</option>
+                    <option value="Missing_2" {% if filters.internship_status == 'Missing_2' %}selected{% endif %}>Missing Internship #2 (Sem 5 SGPA)</option>
+                    <option value="Has_Additional" {% if filters.internship_status == 'Has_Additional' %}selected{% endif %}>Has Additional Internships</option>
+                </select>
+            </div>
+
+            <!-- Min CGPA -->
+            <div class="col-6 col-sm-3 col-md-1">
+                <label class="form-label small fw-semibold">Min CGPA</label>
+                <input type="number" step="0.1" name="min_cgpa" class="form-control form-control-sm" placeholder="7.0" value="{{ filters.min_cgpa or '' }}" min="0" max="10">
+            </div>
+
+            <!-- Min CTC -->
+            <div class="col-6 col-sm-3 col-md-2">
+                <label class="form-label small fw-semibold">Min Package (LPA)</label>
+                <input type="number" step="0.5" name="min_salary" class="form-control form-control-sm" placeholder="8.0" value="{{ filters.min_salary or '' }}" min="0">
+            </div>
+
+            <div class="col-12 d-flex justify-content-end gap-2 pt-2 border-top">
+                <a href="/reports" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filters
+                </a>
+                <button type="submit" class="btn btn-primary btn-sm px-4">
+                    <i class="bi bi-funnel-fill me-1"></i> Generate Filtered Report
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Aggregate Summary Banner -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <span class="stat-title">Matching Students</span>
+            <h3 class="stat-value mt-1">{{ summary.total_students }}</h3>
+            <span class="small text-muted">Evaluated under filters</span>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <span class="stat-title">Placed Candidates</span>
+            <h3 class="stat-value mt-1 text-success">{{ summary.placed_students }}</h3>
+            <span class="small text-muted">{{ summary.placement_rate }}% Placement Rate</span>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <span class="stat-title">Average Compensation</span>
+            <h3 class="stat-value mt-1 text-primary">{{ summary.avg_package }} <small class="fs-6 fw-normal text-muted">LPA</small></h3>
+            <span class="small text-muted">Placed subset average</span>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <span class="stat-title">Highest Compensation</span>
+            <h3 class="stat-value mt-1 text-amber">{{ summary.max_package }} <small class="fs-6 fw-normal text-muted">LPA</small></h3>
+            <span class="small text-muted">Top recorded offer</span>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Report Table -->
+<div class="table-card mb-4">
+    <div class="table-card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="fw-bold mb-0">Detailed Student Cohort Report</h5>
+            <small class="text-muted">Generated from live database query</small>
+        </div>
+        <div class="no-print">
+            <input type="text" class="form-control form-control-sm" placeholder="Search table..." data-table-search="reportTable">
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table custom-table" id="reportTable">
+            <thead>
+                <tr>
+                    <th>Roll No</th>
+                    <th>Student Name</th>
+                    <th>Department</th>
+                    <th>Sem</th>
+                    <th>CGPA</th>
+                    <th>Offers</th>
+                    <th>Accepted Organization</th>
+                    <th>Package (LPA)</th>
+                    <th>Mandatory #1 (Sem 3)</th>
+                    <th>Mandatory #2 (Sem 5)</th>
+                    <th>Additional</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td>
+                        <a href="/students/{{ r.Student_ID }}" class="code-font fw-bold text-decoration-none text-primary">
+                            {{ r.Roll_No }}
+                        </a>
+                    </td>
+                    <td>{{ r.Full_Name }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ r.Branch }}</span></td>
+                    <td>Sem {{ r.Current_Semester }}</td>
+                    <td><strong>{{ "%.2f"|format(r.CGPA) }}</strong></td>
+                    <td>
+                        <span class="badge {% if r.Total_Offers >= 2 %}badge-soft-primary{% elif r.Total_Offers == 1 %}bg-light text-dark border{% else %}text-muted{% endif %}">
+                            {{ r.Total_Offers }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if r.Placed_Company %}
+                            <strong class="text-dark">{{ r.Placed_Company }}</strong>
+                        {% else %}
+                            <span class="text-muted small">Unplaced</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.Placed_Package %}
+                            <span class="fw-bold text-success">{{ r.Placed_Package }} LPA</span>
+                        {% else %}
+                            <span class="text-muted">&mdash;</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.Has_Mandatory_1 > 0 %}
+                            <span class="badge badge-soft-success"><i class="bi bi-check-lg"></i> Done</span>
+                        {% else %}
+                            <span class="badge badge-soft-danger"><i class="bi bi-x-lg"></i> Missing</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.Has_Mandatory_2 > 0 %}
+                            <span class="badge badge-soft-success"><i class="bi bi-check-lg"></i> Done</span>
+                        {% else %}
+                            <span class="badge badge-soft-danger"><i class="bi bi-x-lg"></i> Missing</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.Additional_Internship_Count > 0 %}
+                            <span class="badge bg-secondary-subtle text-secondary">{{ r.Additional_Internship_Count }} Done</span>
+                        {% else %}
+                            <span class="text-muted small">0</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="11" class="text-center py-5 text-muted">
+                        No students matched the selected filter combination.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="p-3 bg-light border-top d-flex justify-content-between align-items-center small text-muted">
+        <span>Report Snapshot Date: 2026-10-26 &bull; Total Filtered Records: <strong>{{ rows|length }}</strong></span>
+        <span>Institutional Accreditation & Compliance Division</span>
+    </div>
+</div>
+{% endblock %}

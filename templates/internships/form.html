@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Record Student Internship | Placement Portal{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Home</a></li>
+<li class="breadcrumb-item"><a href="/internships" class="text-decoration-none text-muted">Internships</a></li>
+<li class="breadcrumb-item active" aria-current="page">Record Internship</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+        <div class="form-card">
+            <div class="d-flex align-items-center justify-content-between mb-4 border-bottom pb-3">
+                <div>
+                    <h3 class="h5 fw-bold mb-1">Record Student Internship</h3>
+                    <p class="text-muted small mb-0">Enforce academic policy rules: Mandatory internships link to Requirement 1 or 2; Additional internships must have none.</p>
+                </div>
+                <a href="/internships" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Internships
+                </a>
+            </div>
+
+            <form method="POST" action="/internships/new" class="needs-validation" novalidate>
+                <div class="row g-3">
+                    <!-- Student Selection -->
+                    <div class="col-12">
+                        <label class="form-label" for="Student_ID">Select Student <span class="text-danger">*</span></label>
+                        <select class="form-select" id="Student_ID" name="Student_ID" required>
+                            <option value="">Choose student from registry...</option>
+                            {% for s in students %}
+                                <option value="{{ s.Student_ID }}" {% if preselected_student_id and preselected_student_id|int == s.Student_ID %}selected{% endif %}>
+                                    {{ s.Roll_No }} &bull; {{ s.First_Name }} {{ s.Last_Name }} ({{ s.Branch }} - Sem {{ s.Current_Semester }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="invalid-feedback">Please select a student.</div>
+                    </div>
+
+                    <!-- Internship Type (Mandatory vs Additional) -->
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="internship_type_select">Internship Category <span class="text-danger">*</span></label>
+                        <select class="form-select" id="internship_type_select" name="Internship_Type" required>
+                            <option value="Mandatory" selected>Mandatory (Degree Requirement)</option>
+                            <option value="Additional">Additional (Extracurricular / Voluntary)</option>
+                        </select>
+                        <small class="text-muted d-block mt-1">
+                            Mandatory requires linking to Requirement 1 or 2; Additional is unlinked.
+                        </small>
+                    </div>
+
+                    <!-- Academic Requirement (Dynamic depending on Mandatory) -->
+                    <div class="col-12 col-md-6" id="requirement_group">
+                        <label class="form-label" for="requirement_id_select">Academic Degree Requirement <span class="text-danger">*</span></label>
+                        <select class="form-select" id="requirement_id_select" name="Requirement_ID">
+                            {% for r in requirements %}
+                                <option value="{{ r.Requirement_ID }}" data-req-no="{{ r.Internship_No }}">
+                                    Requirement #{{ r.Requirement_ID }}: {{ r.Prescribed_Period }} (Sem {{ r.Required_Result_Semester }} SGPA, 4 Cr)
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="invalid-feedback">Please select the applicable academic degree requirement.</div>
+                    </div>
+
+                    <!-- Internship Sequence Number -->
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="internship_no_input">Internship Sequence No <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="internship_no_input" name="Internship_No" 
+                               value="1" min="1" max="10" required>
+                        <small class="text-muted">1 for Req 1, 2 for Req 2, 3+ for Additional.</small>
+                    </div>
+
+                    <!-- Company Selector -->
+                    <div class="col-12 col-md-8">
+                        <label class="form-label" for="Company_ID">Host Organization / Company <span class="text-danger">*</span></label>
+                        <select class="form-select" id="Company_ID" name="Company_ID" required>
+                            <option value="">Choose host company...</option>
+                            {% for c in companies %}
+                                <option value="{{ c.Company_ID }}">{{ c.Company_Name }} ({{ c.Industry or 'Tech' }})</option>
+                            {% endfor %}
+                        </select>
+                        <div class="invalid-feedback">Company is required.</div>
+                    </div>
+
+                    <!-- Role Title -->
+                    <div class="col-12">
+                        <label class="form-label" for="Role">Internship Role / Project Domain <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="Role" name="Role" 
+                               placeholder="e.g. Software Engineering Intern - Cloud & Networks" required>
+                        <div class="invalid-feedback">Role title or domain is required.</div>
+                    </div>
+
+                    <!-- Start Date -->
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="Start_Date">Internship Start Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="Start_Date" name="Start_Date" required>
+                        <div class="invalid-feedback">Please specify the start date.</div>
+                    </div>
+
+                    <!-- End Date -->
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="End_Date">Internship Completion Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="End_Date" name="End_Date" required>
+                        <div class="invalid-feedback">Completion date must be greater than or equal to start date.</div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                    <a href="/internships" class="btn btn-light btn-sm">Cancel</a>
+                    <button type="submit" class="btn btn-primary btn-sm px-4">
+                        <i class="bi bi-check2-circle me-1"></i> Save Internship Record
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
