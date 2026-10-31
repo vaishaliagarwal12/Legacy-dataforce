@@ -3,19 +3,18 @@
 {% block title %}{{ 'Edit Company' if mode == 'edit' else 'Register Corporate Partner' }} | Placement Portal{% endblock %}
 
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Home</a></li>
 <li class="breadcrumb-item"><a href="/companies" class="text-decoration-none text-muted">Companies</a></li>
 <li class="breadcrumb-item active" aria-current="page">{{ 'Edit Company' if mode == 'edit' else 'New Partner' }}</li>
 {% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-12 col-lg-8">
+    <div class="col-12 col-xl-9">
         <div class="form-card">
-            <div class="d-flex align-items-center justify-content-between mb-4 border-bottom pb-3">
+            <div class="d-flex align-items-center justify-content-between mb-4 pb-3 border-bottom">
                 <div>
-                    <h3 class="h5 fw-bold mb-1">{{ 'Update Company Details' if mode == 'edit' else 'Register Corporate Recruiting Partner' }}</h3>
-                    <p class="text-muted small mb-0">Record company credentials, industry sector, and designated HR contact details.</p>
+                    <h1 class="h5 fw-bold mb-1">{{ 'Update Company Details' if mode == 'edit' else 'Register Corporate Recruiting Partner' }}</h1>
+                    <p class="text-secondary small mb-0">Record company credentials, industry classification, and designated HR contact details.</p>
                 </div>
                 <a href="/companies" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-arrow-left me-1"></i> Back to Directory
@@ -23,71 +22,98 @@
             </div>
 
             <form method="POST" action="{{ '/companies/' ~ company.Company_ID ~ '/edit' if mode == 'edit' else '/companies/new' }}" class="needs-validation" novalidate>
-                <div class="row g-3">
-                    <!-- Company Name -->
-                    <div class="col-12 col-md-8">
-                        <label class="form-label" for="Company_Name">Company / Organization Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="Company_Name" name="Company_Name" 
-                               value="{{ company.Company_Name if company else '' }}" 
-                               required placeholder="e.g. Microsoft India">
-                        <div class="invalid-feedback">Company name is required.</div>
+                <!-- Group 1: Corporate Profile -->
+                <div class="form-section">
+                    <div class="form-section-header">
+                        <h2 class="form-section-title"><i class="bi bi-building text-primary"></i> Organization Profile & Industry</h2>
+                        <p class="form-section-subtitle">Basic identity, corporate tier classification, and primary office location.</p>
                     </div>
 
-                    <!-- Tier -->
-                    <div class="col-12 col-md-4">
-                        <label class="form-label" for="Tier">Company Tier <span class="text-danger">*</span></label>
-                        <select class="form-select" id="Tier" name="Tier" required>
-                            <option value="Tier-1" {% if company and company.Tier == 'Tier-1' %}selected{% endif %}>Tier-1 (Dream & Marquee)</option>
-                            <option value="Tier-2" {% if company and company.Tier == 'Tier-2' %}selected{% endif %}>Tier-2 (Core & Product)</option>
-                            <option value="Tier-3" {% if not company or company.Tier == 'Tier-3' %}selected{% endif %}>Tier-3 (Mass & Services)</option>
-                        </select>
-                        <div class="invalid-feedback">Please select a corporate tier.</div>
-                    </div>
+                    <div class="row g-3">
+                        <!-- Company Name -->
+                        <div class="col-12 col-md-8">
+                            <label class="form-label" for="Company_Name">Organization Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="Company_Name" name="Company_Name" 
+                                   value="{{ company.Company_Name if company else '' }}" 
+                                   required placeholder="e.g. Microsoft India">
+                            <div class="invalid-feedback">Company name is required.</div>
+                        </div>
 
-                    <!-- Industry -->
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="Industry">Industry / Vertical <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="Industry" name="Industry" 
-                               value="{{ company.Industry if company else '' }}" 
-                               required placeholder="e.g. Enterprise Software & Cloud">
-                        <div class="invalid-feedback">Industry sector is required.</div>
-                    </div>
+                        <!-- Tier -->
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="Tier">Corporate Tier <span class="text-danger">*</span></label>
+                            <select class="form-select" id="Tier" name="Tier" required>
+                                <option value="Tier-1" {% if company and company.Tier == 'Tier-1' %}selected{% endif %}>Tier-1 (Dream & Marquee)</option>
+                                <option value="Tier-2" {% if company and company.Tier == 'Tier-2' %}selected{% endif %}>Tier-2 (Core & Product)</option>
+                                <option value="Tier-3" {% if not company or company.Tier == 'Tier-3' %}selected{% endif %}>Tier-3 (Mass & Services)</option>
+                            </select>
+                            <div class="invalid-feedback">Please select a corporate tier.</div>
+                        </div>
 
-                    <!-- Location -->
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="Location">Headquarters / Campus Location</label>
-                        <input type="text" class="form-control" id="Location" name="Location" 
-                               value="{{ company.Location if company else '' }}" 
-                               placeholder="e.g. Bengaluru / Hyderabad">
-                    </div>
+                        <!-- Industry -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="Industry">Industry Sector <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="Industry" name="Industry" 
+                                   value="{{ company.Industry if company else '' }}" 
+                                   required placeholder="e.g. Cloud Computing & AI">
+                            <div class="invalid-feedback">Industry sector cannot be empty.</div>
+                        </div>
 
-                    <!-- Website -->
-                    <div class="col-12">
-                        <label class="form-label" for="Website">Official Website URL</label>
-                        <input type="url" class="form-control" id="Website" name="Website" 
-                               value="{{ company.Website if company else '' }}" 
-                               placeholder="https://www.example.com">
-                    </div>
+                        <!-- Location -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="Location">Headquarters / Campus Location</label>
+                            <input type="text" class="form-control" id="Location" name="Location" 
+                                   value="{{ company.Location if company else '' }}" 
+                                   placeholder="e.g. Bengaluru / Hyderabad">
+                        </div>
 
-                    <!-- HR Contact Email -->
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="HR_Email">Primary HR / Recruiter Email</label>
-                        <input type="email" class="form-control" id="HR_Email" name="HR_Email" 
-                               value="{{ company.HR_Email if company else '' }}" 
-                               placeholder="campus.recruitment@example.com">
-                    </div>
-
-                    <!-- HR Contact Phone -->
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="HR_Phone">HR Contact Phone</label>
-                        <input type="tel" class="form-control" id="HR_Phone" name="HR_Phone" 
-                               value="{{ company.HR_Phone if company else '' }}" 
-                               placeholder="+91 9876543210">
+                        <!-- Website -->
+                        <div class="col-12">
+                            <label class="form-label" for="Website">Official Website URL</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="bi bi-globe"></i></span>
+                                <input type="url" class="form-control" id="Website" name="Website" 
+                                       value="{{ company.Website if company else '' }}" 
+                                       placeholder="https://www.example.com">
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
-                    <a href="/companies" class="btn btn-light btn-sm">Cancel</a>
+                <!-- Group 2: HR & Campus Relations Contact -->
+                <div class="form-section">
+                    <div class="form-section-header">
+                        <h2 class="form-section-title"><i class="bi bi-person-lines-fill text-primary"></i> HR & Campus Recruitment Contact</h2>
+                        <p class="form-section-subtitle">Designated recruiters for coordination of campus drives and offer releases.</p>
+                    </div>
+
+                    <div class="row g-3">
+                        <!-- HR Contact Email -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="HR_Email">HR / Recruiter Email</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="bi bi-envelope"></i></span>
+                                <input type="email" class="form-control" id="HR_Email" name="HR_Email" 
+                                       value="{{ company.HR_Email if company else '' }}" 
+                                       placeholder="campus.recruitment@example.com">
+                            </div>
+                        </div>
+
+                        <!-- HR Contact Phone -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="HR_Phone">HR Contact Phone</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="bi bi-telephone"></i></span>
+                                <input type="tel" class="form-control" id="HR_Phone" name="HR_Phone" 
+                                       value="{{ company.HR_Phone if company else '' }}" 
+                                       placeholder="+91 9876543210">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                    <a href="/companies" class="btn btn-outline-secondary btn-sm px-3">Cancel</a>
                     <button type="submit" class="btn btn-primary btn-sm px-4">
                         <i class="bi bi-check2-circle me-1"></i> {{ 'Save Changes' if mode == 'edit' else 'Register Company' }}
                     </button>

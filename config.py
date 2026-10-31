@@ -26,6 +26,10 @@ class Config:
     MYSQL_CHARSET = os.getenv("MYSQL_CHARSET", "utf8mb4")
     MYSQL_CONNECT_TIMEOUT = int(os.getenv("MYSQL_CONNECT_TIMEOUT", 5))
 
+    # Dedicated Read-Only User for Custom SQL Execution
+    MYSQL_READONLY_USER = os.getenv("MYSQL_READONLY_USER", "placement_readonly")
+    MYSQL_READONLY_PASSWORD = os.getenv("MYSQL_READONLY_PASSWORD", "ReadOnly_Pass2026!")
+
     @classmethod
     def get_db_config(cls) -> dict:
         """Returns database connection parameters as a dictionary for PyMySQL."""
@@ -34,6 +38,20 @@ class Config:
             "port": cls.MYSQL_PORT,
             "user": cls.MYSQL_USER,
             "password": cls.MYSQL_PASSWORD,
+            "database": cls.MYSQL_DB,
+            "charset": cls.MYSQL_CHARSET,
+            "connect_timeout": cls.MYSQL_CONNECT_TIMEOUT,
+            "autocommit": False,
+        }
+
+    @classmethod
+    def get_readonly_db_config(cls) -> dict:
+        """Returns database connection parameters for dedicated read-only execution."""
+        return {
+            "host": cls.MYSQL_HOST,
+            "port": cls.MYSQL_PORT,
+            "user": cls.MYSQL_READONLY_USER,
+            "password": cls.MYSQL_READONLY_PASSWORD,
             "database": cls.MYSQL_DB,
             "charset": cls.MYSQL_CHARSET,
             "connect_timeout": cls.MYSQL_CONNECT_TIMEOUT,

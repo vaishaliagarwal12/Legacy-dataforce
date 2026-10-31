@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Dashboard | Placement & Internship Portal{% endblock %}</title>
+    <title>{% block title %}Campus Placement & Internship Portal{% endblock %}</title>
 
     <!-- Google Fonts: Inter & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,24 +14,29 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-    <!-- Custom Theme Stylesheet -->
+    <!-- Clean Light Custom Theme Stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
     <div class="app-wrapper">
-        <!-- Responsive Sidebar -->
+        <!-- Light Theme Sidebar (Collapses on Mobile) -->
         <aside class="app-sidebar" id="appSidebar">
-            <a href="/" class="sidebar-brand">
-                <span class="brand-icon">🎓</span>
-                <span class="brand-text">Legacy DataForce</span>
-            </a>
+            <div class="d-flex align-items-center justify-content-between border-bottom">
+                <a href="/" class="sidebar-brand border-0 flex-grow-1">
+                    <span class="brand-icon"><i class="bi bi-mortarboard-fill"></i></span>
+                    <span class="brand-text">Legacy DataForce</span>
+                </a>
+                <button type="button" class="btn btn-sm btn-light d-lg-none me-3" id="sidebarCloseBtn" aria-label="Close Sidebar" onclick="document.getElementById('appSidebar').classList.remove('show'); document.getElementById('sidebarBackdrop').classList.remove('show');">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
 
             <ul class="sidebar-menu">
                 <li class="menu-category">Main Navigation</li>
                 <li class="menu-item">
                     <a href="/" class="menu-link {% if active_page == 'dashboard' %}active{% endif %}">
-                        <i class="bi bi-grid-1x2-fill"></i>
+                        <i class="bi bi-grid-fill"></i>
                         <span>Dashboard</span>
                     </a>
                 </li>
@@ -62,15 +67,21 @@
                     </a>
                 </li>
 
-                <li class="menu-category">Audits & Insights</li>
+                <li class="menu-category">Audits & Reports</li>
                 <li class="menu-item">
                     <a href="/reports" class="menu-link {% if active_page == 'reports' %}active{% endif %}">
-                        <i class="bi bi-file-earmark-bar-graph-fill"></i>
+                        <i class="bi bi-file-earmark-bar-graph"></i>
                         <span>Reports & Filters</span>
                     </a>
                 </li>
+                <li class="menu-item">
+                    <a href="/sql-reports" class="menu-link {% if active_page == 'sql_reports' %}active{% endif %}">
+                        <i class="bi bi-terminal"></i>
+                        <span>SQL Reports</span>
+                    </a>
+                </li>
 
-                <li class="menu-category">System & API</li>
+                <li class="menu-category">System</li>
                 <li class="menu-item">
                     <a href="/health" class="menu-link" target="_blank">
                         <i class="bi bi-activity"></i>
@@ -80,8 +91,8 @@
             </ul>
 
             <div class="sidebar-footer">
-                <div>Campus ERP &bull; MySQL 8.0</div>
-                <small class="text-muted">Phase 8 Jinja2 Frontend</small>
+                <div class="fw-medium text-dark">Institutional Portal</div>
+                <div class="text-muted small">MySQL 8.0 &bull; Relational ERP</div>
             </div>
         </aside>
 
@@ -97,21 +108,19 @@
                         <i class="bi bi-list fs-5"></i>
                     </button>
                     <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-0">
+                        <ol class="breadcrumb mb-0 small">
                             <li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Home</a></li>
-                            {% block breadcrumb %}
-                            <li class="breadcrumb-item active" aria-current="page">Dashboard</li>
-                            {% endblock %}
+                            {% block breadcrumb %}{% endblock %}
                         </ol>
                     </nav>
                 </div>
 
-                <div class="d-flex align-items-center gap-3">
-                    <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-2">
-                        <i class="bi bi-check-circle-fill me-1"></i> MySQL Connected
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge badge-status-success px-2 py-1">
+                        <i class="bi bi-check-circle-fill"></i> MySQL Connected
                     </span>
-                    <a href="/health" class="btn btn-sm btn-outline-primary" target="_blank">
-                        <i class="bi bi-code-slash me-1"></i> REST API
+                    <a href="/health" class="btn btn-sm btn-outline-secondary d-none d-sm-inline-flex align-items-center gap-1" target="_blank">
+                        <i class="bi bi-code-slash"></i> API
                     </a>
                 </div>
             </header>
@@ -123,7 +132,7 @@
                     {% with messages = get_flashed_messages(with_categories=true) %}
                         {% if messages %}
                             {% for category, message in messages %}
-                                <div class="alert alert-{{ 'danger' if category in ['error', 'danger'] else ('warning' if category == 'warning' else 'success') }} alert-dismissible fade show flash-alert" role="alert">
+                                <div class="alert alert-{{ 'danger' if category in ['error', 'danger'] else ('warning' if category == 'warning' else 'success') }} alert-dismissible fade show flash-alert d-flex align-items-center justify-content-between" role="alert">
                                     <div class="d-flex align-items-center">
                                         <i class="bi bi-{{ 'exclamation-octagon-fill' if category in ['error', 'danger'] else ('exclamation-triangle-fill' if category == 'warning' else 'check-circle-fill') }} me-2 fs-5"></i>
                                         <div>{{ message }}</div>
@@ -139,34 +148,34 @@
             </main>
 
             <!-- App Footer -->
-            <footer class="bg-white border-top py-3 px-4 text-center text-muted small mt-auto no-print">
+            <footer class="bg-white border-top py-3 px-4 text-muted small mt-auto no-print">
                 <div class="container-fluid d-flex flex-wrap justify-content-between align-items-center">
-                    <span>&copy; 2026 Campus Placement & Internship Management System. Built with Flask, Jinja2 & Bootstrap 5.</span>
-                    <span>Institutional Accreditation & Compliance Ready</span>
+                    <span>&copy; 2026 Campus Placement & Internship Management System</span>
+                    <span>Institutional Accreditation & Compliance</span>
                 </div>
             </footer>
         </div>
     </div>
 
-    <!-- Universal Delete Confirmation Modal -->
+    <!-- Universal Confirmation Dialog Modal -->
     <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title" id="deleteModalLabel">
-                        <i class="bi bi-shield-exclamation me-2"></i> Confirm Safe Deletion
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title d-flex align-items-center gap-2 fs-6 fw-bold" id="deleteModalLabel">
+                        <i class="bi bi-exclamation-triangle-fill text-danger"></i> Confirm Deletion
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body p-4">
-                    <p class="mb-2">Are you sure you want to permanently delete <strong id="deleteItemName" class="text-danger">this item</strong>?</p>
+                <div class="modal-body">
+                    <p class="mb-2 text-secondary">Are you sure you want to permanently delete <strong id="deleteItemName" class="text-dark">this item</strong>?</p>
                     <p id="deleteExtraWarning" class="alert alert-warning py-2 px-3 small d-none mb-0"></p>
                 </div>
-                <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <form id="deleteConfirmForm" method="POST" action="">
-                        <button type="submit" class="btn btn-danger btn-sm">
-                            <i class="bi bi-trash3-fill me-1"></i> Yes, Delete Record
+                        <button type="submit" class="btn btn-sm btn-danger">
+                            <i class="bi bi-trash3 me-1"></i> Delete Record
                         </button>
                     </form>
                 </div>

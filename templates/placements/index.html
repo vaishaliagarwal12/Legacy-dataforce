@@ -3,7 +3,6 @@
 {% block title %}Placement Offers & Recruitment Outcomes | Placement Portal{% endblock %}
 
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Home</a></li>
 <li class="breadcrumb-item active" aria-current="page">Placements</li>
 {% endblock %}
 
@@ -250,7 +249,7 @@
                             <select class="form-select" id="Company_ID" name="Company_ID" required>
                                 <option value="">Choose company...</option>
                                 {% for c in all_companies %}
-                                    <option value="{{ c.Company_ID }}">{{ c.Company_Name }} ({{ c.Tier }})</option>
+                                    <option value="{{ c.Company_ID }}">{{ c.Company_Name }} ({{ c.Company_Type or 'Corporate' }})</option>
                                 {% endfor %}
                             </select>
                             <div class="invalid-feedback">Company is required.</div>
@@ -263,7 +262,7 @@
                                 <option value="">Choose opportunity...</option>
                                 {% for opp in all_opportunities %}
                                     <option value="{{ opp.Opportunity_ID }}">
-                                        Opp #{{ opp.Opportunity_ID }}: {{ opp.Role_Title }} ({{ opp.Job_Type }} &bull; {{ opp.Package }} LPA)
+                                        Opp #{{ opp.Opportunity_ID }}: {{ opp.Role }} ({{ opp.Company_Name }} &bull; {{ opp.Package_Stipend }} LPA)
                                     </option>
                                 {% endfor %}
                             </select>

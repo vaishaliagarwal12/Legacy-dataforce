@@ -1,6 +1,7 @@
 import io
 import csv
 import logging
+from typing import Optional
 from flask import (
     render_template,
     request,
@@ -10,9 +11,11 @@ from flask import (
     jsonify,
     Response,
 )
+from db.connection import DatabaseError
 from . import main_bp
 from services import (
     check_system_health,
+    ServiceError,
     ValidationError,
     NotFoundError,
     ConflictError,
@@ -59,9 +62,88 @@ from services import (
     update_offer_status,
     delete_placement_offer,
     get_students_with_multiple_offers,
+    # SQL Reports & DBMS Queries
+    list_saved_queries,
+    get_saved_query,
+    execute_saved_query,
+    validate_custom_sql,
+    execute_custom_query,
 )
 
 logger = logging.getLogger(__name__)
+
+BRANCH_MAP = {
+    "computer science": "CSE",
+    "cse": "CSE",
+    "electronics & comm": "ECE",
+    "electronics & communication": "ECE",
+    "electronics": "ECE",
+    "ece": "ECE",
+    "mechanical": "ME",
+    "mechanical engineering": "ME",
+    "me": "ME",
+    "information tech": "IT",
+    "information technology": "IT",
+    "it": "IT",
+    "civil": "Civil",
+    "electrical": "Electrical",
+}
+
+COMPANY_TYPE_MAP = {
+    "tier-1": "Product",
+    "tier-2": "Service",
+    "tier-3": "Startup",
+    "product": "Product",
+    "service": "Service",
+    "startup": "Startup",
+    "other": "Other",
+}
+
+
+def normalize_branch(val: Optional[str]) -> Optional[str]:
+    """Normalizes department names or abbreviations to canonical database codes."""
+    if not val:
+        return None
+    val_clean = val.strip()
+    return BRANCH_MAP.get(val_clean.lower(), val_clean)
+
+
+def normalize_company_type(val: Optional[str]) -> Optional[str]:
+    """Normalizes company category filters."""
+    if not val:
+        return None
+    val_clean = val.strip().lower()
+    return COMPANY_TYPE_MAP.get(val_clean, val.strip())
+
+
+def parse_float(val, field_name: str, min_val: float = None, max_val: float = None) -> float:
+    """Safely converts string to float without unhandled ValueError crashes."""
+    if val is None or str(val).strip() == "":
+        raise ValidationError(f"Missing required numeric value for '{field_name}'")
+    try:
+        f = float(str(val).strip())
+    except (ValueError, TypeError):
+        raise ValidationError(f"Invalid numeric input for '{field_name}'. Value must be a valid number.")
+    if min_val is not None and f < min_val:
+        raise ValidationError(f"{field_name} must be greater than or equal to {min_val}")
+    if max_val is not None and f > max_val:
+        raise ValidationError(f"{field_name} cannot exceed {max_val}")
+    return f
+
+
+def parse_int(val, field_name: str, min_val: int = None, max_val: int = None) -> int:
+    """Safely converts string to int without unhandled ValueError crashes."""
+    if val is None or str(val).strip() == "":
+        raise ValidationError(f"Missing required integer value for '{field_name}'")
+    try:
+        i = int(str(val).strip())
+    except (ValueError, TypeError):
+        raise ValidationError(f"Invalid integer input for '{field_name}'. Value must be a whole number.")
+    if min_val is not None and i < min_val:
+        raise ValidationError(f"{field_name} must be greater than or equal to {min_val}")
+    if max_val is not None and i > max_val:
+        raise ValidationError(f"{field_name} cannot exceed {max_val}")
+    return i
 
 
 # ==============================================================================
@@ -103,13 +185,21 @@ def index():
 def students_list():
     """Displays searchable and filterable table of students."""
     search = request.args.get("search", "").strip() or None
-    branch = request.args.get("branch", "").strip() or None
+    raw_branch = request.args.get("branch", "").strip() or None
+    branch = normalize_branch(raw_branch)
     min_cgpa = request.args.get("min_cgpa", "").strip() or None
+
+    parsed_cgpa = None
+    if min_cgpa:
+        try:
+            parsed_cgpa = float(min_cgpa)
+        except (ValueError, TypeError):
+            parsed_cgpa = None
 
     res = list_students(
         search=search,
         branch=branch,
-        min_cgpa=float(min_cgpa) if min_cgpa else None,
+        min_cgpa=parsed_cgpa,
         limit=100,
     )
     students = res.get("results", []) if isinstance(res, dict) else res
@@ -119,7 +209,7 @@ def students_list():
         active_page="students",
         students=students,
         search_query=search,
-        selected_branch=branch,
+        selected_branch=branch or raw_branch,
         selected_min_cgpa=min_cgpa,
     )
 
@@ -129,23 +219,35 @@ def student_create():
     """Handles adding a new student to the institution directory."""
     if request.method == "POST":
         try:
+            roll_no = request.form.get("Roll_No", "").strip().upper()
+            first_name = request.form.get("First_Name", "").strip()
+            cgpa = parse_float(request.form.get("CGPA"), "CGPA", 0.0, 10.0)
+            backlogs = parse_int(request.form.get("Backlogs", 0), "Backlogs", 0)
+            batch_year = parse_int(request.form.get("Batch_Year", 2024), "Batch Year", 2000, 2100)
+            raw_branch = request.form.get("Branch", "")
+            branch = normalize_branch(raw_branch)
+
+            if not branch:
+                raise ValidationError("Please select a valid academic branch.")
+
             payload = {
-                "Roll_No": request.form.get("Roll_No", "").strip().upper(),
-                "First_Name": request.form.get("First_Name", "").strip(),
+                "Roll_No": roll_no,
+                "First_Name": first_name,
                 "Last_Name": request.form.get("Last_Name", "").strip() or None,
                 "Email": request.form.get("Email", "").strip().lower(),
-                "Branch": request.form.get("Branch", "").strip(),
-                "Batch_Year": int(request.form.get("Batch_Year", 2024)),
+                "Branch": branch,
+                "Batch_Year": batch_year,
                 "Section": request.form.get("Section", "A").strip() or None,
-                "CGPA": float(request.form.get("CGPA", 0.0)),
-                "Backlogs": int(request.form.get("Backlogs", 0)),
+                "CGPA": cgpa,
+                "Backlogs": backlogs,
                 "Resume_Link": request.form.get("Resume_Link", "").strip() or None,
             }
             res = create_student(payload)
             flash(f"Student {payload['First_Name']} {payload['Last_Name'] or ''} ({payload['Roll_No']}) registered successfully!", "success")
             return redirect(f"/students/{res['Student_ID']}")
-        except (ValidationError, ConflictError) as err:
-            flash(err.message, "danger")
+        except (ValidationError, ConflictError, DatabaseError, ServiceError) as err:
+            err_msg = err.message if hasattr(err, "message") else str(err)
+            flash(f"Registration Error: {err_msg}", "danger")
             return render_template("students/form.html", active_page="students", mode="create", student=request.form)
 
     return render_template("students/form.html", active_page="students", mode="create", student=None)
@@ -194,23 +296,34 @@ def student_edit(student_id: int):
 
     if request.method == "POST":
         try:
+            cgpa = parse_float(request.form.get("CGPA", student["CGPA"]), "CGPA", 0.0, 10.0)
+            backlogs = parse_int(request.form.get("Backlogs", student["Backlogs"]), "Backlogs", 0)
+            batch_year = parse_int(request.form.get("Batch_Year", student["Batch_Year"]), "Batch Year", 2000, 2100)
+            branch = normalize_branch(request.form.get("Branch", student["Branch"]))
+
+            if not branch:
+                raise ValidationError("Please select a valid academic branch.")
+
             payload = {
                 "First_Name": request.form.get("First_Name", "").strip(),
                 "Last_Name": request.form.get("Last_Name", "").strip() or None,
                 "Email": request.form.get("Email", "").strip().lower(),
-                "Branch": request.form.get("Branch", "").strip(),
-                "Batch_Year": int(request.form.get("Batch_Year", student["Batch_Year"])),
+                "Branch": branch,
+                "Batch_Year": batch_year,
                 "Section": request.form.get("Section", "A").strip() or None,
-                "CGPA": float(request.form.get("CGPA", student["CGPA"])),
-                "Backlogs": int(request.form.get("Backlogs", 0)),
+                "CGPA": cgpa,
+                "Backlogs": backlogs,
                 "Resume_Link": request.form.get("Resume_Link", "").strip() or None,
             }
             update_student(student_id, payload)
             flash(f"Student profile for {student['Roll_No']} updated successfully!", "success")
             return redirect(f"/students/{student_id}")
-        except (ValidationError, ConflictError) as err:
-            flash(err.message, "danger")
-            return render_template("students/form.html", active_page="students", mode="edit", student=request.form)
+        except (ValidationError, ConflictError, DatabaseError, ServiceError) as err:
+            err_msg = err.message if hasattr(err, "message") else str(err)
+            flash(f"Update Error: {err_msg}", "danger")
+            merged_student = dict(student)
+            merged_student.update(request.form)
+            return render_template("students/form.html", active_page="students", mode="edit", student=merged_student)
 
     return render_template("students/form.html", active_page="students", mode="edit", student=student)
 
@@ -223,8 +336,9 @@ def student_delete(student_id: int):
         flash(res["message"], "success")
     except ProtectedDeleteError as err:
         flash(f"Cannot Delete Student: {err.message}", "danger")
-    except (NotFoundError, ConflictError) as err:
-        flash(err.message, "danger")
+    except (NotFoundError, ConflictError, DatabaseError, ServiceError) as err:
+        err_msg = err.message if hasattr(err, "message") else str(err)
+        flash(f"Delete Failed: {err_msg}", "danger")
     return redirect("/students")
 
 
@@ -235,8 +349,9 @@ def student_phone_add(student_id: int):
     try:
         add_student_phone(student_id, phone_number)
         flash(f"Added phone number {phone_number} successfully.", "success")
-    except (ValidationError, ConflictError) as err:
-        flash(err.message, "danger")
+    except (ValidationError, ConflictError, DatabaseError, ServiceError) as err:
+        err_msg = err.message if hasattr(err, "message") else str(err)
+        flash(f"Phone Error: {err_msg}", "danger")
     return redirect(f"/students/{student_id}")
 
 
@@ -246,8 +361,9 @@ def student_phone_delete(student_id: int, phone_no: str):
     try:
         delete_student_phone(student_id, phone_no)
         flash("Phone number removed successfully.", "success")
-    except NotFoundError as err:
-        flash(err.message, "danger")
+    except (NotFoundError, DatabaseError, ServiceError) as err:
+        err_msg = err.message if hasattr(err, "message") else str(err)
+        flash(f"Phone Removal Failed: {err_msg}", "danger")
     return redirect(f"/students/{student_id}")
 
 
@@ -259,15 +375,16 @@ def student_phone_delete(student_id: int, phone_no: str):
 def companies_list():
     """Displays searchable and filterable company partners."""
     search = request.args.get("search", "").strip() or None
-    tier = request.args.get("tier", "").strip() or None
+    raw_type = request.args.get("type", "").strip() or request.args.get("tier", "").strip() or None
+    company_type = normalize_company_type(raw_type)
 
-    companies = list_companies(search=search, company_type=tier)
+    companies = list_companies(search=search, company_type=company_type)
     return render_template(
         "companies/index.html",
         active_page="companies",
         companies=companies,
         search_query=search,
-        selected_tier=tier,
+        selected_tier=company_type or raw_type,
     )
 
 
@@ -286,8 +403,9 @@ def company_create():
             res = create_company(payload)
             flash(f"Company '{payload['Company_Name']}' registered successfully!", "success")
             return redirect(f"/companies/{res['Company_ID']}")
-        except (ValidationError, ConflictError) as err:
-            flash(err.message, "danger")
+        except (ValidationError, ConflictError, DatabaseError, ServiceError) as err:
+            err_msg = err.message if hasattr(err, "message") else str(err)
+            flash(f"Company Registration Error: {err_msg}", "danger")
             return render_template("companies/form.html", active_page="companies", mode="create", company=request.form)
 
     return render_template("companies/form.html", active_page="companies", mode="create", company=None)
@@ -342,9 +460,12 @@ def company_edit(company_id: int):
             update_company(company_id, payload)
             flash(f"Company '{payload['Company_Name']}' updated successfully!", "success")
             return redirect(f"/companies/{company_id}")
-        except (ValidationError, ConflictError) as err:
-            flash(err.message, "danger")
-            return render_template("companies/form.html", active_page="companies", mode="edit", company=request.form)
+        except (ValidationError, ConflictError, DatabaseError, ServiceError) as err:
+            err_msg = err.message if hasattr(err, "message") else str(err)
+            flash(f"Update Error: {err_msg}", "danger")
+            merged = dict(company)
+            merged.update(request.form)
+            return render_template("companies/form.html", active_page="companies", mode="edit", company=merged)
 
     return render_template("companies/form.html", active_page="companies", mode="edit", company=company)
 
@@ -355,10 +476,11 @@ def company_delete(company_id: int):
     try:
         res = delete_company(company_id)
         flash(res["message"], "success")
-    except ConflictError as err:
+    except (ProtectedDeleteError, ConflictError) as err:
         flash(f"Cannot Delete Company: {err.message}", "danger")
-    except NotFoundError as err:
-        flash(err.message, "danger")
+    except (NotFoundError, DatabaseError, ServiceError) as err:
+        err_msg = err.message if hasattr(err, "message") else str(err)
+        flash(f"Delete Company Failed: {err_msg}", "danger")
     return redirect("/companies")
 
 
@@ -396,14 +518,14 @@ def internship_create():
         try:
             itype = request.form.get("Internship_Type", "Mandatory").strip()
             req_id_raw = request.form.get("Requirement_ID")
-            req_id = int(req_id_raw) if (itype == "Mandatory" and req_id_raw) else None
+            req_id = parse_int(req_id_raw, "Requirement ID") if (itype == "Mandatory" and req_id_raw) else None
 
             payload = {
-                "Student_ID": int(request.form.get("Student_ID")),
-                "Company_ID": int(request.form.get("Company_ID")),
+                "Student_ID": parse_int(request.form.get("Student_ID"), "Student"),
+                "Company_ID": parse_int(request.form.get("Company_ID"), "Company"),
                 "Internship_Type": itype,
                 "Requirement_ID": req_id,
-                "Internship_No": int(request.form.get("Internship_No", 1)),
+                "Internship_No": parse_int(request.form.get("Internship_No", 1), "Internship No", 1),
                 "Role": request.form.get("Role", "").strip(),
                 "Start_Date": request.form.get("Start_Date", "").strip(),
                 "End_Date": request.form.get("End_Date", "").strip(),
@@ -411,8 +533,9 @@ def internship_create():
             res = create_internship(payload)
             flash(f"Recorded {itype} Internship #{payload['Internship_No']} successfully!", "success")
             return redirect(f"/internships?type={itype}")
-        except (ValidationError, ConflictError) as err:
-            flash(err.message, "danger")
+        except (ValidationError, ConflictError, DatabaseError, ServiceError) as err:
+            err_msg = err.message if hasattr(err, "message") else str(err)
+            flash(f"Internship Creation Rejected: {err_msg}", "danger")
 
     students_res = list_students(limit=100)
     students = students_res.get("results", []) if isinstance(students_res, dict) else students_res
@@ -436,8 +559,9 @@ def internship_delete(internship_id: int):
     try:
         res = delete_internship(internship_id)
         flash(res["message"], "success")
-    except NotFoundError as err:
-        flash(err.message, "danger")
+    except (NotFoundError, ConflictError, ProtectedDeleteError, DatabaseError, ServiceError) as err:
+        err_msg = err.message if hasattr(err, "message") else str(err)
+        flash(f"Internship Deletion Failed: {err_msg}", "danger")
     return redirect("/internships")
 
 
@@ -482,21 +606,25 @@ def placements_list():
 def placement_create():
     """Handles issuing a placement offer enforcing no duplicates and single-accepted offer rules."""
     try:
-        opp_id = request.form.get("Opportunity_ID")
+        opp_id_raw = request.form.get("Opportunity_ID")
+        opp_id = parse_int(opp_id_raw, "Opportunity Opening") if opp_id_raw else None
+        package = parse_float(request.form.get("Package", 0.0), "Package", min_val=0.01)
+
         payload = {
-            "Student_ID": int(request.form.get("Student_ID")),
-            "Company_ID": int(request.form.get("Company_ID")),
-            "Opportunity_ID": int(opp_id) if opp_id else None,
+            "Student_ID": parse_int(request.form.get("Student_ID"), "Student"),
+            "Company_ID": parse_int(request.form.get("Company_ID"), "Company"),
+            "Opportunity_ID": opp_id,
             "Role": request.form.get("Role", "").strip(),
-            "Package": float(request.form.get("Package", 0.0)),
-            "Placement_Year": int(request.form.get("Placement_Year", 2024)),
+            "Package": package,
+            "Placement_Year": parse_int(request.form.get("Placement_Year", 2024), "Placement Year", 2000, 2100),
             "Offer_Status": request.form.get("Offer_Status", "Offered").strip(),
             "Is_PPO": request.form.get("Is_PPO", "No").strip(),
         }
         res = create_placement_offer(payload)
         flash(f"Issued Placement Offer #{res['Placement_ID']} ({payload['Role']} - {payload['Package']} LPA) successfully!", "success")
-    except (ValidationError, ConflictError) as err:
-        flash(f"Offer Issue Rejected: {err.message}", "danger")
+    except (ValidationError, ConflictError, DatabaseError, ServiceError) as err:
+        err_msg = err.message if hasattr(err, "message") else str(err)
+        flash(f"Offer Issue Rejected: {err_msg}", "danger")
 
     return redirect("/placements")
 
@@ -510,8 +638,9 @@ def placement_status_update(placement_id: int):
         flash(f"Placement Offer #{placement_id} status updated to '{new_status}' successfully!", "success")
     except ConflictError as err:
         flash(f"Status Transition Blocked: {err.message}", "danger")
-    except (ValidationError, NotFoundError) as err:
-        flash(err.message, "danger")
+    except (ValidationError, NotFoundError, DatabaseError, ServiceError) as err:
+        err_msg = err.message if hasattr(err, "message") else str(err)
+        flash(f"Status Update Failed: {err_msg}", "danger")
 
     return redirect("/placements")
 
@@ -522,8 +651,9 @@ def placement_delete(placement_id: int):
     try:
         res = delete_placement_offer(placement_id)
         flash(res["message"], "success")
-    except NotFoundError as err:
-        flash(err.message, "danger")
+    except (NotFoundError, ConflictError, ProtectedDeleteError, DatabaseError, ServiceError) as err:
+        err_msg = err.message if hasattr(err, "message") else str(err)
+        flash(f"Offer Deletion Failed: {err_msg}", "danger")
     return redirect("/placements")
 
 
@@ -534,8 +664,11 @@ def placement_delete(placement_id: int):
 @main_bp.route("/reports", methods=["GET"])
 def reports_view():
     """Renders comprehensive institutional reports with multi-criteria filters."""
+    raw_branch = request.args.get("branch", "").strip() or None
+    branch = normalize_branch(raw_branch)
+
     filters = {
-        "branch": request.args.get("branch", "").strip() or None,
+        "branch": branch,
         "placement_status": request.args.get("placement_status", "").strip() or None,
         "internship_status": request.args.get("internship_status", "").strip() or None,
         "min_cgpa": request.args.get("min_cgpa", "").strip() or None,
@@ -545,10 +678,14 @@ def reports_view():
     report_data = get_comprehensive_report_data(filters)
     query_string = request.query_string.decode("utf-8")
 
+    # Present selected branch accurately back to template
+    filters_display = dict(filters)
+    filters_display["branch"] = branch or raw_branch
+
     return render_template(
         "reports/index.html",
         active_page="reports",
-        filters=filters,
+        filters=filters_display,
         rows=report_data["rows"],
         summary=report_data["summary"],
         current_query_string=query_string,
@@ -558,8 +695,11 @@ def reports_view():
 @main_bp.route("/reports/export", methods=["GET"])
 def reports_export_csv():
     """Generates and streams a CSV export of the filtered cohort report."""
+    raw_branch = request.args.get("branch", "").strip() or None
+    branch = normalize_branch(raw_branch)
+
     filters = {
-        "branch": request.args.get("branch", "").strip() or None,
+        "branch": branch,
         "placement_status": request.args.get("placement_status", "").strip() or None,
         "internship_status": request.args.get("internship_status", "").strip() or None,
         "min_cgpa": request.args.get("min_cgpa", "").strip() or None,
@@ -634,3 +774,161 @@ def api_chart_yearwise():
 def api_chart_branchwise():
     """Returns branch-wise distribution JSON."""
     return jsonify({"status": "success", "data": get_branchwise_analytics_chart_data()}), 200
+
+
+# ==============================================================================
+# 8. SQL Reports & Interactive DBMS Console (Saved & Custom Queries)
+# ==============================================================================
+
+@main_bp.route("/sql-reports", methods=["GET"])
+def sql_reports_view():
+    """Displays the two-part SQL Reports page:
+    Part 1: Saved queries from placement_internship_db.sql and Phase 9 DBMS demo.
+    Part 2: Custom read-only SQL query box with safety enforcement.
+    """
+    all_queries = list_saved_queries()
+    return render_template(
+        "reports/sql_reports.html",
+        active_page="sql_reports",
+        saved_queries=all_queries,
+    )
+
+
+@main_bp.route("/api/sql-reports/run-saved", methods=["POST"])
+def api_run_saved_query():
+    """Executes a parameterized saved query and returns table data as JSON."""
+    data = request.get_json(silent=True) or request.form.to_dict()
+    query_id = data.get("query_id")
+    params = data.get("params") or {}
+
+    if not query_id:
+        return jsonify({"status": "error", "message": "query_id is required"}), 400
+
+    try:
+        res = execute_saved_query(query_id, params)
+        return jsonify({"status": "success", "data": res}), 200
+    except (ValidationError, ServiceError, DatabaseError) as err:
+        err_msg = err.message if hasattr(err, "message") else str(err)
+        return jsonify({"status": "error", "message": err_msg}), 400
+    except Exception as exc:
+        logger.error("Unexpected error executing saved query %s: %s", query_id, exc)
+        return jsonify({"status": "error", "message": f"Execution failed: {str(exc)}"}), 500
+
+
+@main_bp.route("/sql-reports/export-saved", methods=["GET"])
+def export_saved_query_csv():
+    """Exports the execution results of a saved query as a downloadable CSV file."""
+    query_id = request.args.get("query_id")
+    if not query_id:
+        flash("Cannot export: query_id is required.", "danger")
+        return redirect(url_for("main.sql_reports_view"))
+
+    params = {k: v for k, v in request.args.items() if k != "query_id"}
+
+    try:
+        res = execute_saved_query(query_id, params)
+        columns = res.get("columns", [])
+        rows = res.get("rows", [])
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(columns)
+
+        for r in rows:
+            writer.writerow([r.get(c, "") for c in columns])
+
+        csv_content = output.getvalue()
+        output.close()
+
+        filename = f"{query_id}_export.csv"
+        return Response(
+            csv_content,
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+    except Exception as exc:
+        logger.error("Failed to export saved query CSV: %s", exc)
+        flash(f"CSV Export Failed: {str(exc)}", "danger")
+        return redirect(url_for("main.sql_reports_view"))
+
+
+@main_bp.route("/api/sql-reports/run-custom", methods=["POST"])
+def api_run_custom_query():
+    """Validates and executes user-provided SQL under read-only MySQL permissions and 500-row limit."""
+    data = request.get_json(silent=True) or request.form.to_dict()
+    raw_sql = data.get("sql", "").strip()
+
+    if not raw_sql:
+        return jsonify({
+            "status": "error",
+            "message": "SQL statement is empty. Please enter a valid SELECT statement.",
+            "data": None,
+        }), 400
+
+    try:
+        res = execute_custom_query(raw_sql)
+        if res.get("status") == "error":
+            return jsonify({
+                "status": "error",
+                "message": res.get("error"),
+                "data": res,
+            }), 200
+        return jsonify({
+            "status": "success",
+            "message": "Query executed successfully.",
+            "data": res,
+        }), 200
+    except ValidationError as ve:
+        return jsonify({
+            "status": "error",
+            "message": ve.message,
+            "data": None,
+        }), 400
+    except Exception as exc:
+        logger.error("Unhandled error running custom query: %s", exc)
+        return jsonify({
+            "status": "error",
+            "message": f"Server processing error: {str(exc)}",
+            "data": None,
+        }), 500
+
+
+@main_bp.route("/sql-reports/export-custom", methods=["POST"])
+def export_custom_query_csv():
+    """Exports custom SQL execution results as a downloadable CSV."""
+    raw_sql = request.form.get("sql", "").strip()
+    if not raw_sql:
+        flash("Cannot export: SQL query cannot be empty.", "warning")
+        return redirect(url_for("main.sql_reports_view"))
+
+    try:
+        res = execute_custom_query(raw_sql)
+        if res.get("status") == "error":
+            flash(f"Export Error: {res.get('error')}", "danger")
+            return redirect(url_for("main.sql_reports_view"))
+
+        columns = res.get("columns", [])
+        rows = res.get("rows", [])
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(columns)
+
+        for r in rows:
+            writer.writerow([r.get(c, "") for c in columns])
+
+        csv_content = output.getvalue()
+        output.close()
+
+        return Response(
+            csv_content,
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment; filename=custom_sql_results.csv"},
+        )
+    except ValidationError as ve:
+        flash(f"SQL Validation Error: {ve.message}", "danger")
+        return redirect(url_for("main.sql_reports_view"))
+    except Exception as exc:
+        logger.error("Failed to export custom SQL CSV: %s", exc)
+        flash(f"Custom CSV Export Failed: {str(exc)}", "danger")
+        return redirect(url_for("main.sql_reports_view"))

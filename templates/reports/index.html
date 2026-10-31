@@ -3,7 +3,6 @@
 {% block title %}Institutional Reports & Compliance Audits | Placement Portal{% endblock %}
 
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Home</a></li>
 <li class="breadcrumb-item active" aria-current="page">Reports & Audits</li>
 {% endblock %}
 
@@ -38,8 +37,8 @@
                 <label class="form-label small fw-semibold">Engineering Department</label>
                 <select name="branch" class="form-select form-select-sm">
                     <option value="">All Departments</option>
-                    {% for b in ['Computer Science', 'Electronics & Comm', 'Mechanical', 'Information Tech', 'Civil', 'Electrical'] %}
-                        <option value="{{ b }}" {% if filters.branch == b %}selected{% endif %}>{{ b }}</option>
+                    {% for code, label in [('CSE', 'Computer Science (CSE)'), ('ECE', 'Electronics & Comm (ECE)'), ('ME', 'Mechanical Engineering (ME)'), ('IT', 'Information Technology (IT)')] %}
+                        <option value="{{ code }}" {% if filters.branch == code %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>

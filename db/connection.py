@@ -35,6 +35,27 @@ def get_connection():
 
 
 @contextmanager
+def get_readonly_connection():
+    """Context manager providing a MySQL connection authenticated as the read-only user.
+    
+    Guarantees that write operations are rejected by MySQL server permissions.
+    """
+    connection = None
+    try:
+        connection = pymysql.connect(
+            **Config.get_readonly_db_config(),
+            cursorclass=DictCursor,
+        )
+        yield connection
+    except pymysql.MySQLError as err:
+        logger.error("Read-only MySQL connection error: %s", err)
+        raise DatabaseError(f"Read-only database connection failed: {err}") from err
+    finally:
+        if connection and connection.open:
+            connection.close()
+
+
+@contextmanager
 def get_cursor(commit: bool = False):
     """Context manager providing a DictCursor inside an active connection.
     

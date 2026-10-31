@@ -184,6 +184,19 @@ __all__ = [
     "get_offer_status_chart_data",
     "get_internship_breakdown_chart_data",
     "get_comprehensive_report_data",
+    "list_saved_queries",
+    "get_saved_query",
+    "execute_saved_query",
+    "validate_custom_sql",
+    "execute_custom_query",
 ]
+
+from .sql_report_service import (
+    list_saved_queries,
+    get_saved_query,
+    execute_saved_query,
+    validate_custom_sql,
+    execute_custom_query,
+)
 
 

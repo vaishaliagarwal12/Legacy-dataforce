@@ -1,337 +1,211 @@
 -- ============================================================================
 -- CAMPUS PLACEMENT & INTERNSHIP MANAGEMENT SYSTEM
 -- Relational Database Schema Definition (schema.sql)
--- Target RDBMS: PostgreSQL 12+ / Standard Relational SQL
+-- Target RDBMS: MySQL 8.0+ / InnoDB Engine
+-- Approved 7-Table Relational Schema Architecture:
+-- 1. STUDENT
+-- 2. STUDENT_PHONE
+-- 3. STUDENT_SKILL
+-- 4. COMPANY
+-- 5. PLACEMENT
+-- 6. PLACEMENT_SKILL
+-- 7. INTERNSHIP
 -- ============================================================================
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- Drop existing views if present
+DROP VIEW IF EXISTS V_INTERNSHIP_DETAIL;
+DROP VIEW IF EXISTS V_PLACEMENT_DETAIL;
 
 -- Clean teardown of existing schema (in reverse dependency order)
-DROP TABLE IF EXISTS PLACEMENT_SKILL CASCADE;
-DROP TABLE IF EXISTS PLACEMENT CASCADE;
-DROP TABLE IF EXISTS INTERNSHIP CASCADE;
-DROP TABLE IF EXISTS INTERNSHIP_REQUIREMENT CASCADE;
-DROP TABLE IF EXISTS SELECTION_PROCESS CASCADE;
-DROP TABLE IF EXISTS ELIGIBILITY CASCADE;
-DROP TABLE IF EXISTS OPPORTUNITY CASCADE;
-DROP TABLE IF EXISTS RECRUITMENT_DRIVE CASCADE;
-DROP TABLE IF EXISTS COMPANY CASCADE;
-DROP TABLE IF EXISTS SEMESTER_RESULT CASCADE;
-DROP TABLE IF EXISTS EDUCATION_DOCUMENT CASCADE;
-DROP TABLE IF EXISTS RESUME CASCADE;
-DROP TABLE IF EXISTS STUDENT_PROFILE CASCADE;
-DROP TABLE IF EXISTS STUDENT_COURSE CASCADE;
-DROP TABLE IF EXISTS STUDENT_SKILL CASCADE;
-DROP TABLE IF EXISTS STUDENT_PHONE CASCADE;
-DROP TABLE IF EXISTS STUDENT CASCADE;
-DROP TABLE IF EXISTS COURSE CASCADE;
-DROP TABLE IF EXISTS UNIVERSITY CASCADE;
+DROP TABLE IF EXISTS PLACEMENT_SKILL;
+DROP TABLE IF EXISTS PLACEMENT;
+DROP TABLE IF EXISTS INTERNSHIP;
+DROP TABLE IF EXISTS STUDENT_SKILL;
+DROP TABLE IF EXISTS STUDENT_PHONE;
+DROP TABLE IF EXISTS COMPANY;
+DROP TABLE IF EXISTS STUDENT;
+
+SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================================
--- 1. UNIVERSITY & ACADEMIC CATALOG TABLES
+-- 1. STUDENT MASTER TABLE
 -- ============================================================================
-
--- UNIVERSITY: Master table representing the academic institution
-CREATE TABLE UNIVERSITY (
-    University_ID   SERIAL PRIMARY KEY,
-    University_Name VARCHAR(120) NOT NULL UNIQUE,
-    Location        VARCHAR(100) NOT NULL,
-    Established_Year INT CHECK (Established_Year BETWEEN 1800 AND 2100)
-);
-
--- COURSE: Academic curriculum offerings mapped to the University
-CREATE TABLE COURSE (
-    Course_ID       SERIAL PRIMARY KEY,
-    University_ID   INT NOT NULL,
-    Course_Name     VARCHAR(100) NOT NULL,
-    Department      VARCHAR(50)  NOT NULL,
-    Semester        INT NOT NULL CHECK (Semester BETWEEN 1 AND 8),
-    Credits         INT NOT NULL CHECK (Credits > 0),
-    Course_Type     VARCHAR(30)  NOT NULL CHECK (Course_Type IN ('Core', 'Elective', 'Lab', 'Seminar')),
-    CONSTRAINT fk_course_university FOREIGN KEY (University_ID)
-        REFERENCES UNIVERSITY(University_ID) ON DELETE CASCADE,
-    CONSTRAINT uq_course_dept_sem UNIQUE (University_ID, Course_Name, Semester)
-);
-
--- ============================================================================
--- 2. STUDENT MASTER & ATTRIBUTE DECOMPOSITION TABLES
--- ============================================================================
-
--- STUDENT: Master student entity (Name is decomposed into First_Name and Last_Name for 1NF)
+-- Name is decomposed into First_Name and Last_Name for 1NF compliance.
+-- Roll_No is an alternate unique candidate key.
 CREATE TABLE STUDENT (
-    Student_ID      SERIAL PRIMARY KEY,
+    Student_ID      INT AUTO_INCREMENT PRIMARY KEY,
     Roll_No         VARCHAR(20)  NOT NULL UNIQUE,
     First_Name      VARCHAR(50)  NOT NULL,
     Last_Name       VARCHAR(50),
     Branch          VARCHAR(30)  NOT NULL,
-    Batch_Year      INT          NOT NULL CHECK (Batch_Year BETWEEN 2000 AND 2100),
+    Batch_Year      SMALLINT     NOT NULL,
+    CGPA            DECIMAL(4,2) NOT NULL,
+    Backlogs        TINYINT      NOT NULL DEFAULT 0,
+    Email           VARCHAR(100) UNIQUE,
     Section         VARCHAR(5),
-    CGPA            DECIMAL(4,2) NOT NULL CHECK (CGPA >= 0.00 AND CGPA <= 10.00),
-    Backlogs        INT          NOT NULL DEFAULT 0 CHECK (Backlogs >= 0),
-    Email           VARCHAR(100) NOT NULL UNIQUE,
-    Resume_Link     VARCHAR(255)
-);
+    Resume_Link     VARCHAR(255),
+    CONSTRAINT chk_cgpa     CHECK (CGPA >= 0.00 AND CGPA <= 10.00),
+    CONSTRAINT chk_backlogs CHECK (Backlogs >= 0),
+    CONSTRAINT chk_batch    CHECK (Batch_Year BETWEEN 2000 AND 2100)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- STUDENT_PHONE: Multivalued attribute decomposition for Student contact numbers (1NF)
+-- ============================================================================
+-- 2. STUDENT_PHONE TABLE (Multivalued Attribute Decomposition - 1NF)
+-- ============================================================================
+-- Decomposes multivalued contact numbers per student without comma-delimited strings.
 CREATE TABLE STUDENT_PHONE (
     Student_ID      INT         NOT NULL,
     Phone_No        VARCHAR(20) NOT NULL,
     PRIMARY KEY (Student_ID, Phone_No),
     CONSTRAINT fk_phone_student FOREIGN KEY (Student_ID)
         REFERENCES STUDENT(Student_ID) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- STUDENT_SKILL: Multivalued attribute decomposition for Student skillset (1NF)
+-- ============================================================================
+-- 3. STUDENT_SKILL TABLE (Multivalued Attribute Decomposition - 1NF)
+-- ============================================================================
+-- Decomposes technical and core skills possessed by a student.
 CREATE TABLE STUDENT_SKILL (
     Student_ID      INT         NOT NULL,
     Skill           VARCHAR(50) NOT NULL,
     PRIMARY KEY (Student_ID, Skill),
     CONSTRAINT fk_skill_student FOREIGN KEY (Student_ID)
         REFERENCES STUDENT(Student_ID) ON DELETE CASCADE
-);
-
--- STUDENT_COURSE: M:N enrollment relationship between Student and Course
-CREATE TABLE STUDENT_COURSE (
-    Student_ID      INT NOT NULL,
-    Course_ID       INT NOT NULL,
-    Enrollment_Year INT NOT NULL,
-    Grade           VARCHAR(5),
-    PRIMARY KEY (Student_ID, Course_ID),
-    CONSTRAINT fk_sc_student FOREIGN KEY (Student_ID)
-        REFERENCES STUDENT(Student_ID) ON DELETE CASCADE,
-    CONSTRAINT fk_sc_course FOREIGN KEY (Course_ID)
-        REFERENCES COURSE(Course_ID) ON DELETE CASCADE
-);
-
--- STUDENT_PROFILE: Professional and extracurricular differentiators (Projects, Hackathons, Certifications)
-CREATE TABLE STUDENT_PROFILE (
-    Profile_ID        SERIAL PRIMARY KEY,
-    Student_ID        INT          NOT NULL,
-    Profile_Type      VARCHAR(40)  NOT NULL CHECK (Profile_Type IN ('Skill', 'Project', 'Hackathon', 'Certification', 'Competitive Coding', 'Other')),
-    Title             VARCHAR(120) NOT NULL,
-    Description       TEXT,
-    Link              VARCHAR(255),
-    Year              INT          NOT NULL CHECK (Year BETWEEN 2000 AND 2100),
-    Proficiency_Level VARCHAR(30)  CHECK (Proficiency_Level IN ('Beginner', 'Intermediate', 'Advanced', 'Expert')),
-    CONSTRAINT fk_profile_student FOREIGN KEY (Student_ID)
-        REFERENCES STUDENT(Student_ID) ON DELETE CASCADE
-);
-
--- RESUME: Resumes uploaded by students across academic cycles
-CREATE TABLE RESUME (
-    Resume_ID       SERIAL PRIMARY KEY,
-    Student_ID      INT          NOT NULL,
-    File_Name       VARCHAR(100) NOT NULL,
-    File_Link       VARCHAR(255) NOT NULL,
-    Upload_Date     DATE         NOT NULL DEFAULT CURRENT_DATE,
-    Resume_Year     INT          NOT NULL CHECK (Resume_Year BETWEEN 2000 AND 2100),
-    CONSTRAINT fk_resume_student FOREIGN KEY (Student_ID)
-        REFERENCES STUDENT(Student_ID) ON DELETE CASCADE
-);
-
--- EDUCATION_DOCUMENT: Supporting marksheet / verification documents associated with a Resume
-CREATE TABLE EDUCATION_DOCUMENT (
-    Doc_ID          SERIAL PRIMARY KEY,
-    Resume_ID       INT          NOT NULL,
-    Document_Type   VARCHAR(50)  NOT NULL CHECK (Document_Type IN ('10th Marksheet', '12th Marksheet', 'Diploma Certificate', 'Other')),
-    Percentage_CGPA DECIMAL(5,2) NOT NULL CHECK (Percentage_CGPA > 0),
-    Board           VARCHAR(80)  NOT NULL,
-    Year_of_Passing INT          NOT NULL CHECK (Year_of_Passing BETWEEN 1990 AND 2100),
-    File_Link       VARCHAR(255),
-    CONSTRAINT fk_doc_resume FOREIGN KEY (Resume_ID)
-        REFERENCES RESUME(Resume_ID) ON DELETE CASCADE
-);
-
--- SEMESTER_RESULT: Official verified semester SGPA and credit tallies
-CREATE TABLE SEMESTER_RESULT (
-    Result_ID       SERIAL PRIMARY KEY,
-    Student_ID      INT          NOT NULL,
-    Semester        INT          NOT NULL CHECK (Semester BETWEEN 1 AND 8),
-    SGPA            DECIMAL(4,2) NOT NULL CHECK (SGPA >= 0.00 AND SGPA <= 10.00),
-    Year            INT          NOT NULL CHECK (Year BETWEEN 2000 AND 2100),
-    Total_Credits   INT          NOT NULL CHECK (Total_Credits > 0),
-    CONSTRAINT fk_result_student FOREIGN KEY (Student_ID)
-        REFERENCES STUDENT(Student_ID) ON DELETE CASCADE,
-    CONSTRAINT uq_student_semester UNIQUE (Student_ID, Semester)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================================
--- 3. COMPANY, RECRUITMENT DRIVES & OPPORTUNITIES
+-- 4. COMPANY TABLE
 -- ============================================================================
-
--- COMPANY: Recruiting corporate organizations
+-- Participating corporate recruiters categorized by business tier / organization model.
 CREATE TABLE COMPANY (
-    Company_ID      SERIAL PRIMARY KEY,
+    Company_ID      INT AUTO_INCREMENT PRIMARY KEY,
     Company_Name    VARCHAR(100) NOT NULL UNIQUE,
-    Company_Type    VARCHAR(30)  NOT NULL DEFAULT 'Other' CHECK (Company_Type IN ('Product', 'Service', 'Startup', 'PSU', 'MNC', 'Other')),
+    Company_Type    ENUM('Product', 'Service', 'Startup', 'Other') NOT NULL DEFAULT 'Other',
     Industry        VARCHAR(60),
     Location        VARCHAR(60),
     Website         VARCHAR(150)
-);
-
--- RECRUITMENT_DRIVE: Campus drives conducted by companies per year/season
-CREATE TABLE RECRUITMENT_DRIVE (
-    Drive_ID        SERIAL PRIMARY KEY,
-    Company_ID      INT          NOT NULL,
-    Drive_Year      INT          NOT NULL CHECK (Drive_Year BETWEEN 2000 AND 2100),
-    Drive_Type      VARCHAR(30)  NOT NULL CHECK (Drive_Type IN ('Placement', 'Internship', 'Both')),
-    Season          VARCHAR(30)  NOT NULL CHECK (Season IN ('Summer', 'Winter', 'Autumn', 'Spring', 'Other')),
-    Drive_Date      DATE,
-    CONSTRAINT fk_drive_company FOREIGN KEY (Company_ID)
-        REFERENCES COMPANY(Company_ID) ON DELETE RESTRICT
-);
-
--- OPPORTUNITY: Specific job roles/internships opened during a recruitment drive
-CREATE TABLE OPPORTUNITY (
-    Opportunity_ID  SERIAL PRIMARY KEY,
-    Drive_ID        INT          NOT NULL,
-    Role            VARCHAR(80)  NOT NULL,
-    Opportunity_Type VARCHAR(30) NOT NULL CHECK (Opportunity_Type IN ('Placement', 'Internship')),
-    Package_Stipend DECIMAL(10,2) NOT NULL CHECK (Package_Stipend > 0),
-    Duration_Months INT          CHECK (Duration_Months IS NULL OR Duration_Months > 0),
-    CONSTRAINT fk_opportunity_drive FOREIGN KEY (Drive_ID)
-        REFERENCES RECRUITMENT_DRIVE(Drive_ID) ON DELETE CASCADE
-);
-
--- ELIGIBILITY: 1:1 criteria specification per opportunity
-CREATE TABLE ELIGIBILITY (
-    Eligibility_ID  SERIAL PRIMARY KEY,
-    Opportunity_ID  INT          NOT NULL UNIQUE,
-    Minimum_CGPA    DECIMAL(4,2) NOT NULL DEFAULT 6.00 CHECK (Minimum_CGPA BETWEEN 0.00 AND 10.00),
-    Eligible_Branch VARCHAR(100) NOT NULL DEFAULT 'All Branches',
-    Max_Backlogs    INT          NOT NULL DEFAULT 0 CHECK (Max_Backlogs >= 0),
-    Other_Criteria  TEXT,
-    CONSTRAINT fk_eligibility_opportunity FOREIGN KEY (Opportunity_ID)
-        REFERENCES OPPORTUNITY(Opportunity_ID) ON DELETE CASCADE
-);
-
--- SELECTION_PROCESS: Multi-round recruitment steps for an opportunity
-CREATE TABLE SELECTION_PROCESS (
-    Round_ID        SERIAL PRIMARY KEY,
-    Opportunity_ID  INT          NOT NULL,
-    Round_Number    INT          NOT NULL CHECK (Round_Number >= 1),
-    Round_Type      VARCHAR(50)  NOT NULL CHECK (Round_Type IN ('Aptitude Test', 'Coding Round', 'Technical Interview', 'HR Interview', 'Group Discussion', 'Managerial Interview', 'Other')),
-    Description     TEXT,
-    CONSTRAINT fk_round_opportunity FOREIGN KEY (Opportunity_ID)
-        REFERENCES OPPORTUNITY(Opportunity_ID) ON DELETE CASCADE,
-    CONSTRAINT uq_opportunity_round UNIQUE (Opportunity_ID, Round_Number)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================================
--- 4. INTERNSHIP & ACADEMIC REQUIREMENTS
+-- 5. PLACEMENT OFFERS TABLE
 -- ============================================================================
-
--- INTERNSHIP_REQUIREMENT: Curriculum reference rules for mandatory summer internships
-CREATE TABLE INTERNSHIP_REQUIREMENT (
-    Requirement_ID             SERIAL PRIMARY KEY,
-    Internship_No              INT          NOT NULL UNIQUE CHECK (Internship_No IN (1, 2)),
-    Mandatory                  VARCHAR(5)   NOT NULL DEFAULT 'Yes' CHECK (Mandatory IN ('Yes', 'No')),
-    Prescribed_Period          VARCHAR(100) NOT NULL,
-    Required_Result_Semester   INT          NOT NULL CHECK (Required_Result_Semester BETWEEN 1 AND 8),
-    Report_Submission_Semester INT          NOT NULL CHECK (Report_Submission_Semester BETWEEN 1 AND 8),
-    Credits                    INT          NOT NULL DEFAULT 4 CHECK (Credits > 0),
-    Description                TEXT
-);
-
--- INTERNSHIP: Student internship experiences (Weak entity identifying with Student_ID + Internship_No)
-CREATE TABLE INTERNSHIP (
-    Internship_ID    SERIAL PRIMARY KEY,
-    Student_ID       INT          NOT NULL,
-    Company_ID       INT          NOT NULL,
-    Opportunity_ID   INT,
-    Requirement_ID   INT,
-    Internship_No    INT          NOT NULL CHECK (Internship_No >= 1),
-    Internship_Type  VARCHAR(30)  NOT NULL CHECK (Internship_Type IN ('Mandatory', 'Additional')),
-    Role             VARCHAR(80),
-    Interview_Rounds INT          DEFAULT 1 CHECK (Interview_Rounds >= 0),
-    Stipend          DECIMAL(10,2) NOT NULL DEFAULT 0 CHECK (Stipend >= 0),
-    Start_Date       DATE         NOT NULL,
-    End_Date         DATE         NOT NULL,
-    Credits          INT          CHECK (Credits IS NULL OR Credits >= 0),
-    Report_Semester  INT          CHECK (Report_Semester IS NULL OR Report_Semester BETWEEN 1 AND 8),
-    Report_Link      VARCHAR(255),
-    Report_Grade     VARCHAR(5),
-    Certificate_Link VARCHAR(255),
-    CONSTRAINT fk_internship_student FOREIGN KEY (Student_ID)
-        REFERENCES STUDENT(Student_ID) ON DELETE CASCADE,
-    CONSTRAINT fk_internship_company FOREIGN KEY (Company_ID)
-        REFERENCES COMPANY(Company_ID) ON DELETE RESTRICT,
-    CONSTRAINT fk_internship_opportunity FOREIGN KEY (Opportunity_ID)
-        REFERENCES OPPORTUNITY(Opportunity_ID) ON DELETE SET NULL,
-    CONSTRAINT fk_internship_requirement FOREIGN KEY (Requirement_ID)
-        REFERENCES INTERNSHIP_REQUIREMENT(Requirement_ID) ON DELETE SET NULL,
-    CONSTRAINT uq_student_internship_no UNIQUE (Student_ID, Internship_No),
-    CONSTRAINT chk_internship_dates CHECK (End_Date >= Start_Date),
-    CONSTRAINT chk_internship_req_consistency CHECK (
-        (Internship_Type = 'Mandatory' AND Requirement_ID IS NOT NULL) OR
-        (Internship_Type = 'Additional' AND Requirement_ID IS NULL)
-    )
-);
-
--- ============================================================================
--- 5. PLACEMENTS & PLACEMENT SKILLS
--- ============================================================================
-
--- PLACEMENT: Final placement offers achieved by students
+-- Tracks campus and off-campus employment offers secured by students.
+-- Enforces package validity (> 0 LPA) and institutional single accepted offer rule:
+-- Generated column `Joined_Student` is populated ONLY when Joined = 'Yes' (or Offer_Status = 'Joined').
+-- A UNIQUE index on `Joined_Student` physically enforces that a student can join at most ONE offer.
 CREATE TABLE PLACEMENT (
-    Placement_ID     SERIAL PRIMARY KEY,
-    Student_ID       INT          NOT NULL,
-    Company_ID       INT          NOT NULL,
-    Opportunity_ID   INT,
+    Placement_ID     INT AUTO_INCREMENT PRIMARY KEY,
+    Student_ID       INT           NOT NULL,
+    Company_ID       INT           NOT NULL,
+    Opportunity_ID   INT           NULL,
     Role             VARCHAR(80),
-    Package          DECIMAL(6,2) NOT NULL CHECK (Package > 0),
-    Placement_Year   INT          NOT NULL CHECK (Placement_Year BETWEEN 2000 AND 2100),
-    Placement_Type   VARCHAR(30)  NOT NULL DEFAULT 'On-campus' CHECK (Placement_Type IN ('On-campus', 'Off-campus')),
-    Is_PPO           VARCHAR(5)   NOT NULL DEFAULT 'No' CHECK (Is_PPO IN ('Yes', 'No')),
-    Joined           VARCHAR(5)   NOT NULL DEFAULT 'No' CHECK (Joined IN ('Yes', 'No')),
-    Offer_Status     VARCHAR(20)  NOT NULL DEFAULT 'Offered' CHECK (Offer_Status IN ('Offered', 'Accepted', 'Joined', 'Declined')),
-    Interview_Rounds INT          DEFAULT 1 CHECK (Interview_Rounds >= 0),
+    Package          DECIMAL(6,2)  NOT NULL COMMENT 'CTC in LPA',
+    Placement_Year   SMALLINT      NOT NULL,
+    Placement_Type   ENUM('On-campus', 'Off-campus') NOT NULL DEFAULT 'On-campus',
+    Is_PPO           ENUM('Yes', 'No') NOT NULL DEFAULT 'No',
+    Joined           ENUM('Yes', 'No') NOT NULL DEFAULT 'No',
+    Offer_Status     VARCHAR(20)   NOT NULL DEFAULT 'Offered',
+    Interview_Rounds TINYINT       DEFAULT 1,
+    Joined_Student   INT GENERATED ALWAYS AS (CASE WHEN Joined = 'Yes' OR Offer_Status = 'Joined' THEN Student_ID ELSE NULL END) STORED,
+    UNIQUE KEY uq_one_joined_offer (Joined_Student),
+    CONSTRAINT chk_package   CHECK (Package > 0.00),
+    CONSTRAINT chk_pl_rounds CHECK (Interview_Rounds IS NULL OR Interview_Rounds >= 0),
     CONSTRAINT fk_placement_student FOREIGN KEY (Student_ID)
         REFERENCES STUDENT(Student_ID) ON DELETE CASCADE,
     CONSTRAINT fk_placement_company FOREIGN KEY (Company_ID)
-        REFERENCES COMPANY(Company_ID) ON DELETE RESTRICT,
-    CONSTRAINT fk_placement_opportunity FOREIGN KEY (Opportunity_ID)
-        REFERENCES OPPORTUNITY(Opportunity_ID) ON DELETE SET NULL
-);
+        REFERENCES COMPANY(Company_ID) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Partial Unique Index: A student can join at most ONE placement offer
-CREATE UNIQUE INDEX uq_student_joined_placement
-    ON PLACEMENT(Student_ID) WHERE Joined = 'Yes';
-
--- PLACEMENT_SKILL: Multivalued attribute decomposition for skills evaluated in placement offers
+-- ============================================================================
+-- 6. PLACEMENT_SKILL TABLE (Multivalued Skills Evaluated for Placement)
+-- ============================================================================
 CREATE TABLE PLACEMENT_SKILL (
     Placement_ID    INT         NOT NULL,
     Skill           VARCHAR(50) NOT NULL,
     PRIMARY KEY (Placement_ID, Skill),
     CONSTRAINT fk_pskill_placement FOREIGN KEY (Placement_ID)
         REFERENCES PLACEMENT(Placement_ID) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================================
--- 6. INDEXES ON FREQUENTLY SEARCHED / FILTERED COLUMNS
+-- 7. INTERNSHIP TABLE (Weak Entity Identifying with Student_ID + Internship_No)
 -- ============================================================================
+-- Internship_No 1 = Summer internship after 2nd year (evaluated in Semester 5, 4 credits).
+-- Internship_No 2 = Summer internship after 3rd year (evaluated in Semester 7, 4 credits).
+-- Internship_No 3+ = Additional voluntary internships (no academic degree credits).
+-- Duration_Months is a DERIVED attribute computed in views and queries, never stored.
+CREATE TABLE INTERNSHIP (
+    Internship_ID    INT AUTO_INCREMENT UNIQUE KEY,
+    Student_ID       INT           NOT NULL,
+    Internship_No    TINYINT       NOT NULL,
+    Company_ID       INT           NOT NULL,
+    Opportunity_ID   INT           NULL,
+    Requirement_ID   INT           NULL,
+    Internship_Type  ENUM('Mandatory', 'Additional') NOT NULL,
+    Role             VARCHAR(80),
+    Interview_Rounds TINYINT       DEFAULT 1,
+    Stipend          DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    Start_Date       DATE          NOT NULL,
+    End_Date         DATE          NOT NULL,
+    Credits          TINYINT       DEFAULT 4,
+    Report_Semester  TINYINT,
+    Report_Link      VARCHAR(255),
+    Report_Grade     VARCHAR(5),
+    Certificate_Link VARCHAR(255),
+    PRIMARY KEY (Student_ID, Internship_No),
+    CONSTRAINT chk_int_no      CHECK (Internship_No >= 1),
+    CONSTRAINT chk_int_dates   CHECK (End_Date >= Start_Date),
+    CONSTRAINT chk_int_stipend CHECK (Stipend >= 0.00),
+    CONSTRAINT fk_internship_student FOREIGN KEY (Student_ID)
+        REFERENCES STUDENT(Student_ID) ON DELETE CASCADE,
+    CONSTRAINT fk_internship_company FOREIGN KEY (Company_ID)
+        REFERENCES COMPANY(Company_ID) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Indexes for STUDENT searches
+-- ============================================================================
+-- 8. INDEXES FOR HIGH-TRAFFIC SEARCH & FILTER PERFORMANCE
+-- ============================================================================
 CREATE INDEX idx_student_branch_batch ON STUDENT(Branch, Batch_Year);
 CREATE INDEX idx_student_cgpa ON STUDENT(CGPA);
 CREATE INDEX idx_student_roll ON STUDENT(Roll_No);
-
--- Indexes for COMPANY & DRIVES
 CREATE INDEX idx_company_name ON COMPANY(Company_Name);
-CREATE INDEX idx_company_industry ON COMPANY(Industry);
-CREATE INDEX idx_drive_year_season ON RECRUITMENT_DRIVE(Drive_Year, Season);
-CREATE INDEX idx_opportunity_drive ON OPPORTUNITY(Drive_ID);
-CREATE INDEX idx_opportunity_type ON OPPORTUNITY(Opportunity_Type, Package_Stipend);
-
--- Indexes for PLACEMENTS
+CREATE INDEX idx_company_type ON COMPANY(Company_Type);
 CREATE INDEX idx_placement_student ON PLACEMENT(Student_ID);
 CREATE INDEX idx_placement_company ON PLACEMENT(Company_ID);
 CREATE INDEX idx_placement_year ON PLACEMENT(Placement_Year);
-CREATE INDEX idx_placement_status ON PLACEMENT(Offer_Status, Joined);
-
--- Indexes for INTERNSHIPS
 CREATE INDEX idx_internship_student ON INTERNSHIP(Student_ID);
 CREATE INDEX idx_internship_company ON INTERNSHIP(Company_ID);
 CREATE INDEX idx_internship_type ON INTERNSHIP(Internship_Type);
 
--- Indexes for RESULTS & PROFILES
-CREATE INDEX idx_sem_result_student ON SEMESTER_RESULT(Student_ID, Semester);
-CREATE INDEX idx_student_profile_type ON STUDENT_PROFILE(Student_ID, Profile_Type);
+-- ============================================================================
+-- 9. RELATIONAL VIEWS (Pre-computed joins with derived attributes)
+-- ============================================================================
+
+-- V_PLACEMENT_DETAIL: Combines student profile, recruiting company, and offer package
+CREATE VIEW V_PLACEMENT_DETAIL AS
+SELECT p.Placement_ID, s.Student_ID, s.Roll_No,
+       CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
+       s.Branch, s.Batch_Year, s.CGPA, s.Backlogs,
+       c.Company_ID, c.Company_Name, c.Company_Type, c.Industry, c.Location,
+       p.Role, p.Package, p.Placement_Year, p.Placement_Type,
+       p.Is_PPO, p.Joined, p.Offer_Status, p.Interview_Rounds
+FROM PLACEMENT p
+JOIN STUDENT s ON s.Student_ID = p.Student_ID
+JOIN COMPANY c ON c.Company_ID = p.Company_ID;
+
+-- V_INTERNSHIP_DETAIL: Computes Duration_Months dynamically using DATEDIFF
+CREATE VIEW V_INTERNSHIP_DETAIL AS
+SELECT i.Internship_ID, i.Student_ID, s.Roll_No,
+       CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
+       s.Branch, s.Batch_Year,
+       i.Internship_No, i.Internship_Type,
+       c.Company_ID, c.Company_Name, c.Company_Type,
+       i.Role, i.Interview_Rounds, i.Stipend,
+       i.Start_Date, i.End_Date,
+       ROUND((DATEDIFF(i.End_Date, i.Start_Date) + 1) / 30, 1) AS Duration_Months,
+       i.Credits, i.Report_Semester, i.Report_Link, i.Report_Grade, i.Certificate_Link
+FROM INTERNSHIP i
+JOIN STUDENT s ON s.Student_ID = i.Student_ID
+JOIN COMPANY c ON c.Company_ID = i.Company_ID;

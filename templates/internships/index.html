@@ -3,7 +3,6 @@
 {% block title %}Internships & Academic Compliance | Placement Portal{% endblock %}
 
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Home</a></li>
 <li class="breadcrumb-item active" aria-current="page">Internships</li>
 {% endblock %}
 
@@ -313,7 +312,7 @@
                     </td>
                     <td>#{{ item.Internship_No }}</td>
                     <td><strong>{{ item.Company_Name }}</strong></td>
-                    <td>{{ item.Role_Title }}</td>
+                    <td>{{ item.Role or 'Intern' }}</td>
                     <td><small class="code-font text-muted">{{ item.Start_Date }}</small></td>
                     <td><small class="code-font text-muted">{{ item.End_Date }}</small></td>
                     <td>

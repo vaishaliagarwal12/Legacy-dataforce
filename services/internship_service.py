@@ -215,7 +215,7 @@ def list_internships(
     query_sql = f"""
         SELECT i.Internship_ID, i.Student_ID, s.Roll_No, s.First_Name, s.Last_Name, s.Branch,
                i.Company_ID, c.Company_Name, i.Internship_No, i.Internship_Type,
-               i.Role, i.Stipend, i.Start_Date, i.End_Date, i.Credits,
+               i.Role, i.Stipend, i.Start_Date, i.End_Date, i.Credits, i.Requirement_ID,
                ir.Required_Result_Semester,
                sr.SGPA AS Prerequisite_Semester_SGPA
         FROM INTERNSHIP i

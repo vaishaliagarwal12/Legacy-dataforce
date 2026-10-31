@@ -3,118 +3,153 @@
 {% block title %}{{ 'Edit Student' if mode == 'edit' else 'Register New Student' }} | Placement Portal{% endblock %}
 
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Home</a></li>
 <li class="breadcrumb-item"><a href="/students" class="text-decoration-none text-muted">Students</a></li>
 <li class="breadcrumb-item active" aria-current="page">{{ 'Edit Student' if mode == 'edit' else 'New Registration' }}</li>
 {% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-12 col-lg-8">
+    <div class="col-12 col-xl-9">
         <div class="form-card">
-            <div class="d-flex align-items-center justify-content-between mb-4 border-bottom pb-3">
+            <!-- Form Header -->
+            <div class="d-flex align-items-center justify-content-between mb-4 pb-3 border-bottom">
                 <div>
-                    <h3 class="h5 fw-bold mb-1">{{ 'Update Student Profile' if mode == 'edit' else 'Register New Student' }}</h3>
-                    <p class="text-muted small mb-0">Ensure all academic identifiers and contact details conform to university records.</p>
+                    <h1 class="h5 fw-bold mb-1">{{ 'Update Student Profile' if mode == 'edit' else 'Register New Student' }}</h1>
+                    <p class="text-secondary small mb-0">Record and verify institutional student identity, department, and academic performance.</p>
                 </div>
                 <a href="/students" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-arrow-left me-1"></i> Back to List
+                    <i class="bi bi-arrow-left me-1"></i> Back to Directory
                 </a>
             </div>
 
             <form method="POST" action="{{ '/students/' ~ student.Student_ID ~ '/edit' if mode == 'edit' else '/students/new' }}" class="needs-validation" novalidate>
-                <div class="row g-3">
-                    <!-- Roll Number -->
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="Roll_No">University Roll Number <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control code-font" id="Roll_No" name="Roll_No" 
-                               value="{{ student.Roll_No if student else '' }}" 
-                               required placeholder="e.g. CS202201"
-                               {% if mode == 'edit' %}readonly{% endif %}>
-                        <div class="invalid-feedback">A unique university Roll Number is required.</div>
+                <!-- Group 1: Identity & Personal Information -->
+                <div class="form-section">
+                    <div class="form-section-header">
+                        <h2 class="form-section-title"><i class="bi bi-person-badge text-primary"></i> Personal & University Identification</h2>
+                        <p class="form-section-subtitle">Official university identity credentials and primary communication address.</p>
                     </div>
 
-                    <!-- Email -->
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="Email">Official Email Address <span class="text-danger">*</span></label>
-                        <input type="email" class="form-control" id="Email" name="Email" 
-                               value="{{ student.Email if student else '' }}" 
-                               required placeholder="student@university.edu">
-                        <div class="invalid-feedback">Please provide a valid official email address.</div>
-                    </div>
+                    <div class="row g-3">
+                        <!-- Roll Number -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="Roll_No">University Roll Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control code-font" id="Roll_No" name="Roll_No" 
+                                   value="{{ student.Roll_No if student else '' }}" 
+                                   required placeholder="e.g. CS202201"
+                                   {% if mode == 'edit' %}readonly{% endif %}>
+                            <div class="invalid-feedback">Please enter a valid, unique university Roll Number.</div>
+                            <div class="form-text small text-muted">Unique institutional roll number identifier.</div>
+                        </div>
 
-                    <!-- First Name -->
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="First_Name">First Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="First_Name" name="First_Name" 
-                               value="{{ student.First_Name if student else '' }}" 
-                               required placeholder="First name">
-                        <div class="invalid-feedback">First name is required.</div>
-                    </div>
+                        <!-- Email -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="Email">Institutional Email Address <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="Email" name="Email" 
+                                   value="{{ student.Email if student else '' }}" 
+                                   required placeholder="name@university.edu">
+                            <div class="invalid-feedback">A valid institutional email address is required.</div>
+                            <div class="form-text small text-muted">Used for recruitment drive notifications and offer receipts.</div>
+                        </div>
 
-                    <!-- Last Name -->
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="Last_Name">Last Name</label>
-                        <input type="text" class="form-control" id="Last_Name" name="Last_Name" 
-                               value="{{ student.Last_Name if student else '' }}" 
-                               placeholder="Last name">
-                    </div>
+                        <!-- First Name -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="First_Name">First Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="First_Name" name="First_Name" 
+                                   value="{{ student.First_Name if student else '' }}" 
+                                   required placeholder="e.g. Aarav">
+                            <div class="invalid-feedback">First name cannot be left blank.</div>
+                        </div>
 
-                    <!-- Branch -->
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="Branch">Academic Department / Branch <span class="text-danger">*</span></label>
-                        <select class="form-select" id="Branch" name="Branch" required>
-                            <option value="">Choose department...</option>
-                            {% for b in ['Computer Science', 'Electronics & Comm', 'Mechanical', 'Information Tech', 'Civil', 'Electrical', 'Chemical'] %}
-                                <option value="{{ b }}" {% if student and student.Branch == b %}selected{% endif %}>{{ b }}</option>
-                            {% endfor %}
-                        </select>
-                        <div class="invalid-feedback">Please select an engineering department.</div>
-                    </div>
-
-                    <!-- Batch Year -->
-                    <div class="col-6 col-md-3">
-                        <label class="form-label" for="Batch_Year">Graduation Year <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" id="Batch_Year" name="Batch_Year" 
-                               min="2000" max="2100" value="{{ student.Batch_Year if student else '2024' }}" required>
-                        <div class="invalid-feedback">Valid year (2000-2100).</div>
-                    </div>
-
-                    <!-- Section -->
-                    <div class="col-6 col-md-3">
-                        <label class="form-label" for="Section">Section</label>
-                        <input type="text" class="form-control" id="Section" name="Section" 
-                               value="{{ student.Section if student else 'A' }}" placeholder="A">
-                    </div>
-
-                    <!-- CGPA -->
-                    <div class="col-6 col-md-3">
-                        <label class="form-label" for="CGPA">CGPA (0-10) <span class="text-danger">*</span></label>
-                        <input type="number" step="0.01" class="form-control" id="CGPA" name="CGPA" 
-                               min="0.00" max="10.00" value="{{ student.CGPA if student else '7.50' }}" required>
-                        <div class="invalid-feedback">Range: 0.00 to 10.00.</div>
-                    </div>
-
-                    <!-- Backlogs -->
-                    <div class="col-6 col-md-3">
-                        <label class="form-label" for="Backlogs">Active Backlogs <span class="text-danger">*</span></label>
-                        <input type="number" class="form-control" id="Backlogs" name="Backlogs" 
-                               min="0" value="{{ student.Backlogs if student else '0' }}" required>
-                        <div class="invalid-feedback">Must be &ge; 0.</div>
-                    </div>
-
-                    <!-- Resume Link -->
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="Resume_Link">Resume URL / Link</label>
-                        <input type="url" class="form-control" id="Resume_Link" name="Resume_Link" 
-                               value="{{ student.Resume_Link if student else '' }}" placeholder="https://drive.google.com/...">
+                        <!-- Last Name -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="Last_Name">Last Name / Surname</label>
+                            <input type="text" class="form-control" id="Last_Name" name="Last_Name" 
+                                   value="{{ student.Last_Name if student else '' }}" 
+                                   placeholder="e.g. Sharma">
+                        </div>
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
-                    <a href="/students" class="btn btn-light btn-sm">Cancel</a>
+                <!-- Group 2: Academic Standing & Program Details -->
+                <div class="form-section">
+                    <div class="form-section-header">
+                        <h2 class="form-section-title"><i class="bi bi-mortarboard text-primary"></i> Academic Program & Performance Metrics</h2>
+                        <p class="form-section-subtitle">Department discipline, cohort graduation year, CGPA, and backlog tally.</p>
+                    </div>
+
+                    <div class="row g-3">
+                        <!-- Branch -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="Branch">Academic Department / Branch <span class="text-danger">*</span></label>
+                            <select class="form-select" id="Branch" name="Branch" required>
+                                <option value="">Select department...</option>
+                                {% for code, label in [('CSE', 'Computer Science (CSE)'), ('ECE', 'Electronics & Comm (ECE)'), ('ME', 'Mechanical Engineering (ME)'), ('IT', 'Information Technology (IT)'), ('Civil', 'Civil Engineering'), ('Electrical', 'Electrical Engineering')] %}
+                                    <option value="{{ code }}" {% if student and (student.Branch == code or student.Branch == label) %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="invalid-feedback">Please select an academic branch.</div>
+                        </div>
+
+                        <!-- Batch Year -->
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" for="Batch_Year">Graduation Batch <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="Batch_Year" name="Batch_Year" 
+                                   min="2000" max="2100" value="{{ student.Batch_Year if student else '2024' }}" required>
+                            <div class="invalid-feedback">Enter a valid 4-digit graduation year.</div>
+                        </div>
+
+                        <!-- Section -->
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" for="Section">Class Section</label>
+                            <input type="text" class="form-control" id="Section" name="Section" 
+                                   value="{{ student.Section if student else 'A' }}" placeholder="A">
+                        </div>
+
+                        <!-- CGPA -->
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" for="CGPA">Cumulative CGPA (0-10) <span class="text-danger">*</span></label>
+                            <input type="number" step="0.01" class="form-control" id="CGPA" name="CGPA" 
+                                   min="0.00" max="10.00" value="{{ student.CGPA if student else '7.50' }}" required>
+                            <div class="invalid-feedback">CGPA must be between 0.00 and 10.00.</div>
+                        </div>
+
+                        <!-- Backlogs -->
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" for="Backlogs">Active Backlogs <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="Backlogs" name="Backlogs" 
+                                   min="0" value="{{ student.Backlogs if student else '0' }}" required>
+                            <div class="invalid-feedback">Active backlogs cannot be negative.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Group 3: Portfolio & Online Presence -->
+                <div class="form-section">
+                    <div class="form-section-header">
+                        <h2 class="form-section-title"><i class="bi bi-file-earmark-text text-primary"></i> Portfolio & Resume</h2>
+                        <p class="form-section-subtitle">Link to verified student resume or digital career profile.</p>
+                    </div>
+
+                    <div class="row g-3">
+                        <!-- Resume Link -->
+                        <div class="col-12">
+                            <label class="form-label" for="Resume_Link">Resume URL / Cloud Storage Link</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="bi bi-link-45deg"></i></span>
+                                <input type="url" class="form-control" id="Resume_Link" name="Resume_Link" 
+                                       value="{{ student.Resume_Link if student else '' }}" placeholder="https://drive.google.com/your-resume-link">
+                            </div>
+                            <div class="form-text small text-muted">Direct public URL to PDF resume document (Google Drive, OneDrive, etc.).</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Action Buttons -->
+                <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                    <a href="/students" class="btn btn-outline-secondary btn-sm px-3">Cancel</a>
                     <button type="submit" class="btn btn-primary btn-sm px-4">
-                        <i class="bi bi-check2-circle me-1"></i> {{ 'Save Changes' if mode == 'edit' else 'Create Student Record' }}
+                        <i class="bi bi-check2-circle me-1"></i> {{ 'Save Profile Changes' if mode == 'edit' else 'Register Student' }}
                     </button>
                 </div>
             </form>

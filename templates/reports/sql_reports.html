@@ -1,0 +1,587 @@
+{% extends "base.html" %}
+
+{% block title %}SQL Reports & Interactive DBMS Console | Placement & Internship Portal{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="/reports" class="text-decoration-none text-muted">Reports</a></li>
+<li class="breadcrumb-item active" aria-current="page">SQL Reports & DBMS Console</li>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+        <h2 class="h4 fw-bold mb-1">
+            <i class="bi bi-terminal-split text-primary me-2"></i>SQL Reports & Interactive DBMS Console
+        </h2>
+        <p class="text-secondary small mb-0">
+            Comprehensive relational database query suite covering canonical placement/internship operations, ACID demonstrations, and secure server-side SQL execution.
+        </p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
+            <i class="bi bi-database me-1"></i> MySQL 8.0 &bull; placement_db
+        </span>
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">
+            <i class="bi bi-shield-check me-1"></i> Read-Only Enforced
+        </span>
+    </div>
+</div>
+
+<!-- Navigation Tabs -->
+<ul class="nav nav-pills mb-4 gap-2" id="sqlTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active px-4 py-2 fw-semibold d-flex align-items-center gap-2" id="saved-tab" data-bs-toggle="pill" data-bs-target="#saved-pane" type="button" role="tab" aria-controls="saved-pane" aria-selected="true">
+            <i class="bi bi-collection-play-fill text-primary"></i> Part 1: Saved DBMS Queries
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link px-4 py-2 fw-semibold d-flex align-items-center gap-2" id="custom-tab" data-bs-toggle="pill" data-bs-target="#custom-pane" type="button" role="tab" aria-controls="custom-pane" aria-selected="false">
+            <i class="bi bi-code-square text-success"></i> Part 2: Custom SQL Box
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="sqlTabsContent">
+    <!-- =======================================================================
+         PART 1: SAVED QUERIES PANE
+         ======================================================================= -->
+    <div class="tab-pane fade show active" id="saved-pane" role="tabpanel" aria-labelledby="saved-tab">
+        <div class="table-card mb-4 shadow-sm">
+            <div class="p-3 bg-light border-bottom d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary text-white">Part 1</span>
+                    <h6 class="fw-bold mb-0 text-dark">Canonical DBMS Evaluation Queries</h6>
+                </div>
+                <div class="text-muted small">
+                    Grouped by: Students, Placements, Internships & Combined
+                </div>
+            </div>
+
+            <div class="p-4">
+                <div class="row g-3">
+                    <!-- Dropdown Query Selector -->
+                    <div class="col-12 col-lg-7">
+                        <label class="form-label fw-bold small text-dark">Select Saved DBMS Query</label>
+                        <select id="savedQuerySelect" class="form-select form-select-lg shadow-sm border-primary-subtle">
+                            {% set current_group = "" %}
+                            {% for q in saved_queries %}
+                                {% if q.group != current_group %}
+                                    {% if not loop.first %}</optgroup>{% endif %}
+                                    {% set current_group = q.group %}
+                                    <optgroup label="📂 {{ q.group }} Queries">
+                                {% endif %}
+                                <option value="{{ q.id }}">{{ q.title }}</option>
+                                {% if loop.last %}</optgroup>{% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Dynamic Parameters Container -->
+                    <div class="col-12 col-lg-5">
+                        <div id="dynamicParamsContainer" class="border rounded p-3 bg-light h-100">
+                            <label class="form-label fw-bold small text-secondary mb-2">Query Parameters (Passed safely via %s)</label>
+                            <div id="paramsFields" class="d-flex flex-wrap gap-2 align-items-center">
+                                <span class="text-muted small fst-italic">This query does not require additional parameters.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DBMS Explanation Callout -->
+                <div class="alert alert-info border-info-subtle mt-4 mb-3 d-flex align-items-start gap-3 shadow-xs">
+                    <i class="bi bi-info-circle-fill text-info fs-4 mt-1"></i>
+                    <div>
+                        <div class="fw-bold text-dark mb-1">DBMS Concepts Demonstrated:</div>
+                        <div id="dbmsConceptText" class="text-secondary small">
+                            Loading query concept...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Collapsible SQL Preview -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted fw-semibold">Parameterized SQL Definition:</small>
+                        <button class="btn btn-sm btn-link text-decoration-none py-0 text-muted" type="button" data-bs-toggle="collapse" data-bs-target="#sqlPreviewCollapse">
+                            <i class="bi bi-chevron-down"></i> Toggle SQL Code
+                        </button>
+                    </div>
+                    <div class="collapse show" id="sqlPreviewCollapse">
+                        <pre class="bg-dark text-light p-3 rounded small mb-0 font-monospace overflow-auto" style="max-height: 220px;" id="sqlPreviewText">-- SQL will be displayed here</pre>
+                    </div>
+                </div>
+
+                <!-- Action Toolbar -->
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-2 border-top">
+                    <div class="d-flex gap-2">
+                        <button type="button" id="btnRunSaved" class="btn btn-primary px-4 shadow-sm">
+                            <i class="bi bi-play-fill me-1"></i> Run Query
+                        </button>
+                        <a id="btnDownloadSavedCsv" href="#" class="btn btn-outline-success px-3">
+                            <i class="bi bi-download me-1"></i> Download CSV
+                        </a>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <span id="savedResultCount" class="badge bg-secondary-subtle text-secondary px-3 py-2 border">0 rows returned</span>
+                        <span id="savedExecTime" class="badge bg-light text-dark px-3 py-2 border">-- ms</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Saved Results Table Card -->
+        <div class="table-card shadow-sm mb-5">
+            <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-table me-2 text-primary"></i> Query Output ResultSet
+                </h6>
+                <small class="text-muted">Results capped at 500 rows maximum</small>
+            </div>
+            
+            <div id="savedAlertContainer"></div>
+
+            <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                <table class="table table-hover table-striped align-middle mb-0" id="savedResultsTable">
+                    <thead class="table-light sticky-top">
+                        <tr id="savedTableHeadRow">
+                            <th class="text-muted small">Select a query and click 'Run Query' to display results</th>
+                        </tr>
+                    </thead>
+                    <tbody id="savedTableBody">
+                        <tr>
+                            <td class="text-center py-4 text-muted">Ready to execute query.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- =======================================================================
+         PART 2: CUSTOM SQL BOX PANE
+         ======================================================================= -->
+    <div class="tab-pane fade" id="custom-pane" role="tabpanel" aria-labelledby="custom-tab">
+        <div class="table-card mb-4 shadow-sm">
+            <div class="p-3 bg-light border-bottom d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success text-white">Part 2</span>
+                    <h6 class="fw-bold mb-0 text-dark">Secure Read-Only SQL Console</h6>
+                </div>
+                <div class="d-flex gap-2">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle">
+                        <i class="bi bi-person-lock me-1"></i> User: placement_readonly
+                    </span>
+                    <span class="badge bg-warning-subtle text-dark border border-warning-subtle">
+                        <i class="bi bi-clock-history me-1"></i> Timeout: 3.0s
+                    </span>
+                    <span class="badge bg-info-subtle text-info border border-info-subtle">
+                        <i class="bi bi-list-ol me-1"></i> Row Limit: 500
+                    </span>
+                </div>
+            </div>
+
+            <div class="p-4">
+                <!-- Safety Rules Banner -->
+                <div class="alert alert-secondary border-secondary-subtle p-3 mb-3 small shadow-xs">
+                    <div class="fw-bold text-dark mb-1">
+                        <i class="bi bi-shield-shaded text-success me-1"></i> Server-Enforced Security Policies:
+                    </div>
+                    <ul class="mb-0 ps-3 text-muted">
+                        <li><strong>Single SELECT Only:</strong> Must begin with <code>SELECT</code>. Exactly one statement allowed.</li>
+                        <li><strong>Strictly Prohibited:</strong> <code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code>, <code>DROP</code>, <code>ALTER</code>, <code>TRUNCATE</code>, stacked statements (<code>;</code>), or comments (<code>--</code>, <code>/* */</code>, <code>#</code>).</li>
+                        <li><strong>Least-Privilege Isolation:</strong> Executed strictly under MySQL read-only user <code>placement_readonly</code>.</li>
+                        <li><strong>Engine Guard:</strong> Automatic <code>LIMIT 500</code> enforcement and 3,000 ms statement execution timeout.</li>
+                    </ul>
+                </div>
+
+                <!-- Quick Snippets -->
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                    <small class="text-muted fw-semibold">Quick Sample Queries:</small>
+                    <button type="button" class="btn btn-sm btn-outline-secondary snippet-btn py-0 px-2" data-sql="SELECT Branch, COUNT(*) AS Total_Students, ROUND(AVG(CGPA), 2) AS Mean_CGPA FROM STUDENT GROUP BY Branch ORDER BY Mean_CGPA DESC;">Branch CGPA</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary snippet-btn py-0 px-2" data-sql="SELECT Company_Name, Company_Type, COUNT(*) AS Placed, ROUND(AVG(Package), 2) AS Avg_Package FROM V_PLACEMENT_DETAIL WHERE Joined = 'Yes' GROUP BY Company_ID, Company_Name, Company_Type ORDER BY Placed DESC;">Company Hiring</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary snippet-btn py-0 px-2" data-sql="SELECT Skill, COUNT(*) AS Student_Count FROM STUDENT_SKILL GROUP BY Skill ORDER BY Student_Count DESC LIMIT 10;">Top 10 Skills</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary snippet-btn py-0 px-2" data-sql="SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Name, s.CGPA, p.Package, p.Company_Name FROM STUDENT s JOIN V_PLACEMENT_DETAIL p ON s.Student_ID = p.Student_ID WHERE p.Joined = 'Yes' ORDER BY p.Package DESC LIMIT 10;">Top 10 Packages</button>
+                </div>
+
+                <!-- Textarea Editor -->
+                <div class="mb-3">
+                    <textarea id="customSqlInput" class="form-control font-monospace border-secondary-subtle" rows="6" placeholder="SELECT Roll_No, First_Name, Last_Name, Branch, CGPA FROM STUDENT WHERE CGPA >= 8.5 ORDER BY CGPA DESC;" style="font-size: 0.95rem; line-height: 1.5; tab-size: 4;"></textarea>
+                </div>
+
+                <!-- Action Toolbar -->
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-2 border-top">
+                    <div class="d-flex gap-2">
+                        <button type="button" id="btnRunCustom" class="btn btn-success px-4 shadow-sm">
+                            <i class="bi bi-play-circle-fill me-1"></i> Execute SQL
+                        </button>
+                        <button type="button" id="btnDownloadCustomCsv" class="btn btn-outline-success px-3">
+                            <i class="bi bi-download me-1"></i> Download CSV
+                        </button>
+                        <button type="button" id="btnClearCustom" class="btn btn-outline-secondary px-3">
+                            <i class="bi bi-eraser me-1"></i> Clear
+                        </button>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <span id="customResultCount" class="badge bg-secondary-subtle text-secondary px-3 py-2 border">0 rows returned</span>
+                        <span id="customExecTime" class="badge bg-light text-dark px-3 py-2 border">-- ms</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Results Table Card -->
+        <div class="table-card shadow-sm mb-5">
+            <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-terminal me-2 text-success"></i> Custom Console Output
+                </h6>
+                <small class="text-muted">Capped at 500 rows maximum</small>
+            </div>
+            
+            <div id="customAlertContainer" class="p-3 pb-0" style="display: none;"></div>
+
+            <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                <table class="table table-hover table-striped align-middle mb-0" id="customResultsTable">
+                    <thead class="table-light sticky-top">
+                        <tr id="customTableHeadRow">
+                            <th class="text-muted small">Write a SELECT statement above and click 'Execute SQL'</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customTableBody">
+                        <tr>
+                            <td class="text-center py-4 text-muted">Ready to execute custom SQL query.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden Form for Custom CSV Download -->
+<form id="customCsvForm" method="POST" action="/sql-reports/export-custom" style="display: none;">
+    <input type="hidden" name="sql" id="customCsvSqlInput">
+</form>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // -------------------------------------------------------------------------
+    // Query Catalog Metadata
+    // -------------------------------------------------------------------------
+    const savedQueries = {{ saved_queries | tojson }};
+    const savedQueriesMap = {};
+    savedQueries.forEach(q => savedQueriesMap[q.id] = q);
+
+    const selectEl = document.getElementById("savedQuerySelect");
+    const conceptTextEl = document.getElementById("dbmsConceptText");
+    const sqlPreviewEl = document.getElementById("sqlPreviewText");
+    const paramsContainerEl = document.getElementById("paramsFields");
+    const btnRunSaved = document.getElementById("btnRunSaved");
+    const btnDownloadSavedCsv = document.getElementById("btnDownloadSavedCsv");
+    const savedHeadRow = document.getElementById("savedTableHeadRow");
+    const savedBody = document.getElementById("savedTableBody");
+    const savedResultCount = document.getElementById("savedResultCount");
+    const savedExecTime = document.getElementById("savedExecTime");
+    const savedAlertContainer = document.getElementById("savedAlertContainer");
+
+    const customSqlInput = document.getElementById("customSqlInput");
+    const btnRunCustom = document.getElementById("btnRunCustom");
+    const btnDownloadCustomCsv = document.getElementById("btnDownloadCustomCsv");
+    const btnClearCustom = document.getElementById("btnClearCustom");
+    const customHeadRow = document.getElementById("customTableHeadRow");
+    const customBody = document.getElementById("customTableBody");
+    const customResultCount = document.getElementById("customResultCount");
+    const customExecTime = document.getElementById("customExecTime");
+    const customAlertContainer = document.getElementById("customAlertContainer");
+    const customCsvForm = document.getElementById("customCsvForm");
+    const customCsvSqlInput = document.getElementById("customCsvSqlInput");
+
+    // -------------------------------------------------------------------------
+    // Render Selected Query Form & Concept
+    // -------------------------------------------------------------------------
+    function onSavedQueryChange() {
+        const queryId = selectEl.value;
+        const q = savedQueriesMap[queryId];
+        if (!q) return;
+
+        conceptTextEl.textContent = q.dbms_concept;
+        sqlPreviewEl.textContent = q.sql;
+
+        // Render Parameters
+        paramsContainerEl.innerHTML = "";
+        const params = q.params || [];
+
+        if (params.length === 0) {
+            paramsContainerEl.innerHTML = '<span class="text-muted small fst-italic">This query does not require additional parameters.</span>';
+        } else {
+            params.forEach(p => {
+                const wrapper = document.createElement("div");
+                wrapper.className = "d-flex flex-column gap-1 me-3 mb-2";
+
+                const label = document.createElement("label");
+                label.className = "small fw-semibold text-dark mb-0";
+                label.textContent = p.label;
+                wrapper.appendChild(label);
+
+                if (p.type === "select") {
+                    const sel = document.createElement("select");
+                    sel.name = p.name;
+                    sel.id = `param_${p.name}`;
+                    sel.className = "form-select form-select-sm";
+                    (p.options || []).forEach(opt => {
+                        const optEl = document.createElement("option");
+                        optEl.value = opt;
+                        optEl.textContent = opt;
+                        if (opt === p.default) optEl.selected = true;
+                        sel.appendChild(optEl);
+                    });
+                    wrapper.appendChild(sel);
+                } else {
+                    const inp = document.createElement("input");
+                    inp.type = p.type === "number" ? "number" : "text";
+                    inp.name = p.name;
+                    inp.id = `param_${p.name}`;
+                    inp.className = "form-control form-control-sm";
+                    inp.value = p.default !== undefined ? p.default : "";
+                    if (p.placeholder) inp.placeholder = p.placeholder;
+                    if (p.step) inp.step = p.step;
+                    wrapper.appendChild(inp);
+                }
+                paramsContainerEl.appendChild(wrapper);
+            });
+        }
+
+        updateSavedCsvLink();
+    }
+
+    function collectSavedParams() {
+        const queryId = selectEl.value;
+        const q = savedQueriesMap[queryId];
+        const params = {};
+        if (q && q.params) {
+            q.params.forEach(p => {
+                const el = document.getElementById(`param_${p.name}`);
+                if (el) {
+                    params[p.name] = el.value.trim();
+                }
+            });
+        }
+        return params;
+    }
+
+    function updateSavedCsvLink() {
+        const queryId = selectEl.value;
+        const params = collectSavedParams();
+        const urlParams = new URLSearchParams();
+        urlParams.set("query_id", queryId);
+        for (const [k, v] of Object.entries(params)) {
+            urlParams.set(k, v);
+        }
+        btnDownloadSavedCsv.href = `/sql-reports/export-saved?${urlParams.toString()}`;
+    }
+
+    // -------------------------------------------------------------------------
+    // Execute Saved Query
+    // -------------------------------------------------------------------------
+    async function runSavedQuery() {
+        const queryId = selectEl.value;
+        const params = collectSavedParams();
+        updateSavedCsvLink();
+
+        btnRunSaved.disabled = true;
+        btnRunSaved.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Running...';
+        savedAlertContainer.innerHTML = "";
+
+        try {
+            const resp = await fetch("/api/sql-reports/run-saved", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ query_id: queryId, params: params }),
+            });
+
+            const data = await resp.json();
+
+            if (!resp.ok || data.status === "error") {
+                throw new Error(data.message || "Failed to execute query.");
+            }
+
+            const res = data.data;
+            renderTableResults(savedHeadRow, savedBody, res.columns, res.rows);
+            savedResultCount.textContent = `${res.row_count} rows returned`;
+            savedExecTime.textContent = `${res.execution_time_ms} ms`;
+        } catch (err) {
+            savedAlertContainer.innerHTML = `
+                <div class="alert alert-danger alert-dismissible fade show m-3 mb-0" role="alert">
+                    <i class="bi bi-exclamation-octagon-fill me-2"></i><strong>Execution Error:</strong> ${err.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            savedBody.innerHTML = `<tr><td class="text-center py-4 text-danger">${err.message}</td></tr>`;
+            savedResultCount.textContent = "Error";
+            savedExecTime.textContent = "-- ms";
+        } finally {
+            btnRunSaved.disabled = false;
+            btnRunSaved.innerHTML = '<i class="bi bi-play-fill me-1"></i> Run Query';
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Execute Custom Query
+    // -------------------------------------------------------------------------
+    async function runCustomQuery() {
+        const sql = customSqlInput.value.trim();
+        if (!sql) {
+            customAlertContainer.style.display = "block";
+            customAlertContainer.innerHTML = `
+                <div class="alert alert-warning alert-dismissible fade show mb-0" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Please enter a SELECT query to execute.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            return;
+        }
+
+        btnRunCustom.disabled = true;
+        btnRunCustom.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Executing...';
+        customAlertContainer.style.display = "none";
+        customAlertContainer.innerHTML = "";
+
+        try {
+            const resp = await fetch("/api/sql-reports/run-custom", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sql: sql }),
+            });
+
+            const res = await resp.json();
+
+            if (res.status === "error" || (res.data && res.data.status === "error")) {
+                const errMsg = res.message || (res.data && res.data.error) || "Database query failed.";
+                customAlertContainer.style.display = "block";
+                customAlertContainer.innerHTML = `
+                    <div class="alert alert-danger alert-dismissible fade show mb-0" role="alert">
+                        <i class="bi bi-exclamation-octagon-fill me-2"></i><strong>Query Failed:</strong> ${errMsg}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+                customBody.innerHTML = `<tr><td class="text-center py-4 text-danger">${errMsg}</td></tr>`;
+                customResultCount.textContent = "Error";
+                customExecTime.textContent = res.data ? `${res.data.execution_time_ms} ms` : "-- ms";
+                return;
+            }
+
+            const data = res.data;
+            renderTableResults(customHeadRow, customBody, data.columns, data.rows);
+            customResultCount.textContent = `${data.row_count} rows returned`;
+            customExecTime.textContent = `${data.execution_time_ms} ms`;
+        } catch (err) {
+            customAlertContainer.style.display = "block";
+            customAlertContainer.innerHTML = `
+                <div class="alert alert-danger alert-dismissible fade show mb-0" role="alert">
+                    <i class="bi bi-exclamation-octagon-fill me-2"></i><strong>Execution Error:</strong> ${err.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            customBody.innerHTML = `<tr><td class="text-center py-4 text-danger">${err.message}</td></tr>`;
+            customResultCount.textContent = "Error";
+            customExecTime.textContent = "-- ms";
+        } finally {
+            btnRunCustom.disabled = false;
+            btnRunCustom.innerHTML = '<i class="bi bi-play-circle-fill me-1"></i> Execute SQL';
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Render Helper for ResultSet Tables
+    // -------------------------------------------------------------------------
+    function renderTableResults(headRowEl, bodyEl, columns, rows) {
+        headRowEl.innerHTML = "";
+        bodyEl.innerHTML = "";
+
+        if (!columns || columns.length === 0) {
+            headRowEl.innerHTML = '<th class="text-muted small">No columns returned</th>';
+            bodyEl.innerHTML = '<tr><td class="text-center py-4 text-muted">Zero rows returned.</td></tr>';
+            return;
+        }
+
+        // Render Headers
+        columns.forEach(col => {
+            const th = document.createElement("th");
+            th.className = "small fw-bold text-dark px-3 py-2";
+            th.textContent = col;
+            headRowEl.appendChild(th);
+        });
+
+        if (!rows || rows.length === 0) {
+            bodyEl.innerHTML = `<tr><td colspan="${columns.length}" class="text-center py-4 text-muted">Query executed successfully, but matched zero records.</td></tr>`;
+            return;
+        }
+
+        // Render Data Rows
+        rows.forEach(row => {
+            const tr = document.createElement("tr");
+            columns.forEach(col => {
+                const td = document.createElement("td");
+                td.className = "small px-3 py-2";
+                const val = row[col];
+                if (val === null || val === undefined) {
+                    td.innerHTML = '<span class="text-muted fst-italic">NULL</span>';
+                } else if (typeof val === "number" && !Number.isInteger(val)) {
+                    td.textContent = val.toFixed(2);
+                } else {
+                    td.textContent = val;
+                }
+                tr.appendChild(td);
+            });
+            bodyEl.appendChild(tr);
+        });
+    }
+
+    // -------------------------------------------------------------------------
+    // Event Listeners & Initial Load
+    // -------------------------------------------------------------------------
+    selectEl.addEventListener("change", onSavedQueryChange);
+    btnRunSaved.addEventListener("click", runSavedQuery);
+
+    paramsContainerEl.addEventListener("change", updateSavedCsvLink);
+    paramsContainerEl.addEventListener("input", updateSavedCsvLink);
+
+    btnRunCustom.addEventListener("click", runCustomQuery);
+    
+    btnClearCustom.addEventListener("click", function () {
+        customSqlInput.value = "";
+        customHeadRow.innerHTML = '<th class="text-muted small">Write a SELECT statement above and click \'Execute SQL\'</th>';
+        customBody.innerHTML = '<tr><td class="text-center py-4 text-muted">Ready to execute custom SQL query.</td></tr>';
+        customResultCount.textContent = "0 rows returned";
+        customExecTime.textContent = "-- ms";
+        customAlertContainer.style.display = "none";
+    });
+
+    btnDownloadCustomCsv.addEventListener("click", function () {
+        const sql = customSqlInput.value.trim();
+        if (!sql) {
+            alert("Please enter a SQL query before downloading CSV.");
+            return;
+        }
+        customCsvSqlInput.value = sql;
+        customCsvForm.submit();
+    });
+
+    // Snippet Buttons
+    document.querySelectorAll(".snippet-btn").forEach(btn => {
+        btn.addEventListener("click", function () {
+            customSqlInput.value = this.getAttribute("data-sql");
+            runCustomQuery();
+        });
+    });
+
+    // Initialize Part 1 with first query and run it automatically
+    onSavedQueryChange();
+    runSavedQuery();
+});
+</script>
+{% endblock %}

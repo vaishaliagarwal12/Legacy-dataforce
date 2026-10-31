@@ -3,47 +3,46 @@
 {% block title %}Students Directory | Placement Portal{% endblock %}
 
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Home</a></li>
 <li class="breadcrumb-item active" aria-current="page">Students</li>
 {% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
     <div>
-        <h2 class="h4 fw-bold mb-1">Student Career Profiles</h2>
-        <p class="text-secondary small mb-0">Browse, search, and manage student academic and placement eligibility records.</p>
+        <h1 class="h4 fw-bold mb-1">Student Career Profiles</h1>
+        <p class="text-secondary small mb-0">Browse, search, and manage student career records, placement eligibility, and academic standing.</p>
     </div>
     <div>
         <a href="/students/new" class="btn btn-primary btn-sm">
-            <i class="bi bi-person-plus-fill me-1"></i> Add New Student
+            <i class="bi bi-person-plus-fill me-1"></i> Register Student
         </a>
     </div>
 </div>
 
 <!-- Search & Filter Card -->
-<div class="table-card mb-4">
+<div class="table-card mb-4" data-paginate="true" data-page-size="10" data-search-input="studentSearchInput">
     <div class="table-filter-bar">
         <form method="GET" action="/students" class="row g-2 align-items-end">
             <div class="col-12 col-md-4">
                 <label class="form-label small fw-semibold">Quick Search</label>
                 <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                    <input type="text" name="search" class="form-control" placeholder="Search by name, roll no, email..." value="{{ search_query or '' }}">
+                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" id="studentSearchInput" name="search" class="form-control border-start-0" placeholder="Filter by name, roll no, email..." value="{{ search_query or '' }}">
                 </div>
             </div>
 
-            <div class="col-6 col-md-2">
+            <div class="col-6 col-md-3">
                 <label class="form-label small fw-semibold">Branch</label>
                 <select name="branch" class="form-select form-select-sm">
                     <option value="">All Branches</option>
-                    {% for b in ['Computer Science', 'Electronics & Comm', 'Mechanical', 'Information Tech', 'Civil', 'Electrical'] %}
-                        <option value="{{ b }}" {% if selected_branch == b %}selected{% endif %}>{{ b }}</option>
+                    {% for code, label in [('CSE', 'Computer Science (CSE)'), ('ECE', 'Electronics & Comm (ECE)'), ('ME', 'Mechanical (ME)'), ('IT', 'Information Tech (IT)')] %}
+                        <option value="{{ code }}" {% if selected_branch == code %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
 
-            <div class="col-6 col-md-2">
-                <label class="form-label small fw-semibold">Min CGPA</label>
+            <div class="col-6 col-md-3">
+                <label class="form-label small fw-semibold">Minimum CGPA</label>
                 <select name="min_cgpa" class="form-select form-select-sm">
                     <option value="">Any CGPA</option>
                     <option value="6.0" {% if selected_min_cgpa == '6.0' %}selected{% endif %}>&ge; 6.0</option>
@@ -53,27 +52,18 @@
                 </select>
             </div>
 
-            <div class="col-6 col-md-2">
-                <label class="form-label small fw-semibold">Status</label>
-                <select name="is_active" class="form-select form-select-sm">
-                    <option value="">All Statuses</option>
-                    <option value="1" {% if selected_is_active == '1' %}selected{% endif %}>Active</option>
-                    <option value="0" {% if selected_is_active == '0' %}selected{% endif %}>Inactive</option>
-                </select>
-            </div>
-
-            <div class="col-6 col-md-2 d-flex gap-2">
-                <button type="submit" class="btn btn-primary btn-sm w-100">
-                    <i class="bi bi-funnel-fill me-1"></i> Filter
+            <div class="col-12 col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                    <i class="bi bi-funnel-fill me-1"></i> Apply
                 </button>
-                <a href="/students" class="btn btn-outline-secondary btn-sm" title="Clear Filters">
+                <a href="/students" class="btn btn-outline-secondary btn-sm" title="Reset Filters">
                     <i class="bi bi-arrow-counterclockwise"></i>
                 </a>
             </div>
         </form>
     </div>
 
-    <!-- Students Table -->
+    <!-- Students Table with Sticky Header -->
     <div class="table-responsive">
         <table class="table custom-table" id="studentsTable">
             <thead>
@@ -82,11 +72,11 @@
                     <th>Student Name</th>
                     <th>Email</th>
                     <th>Branch</th>
-                    <th>Graduation Batch</th>
+                    <th>Batch</th>
                     <th>CGPA</th>
                     <th>Backlogs</th>
-                    <th>Contact Phones</th>
-                    <th>Placement Offers</th>
+                    <th>Primary Contact</th>
+                    <th>Placement Status</th>
                     <th class="text-end">Actions</th>
                 </tr>
             </thead>
@@ -94,18 +84,18 @@
                 {% for s in students %}
                 <tr>
                     <td>
-                        <a href="/students/{{ s.Student_ID }}" class="code-font fw-bold text-decoration-none text-primary">
+                        <a href="/students/{{ s.Student_ID }}" class="code-font fw-semibold text-decoration-none text-primary">
                             {{ s.Roll_No }}
                         </a>
                     </td>
                     <td>
-                        <a href="/students/{{ s.Student_ID }}" class="text-dark fw-semibold text-decoration-none">
+                        <a href="/students/{{ s.Student_ID }}" class="text-dark fw-medium text-decoration-none">
                             {{ s.First_Name }} {{ s.Last_Name or '' }}
                         </a>
                     </td>
                     <td><small class="text-muted">{{ s.Email }}</small></td>
-                    <td><span class="badge bg-light text-dark border">{{ s.Branch }}</span></td>
-                    <td><span class="badge bg-secondary-subtle text-secondary">{{ s.Batch_Year }}</span></td>
+                    <td><span class="badge badge-status-neutral">{{ s.Branch }}</span></td>
+                    <td><span class="code-font small text-muted">{{ s.Batch_Year }}</span></td>
                     <td>
                         <span class="fw-bold {% if s.CGPA >= 8.5 %}text-success{% elif s.CGPA >= 7.0 %}text-primary{% else %}text-secondary{% endif %}">
                             {{ "%.2f"|format(s.CGPA) }}
@@ -113,23 +103,30 @@
                     </td>
                     <td>
                         {% if s.Backlogs and s.Backlogs > 0 %}
-                            <span class="badge badge-soft-danger">{{ s.Backlogs }} Backlogs</span>
+                            <span class="badge badge-status-danger">{{ s.Backlogs }} Backlogs</span>
                         {% else %}
-                            <span class="badge badge-soft-success">0 (Clear)</span>
+                            <span class="badge badge-status-success"><i class="bi bi-check-circle-fill me-1"></i>Clear</span>
                         {% endif %}
                     </td>
                     <td>
                         {% if s.Phone_Numbers %}
-                            <span class="code-font small text-dark">{{ s.Phone_Numbers }}</span>
+                            {% if s.Phone_Numbers is string %}
+                                <span class="code-font small text-dark">{{ s.Phone_Numbers }}</span>
+                            {% else %}
+                                <span class="code-font small text-dark">{{ s.Phone_Numbers[0] }}</span>
+                                {% if s.Phone_Numbers|length > 1 %}
+                                    <span class="badge badge-status-neutral ms-1" title="{{ s.Phone_Numbers|join(', ') }}">+{{ s.Phone_Numbers|length - 1 }}</span>
+                                {% endif %}
+                            {% endif %}
                         {% else %}
-                            <span class="text-muted small">None</span>
+                            <span class="text-muted small">&mdash;</span>
                         {% endif %}
                     </td>
                     <td>
                         {% if s.Placement_Offers and s.Placement_Offers > 0 %}
-                            <span class="badge badge-soft-success">{{ s.Placement_Offers }} Offers</span>
+                            <span class="badge badge-status-primary">{{ s.Placement_Offers }} Offers</span>
                         {% else %}
-                            <span class="text-muted small">0 Offers</span>
+                            <span class="badge badge-status-neutral">Unplaced</span>
                         {% endif %}
                     </td>
                     <td class="text-end">
@@ -137,7 +134,7 @@
                             <a href="/students/{{ s.Student_ID }}" class="btn btn-outline-secondary" title="View Profile">
                                 <i class="bi bi-eye"></i>
                             </a>
-                            <a href="/students/{{ s.Student_ID }}/edit" class="btn btn-outline-primary" title="Edit Student">
+                            <a href="/students/{{ s.Student_ID }}/edit" class="btn btn-outline-secondary" title="Edit Student">
                                 <i class="bi bi-pencil"></i>
                             </a>
                             <button type="button" class="btn btn-outline-danger" 
@@ -145,7 +142,7 @@
                                     data-bs-target="#deleteConfirmModal"
                                     data-delete-url="/students/{{ s.Student_ID }}/delete"
                                     data-item-name="{{ s.First_Name }} {{ s.Last_Name }} ({{ s.Roll_No }})"
-                                    data-warning="Safe Deletion Policy: If this student has active placement offers or completed internship records, deletion will be blocked to maintain compliance."
+                                    data-warning="Deletion will be blocked if active placement records or completed internships exist."
                                     title="Delete Student">
                                 <i class="bi bi-trash3"></i>
                             </button>
@@ -153,20 +150,21 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr>
-                    <td colspan="9" class="text-center py-5 text-muted">
-                        <i class="bi bi-person-x fs-1 d-block mb-2 text-secondary"></i>
-                        No students found matching your search and filter criteria.
+                <tr class="no-filter">
+                    <td colspan="10">
+                        <div class="empty-state">
+                            <div class="empty-state-icon"><i class="bi bi-people"></i></div>
+                            <h3 class="empty-state-title">No Students Found</h3>
+                            <p class="empty-state-text">No student records match your query or filters. Clear your filters or register a new student.</p>
+                            <a href="/students/new" class="btn btn-primary btn-sm">
+                                <i class="bi bi-person-plus-fill me-1"></i> Register Student
+                            </a>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-    </div>
-
-    <div class="p-3 bg-light border-top d-flex justify-content-between align-items-center small text-muted">
-        <span>Showing <strong>{{ students|length }}</strong> students</span>
-        <span>Institutional Accreditation Registry</span>
     </div>
 </div>
 {% endblock %}
