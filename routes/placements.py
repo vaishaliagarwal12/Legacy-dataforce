@@ -9,6 +9,8 @@ from services import (
     delete_placement_offer,
     get_students_with_multiple_offers,
     get_offer_distribution_summary,
+    get_placement_analytics,
+    check_candidate_eligibility_for_opportunity,
 )
 
 
@@ -31,28 +33,42 @@ def api_list_placements():
     company_id = request.args.get("company_id", type=int)
     opportunity_id = request.args.get("opportunity_id", type=int)
     placement_year = request.args.get("placement_year", type=int)
+    batch_year = request.args.get("batch_year", type=int)
+    branch = request.args.get("branch")
     offer_status = request.args.get("offer_status")
     placement_type = request.args.get("placement_type")
     is_ppo = request.args.get("is_ppo")
     joined = request.args.get("joined")
     min_package = request.args.get("min_package", type=float)
+    max_package = request.args.get("max_package", type=float)
     search = request.args.get("search")
+    sort_by = request.args.get("sort_by", default="package")
+    sort_dir = request.args.get("sort_dir", default="desc")
+    page = request.args.get("page", type=int)
     limit = request.args.get("limit", default=50, type=int)
     offset = request.args.get("offset", default=0, type=int)
+    per_page = request.args.get("per_page", type=int)
 
     result = list_placement_offers(
         student_id=student_id,
         company_id=company_id,
         opportunity_id=opportunity_id,
         placement_year=placement_year,
+        batch_year=batch_year,
+        branch=branch,
         offer_status=offer_status,
         placement_type=placement_type,
         is_ppo=is_ppo,
         joined=joined,
         min_package=min_package,
+        max_package=max_package,
         search=search,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        page=page,
         limit=limit,
         offset=offset,
+        per_page=per_page,
     )
     return jsonify({
         "status": "success",
@@ -61,7 +77,48 @@ def api_list_placements():
             "total": result["total"],
             "limit": result["limit"],
             "offset": result["offset"],
+            "page": result.get("page", 1),
+            "per_page": result.get("per_page", limit),
+            "total_pages": result.get("total_pages", 1),
         }
+    }), 200
+
+
+@placement_bp.route("/analytics", methods=["GET"])
+def api_placement_analytics():
+    """Returns comprehensive placement analytics, KPI cards, and breakdowns."""
+    placement_year = request.args.get("placement_year", type=int)
+    batch_year = request.args.get("batch_year", type=int)
+    branch = request.args.get("branch")
+    company_id = request.args.get("company_id", type=int)
+
+    analytics = get_placement_analytics(
+        placement_year=placement_year,
+        batch_year=batch_year,
+        branch=branch,
+        company_id=company_id,
+    )
+    return jsonify({
+        "status": "success",
+        "data": analytics
+    }), 200
+
+
+@placement_bp.route("/check-eligibility", methods=["GET"])
+def api_check_eligibility():
+    """Evaluates candidate eligibility against an opportunity opening."""
+    student_id = request.args.get("student_id", type=int)
+    opportunity_id = request.args.get("opportunity_id", type=int)
+    if not student_id or not opportunity_id:
+        return jsonify({
+            "status": "error",
+            "message": "Both student_id and opportunity_id query parameters are required."
+        }), 400
+
+    res = check_candidate_eligibility_for_opportunity(student_id, opportunity_id)
+    return jsonify({
+        "status": "success",
+        "data": res
     }), 200
 
 

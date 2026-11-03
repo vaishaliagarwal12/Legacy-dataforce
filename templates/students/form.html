@@ -23,6 +23,7 @@
             </div>
 
             <form method="POST" action="{{ '/students/' ~ student.Student_ID ~ '/edit' if mode == 'edit' else '/students/new' }}" class="needs-validation" novalidate>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <!-- Group 1: Identity & Personal Information -->
                 <div class="form-section">
                     <div class="form-section-header">

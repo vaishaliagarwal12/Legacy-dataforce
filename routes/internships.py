@@ -10,6 +10,11 @@ from services import (
     get_requirement,
     get_mandatory_internships_with_prerequisite_sgpa,
     get_students_missing_mandatory_internships,
+    check_internship_eligibility,
+    get_branch_internship_statistics,
+    get_batch_compliance_reports,
+    get_internship_dashboard_analytics,
+    get_pending_internship_reports,
 )
 
 
@@ -28,16 +33,59 @@ def api_create_internship():
 @internship_bp.route("", methods=["GET"])
 def api_list_internships():
     """Lists, filters, and searches student internships."""
+    search = request.args.get("search") or request.args.get("q")
     student_id = request.args.get("student_id", type=int)
     company_id = request.args.get("company_id", type=int)
+    branch = request.args.get("branch")
+    batch_year = request.args.get("batch_year", type=int)
     internship_type = request.args.get("internship_type")
     internship_no = request.args.get("internship_no", type=int)
+    status = request.args.get("status")
+    report_grade = request.args.get("report_grade")
+    report_sem = request.args.get("report_semester", type=int)
+    sort_by = request.args.get("sort_by", "student_id")
+    sort_dir = request.args.get("sort_dir", "asc")
+    page = request.args.get("page", type=int)
+    per_page = request.args.get("per_page", type=int)
+
+    if page is not None and per_page is not None:
+        res = list_internships(
+            search=search,
+            student_id=student_id,
+            company_id=company_id,
+            branch=branch,
+            batch_year=batch_year,
+            internship_type=internship_type,
+            internship_no=internship_no,
+            status=status,
+            report_grade=report_grade,
+            report_semester=report_sem,
+            sort_by=sort_by,
+            sort_dir=sort_dir,
+            page=page,
+            per_page=per_page,
+            as_dict=True,
+        )
+        return jsonify({
+            "status": "success",
+            "total": res["total"],
+            "pagination": res["pagination"],
+            "data": res["results"]
+        }), 200
 
     internships = list_internships(
+        search=search,
         student_id=student_id,
         company_id=company_id,
+        branch=branch,
+        batch_year=batch_year,
         internship_type=internship_type,
         internship_no=internship_no,
+        status=status,
+        report_grade=report_grade,
+        report_semester=report_sem,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
     )
     return jsonify({
         "status": "success",
@@ -127,10 +175,76 @@ def api_prerequisite_sgpa_join():
 def api_missing_mandatory_internships():
     """Identifies students who are missing Mandatory Internship 1, Mandatory Internship 2, or both."""
     target_no = request.args.get("internship_no", type=int)
-    missing_students = get_students_missing_mandatory_internships(target_internship_no=target_no)
+    branch = request.args.get("branch")
+    batch_year = request.args.get("batch_year", type=int)
+    missing_students = get_students_missing_mandatory_internships(
+        target_internship_no=target_no,
+        branch=branch,
+        batch_year=batch_year,
+    )
     return jsonify({
         "status": "success",
         "target_internship_evaluated": f"Internship #{target_no}" if target_no else "All Mandatory (1 & 2)",
         "total_missing_students": len(missing_students),
         "data": missing_students
+    }), 200
+
+
+@internship_bp.route("/analytics/dashboard", methods=["GET"])
+def api_internship_dashboard_analytics():
+    """Returns aggregated executive analytics for the Internship Management Dashboard."""
+    analytics = get_internship_dashboard_analytics()
+    return jsonify({
+        "status": "success",
+        "data": analytics
+    }), 200
+
+
+@internship_bp.route("/analytics/branch-statistics", methods=["GET"])
+def api_branch_internship_statistics():
+    """Returns branch-wise internship completion statistics."""
+    stats = get_branch_internship_statistics()
+    return jsonify({
+        "status": "success",
+        "total_branches": len(stats),
+        "data": stats
+    }), 200
+
+
+@internship_bp.route("/analytics/batch-compliance", methods=["GET"])
+def api_batch_compliance_reports():
+    """Returns batch-wise internship compliance reports."""
+    reports = get_batch_compliance_reports()
+    return jsonify({
+        "status": "success",
+        "total_batches": len(reports),
+        "data": reports
+    }), 200
+
+
+@internship_bp.route("/analytics/pending-reports", methods=["GET"])
+def api_pending_internship_reports():
+    """Returns internships with pending report submissions or pending grades."""
+    pending = get_pending_internship_reports()
+    return jsonify({
+        "status": "success",
+        "total_pending": len(pending),
+        "data": pending
+    }), 200
+
+
+@internship_bp.route("/check-eligibility", methods=["GET"])
+def api_check_internship_eligibility():
+    """Evaluates student academic eligibility for an internship using actual SEMESTER_RESULT records."""
+    student_id = request.args.get("student_id", type=int)
+    internship_no = request.args.get("internship_no", default=1, type=int)
+    min_sgpa = request.args.get("min_sgpa", default=6.00, type=float)
+
+    if not student_id:
+        return jsonify({"status": "error", "message": "Query parameter 'student_id' is required."}), 400
+
+    result = check_internship_eligibility(student_id, internship_no, min_sgpa)
+    return jsonify({
+        "status": "success",
+        "data": result
     }), 200

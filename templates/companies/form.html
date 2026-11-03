@@ -22,6 +22,7 @@
             </div>
 
             <form method="POST" action="{{ '/companies/' ~ company.Company_ID ~ '/edit' if mode == 'edit' else '/companies/new' }}" class="needs-validation" novalidate>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <!-- Group 1: Corporate Profile -->
                 <div class="form-section">
                     <div class="form-section-header">

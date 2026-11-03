@@ -2,6 +2,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from db.connection import get_cursor, execute_one, execute_query
 from services.exceptions import ValidationError, NotFoundError, ConflictError, ProtectedDeleteError
+from services.security import validate_safe_url
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,9 @@ def validate_company_payload(data: Dict[str, Any], is_update: bool = False) -> N
         ctype = str(data["Company_Type"]).strip()
         if ctype not in VALID_COMPANY_TYPES:
             raise ValidationError(f"Company_Type must be one of: {', '.join(VALID_COMPANY_TYPES)}")
+
+    if "Website" in data and data["Website"] is not None and str(data["Website"]).strip():
+        validate_safe_url(data["Website"], "Website")
 
 
 def create_company(data: Dict[str, Any]) -> Dict[str, Any]:

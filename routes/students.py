@@ -26,13 +26,17 @@ def api_create_student():
 
 @student_bp.route("", methods=["GET"])
 def api_list_students():
-    """Lists, searches, and filters students with pagination."""
+    """Lists, searches, and filters students with advanced criteria, sorting, and pagination."""
     search = request.args.get("search")
     branch = request.args.get("branch")
     batch_year = request.args.get("batch_year", type=int)
     min_cgpa = request.args.get("min_cgpa", type=float)
     max_cgpa = request.args.get("max_cgpa", type=float)
     max_backlogs = request.args.get("max_backlogs", type=int)
+    placement_status = request.args.get("placement_status")
+    sort_by = request.args.get("sort_by", "roll_no")
+    sort_dir = request.args.get("sort_dir", "asc")
+    page = request.args.get("page", type=int)
     limit = request.args.get("limit", default=50, type=int)
     offset = request.args.get("offset", default=0, type=int)
 
@@ -43,6 +47,10 @@ def api_list_students():
         min_cgpa=min_cgpa,
         max_cgpa=max_cgpa,
         max_backlogs=max_backlogs,
+        placement_status=placement_status,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        page=page,
         limit=limit,
         offset=offset,
     )
@@ -53,6 +61,10 @@ def api_list_students():
             "total": result["total"],
             "limit": result["limit"],
             "offset": result["offset"],
+            "page": result.get("page", 1),
+            "total_pages": result.get("total_pages", 1),
+            "has_prev": result.get("has_prev", False),
+            "has_next": result.get("has_next", False),
         }
     }), 200
 

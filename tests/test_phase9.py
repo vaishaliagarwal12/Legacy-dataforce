@@ -1,3 +1,6 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
 """
 Phase 9 (Scope A) Automated Unit Test Suite.
 Validates all 13 DBMS Demo Items, 44 original queries, and 5 mandatory additions:
@@ -16,7 +19,7 @@ DB_CONFIG = {
     "host": "localhost",
     "port": 3306,
     "user": "root",
-    "password": "12345",
+    "password": os.getenv("MYSQL_PASSWORD", ""),
     "charset": "utf8mb4",
     "cursorclass": pymysql.cursors.DictCursor
 }

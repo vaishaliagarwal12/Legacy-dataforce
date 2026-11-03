@@ -1,82 +1,144 @@
 {% extends "base.html" %}
 
-{% block title %}Students Directory | Placement Portal{% endblock %}
+{% block title %}Student Directory | Placement & Internship Portal{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item active" aria-current="page">Students</li>
 {% endblock %}
 
 {% block content %}
+<!-- Page Header -->
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
     <div>
         <h1 class="h4 fw-bold mb-1">Student Career Profiles</h1>
-        <p class="text-secondary small mb-0">Browse, search, and manage student career records, placement eligibility, and academic standing.</p>
+        <p class="text-secondary small mb-0">Browse, search, and manage candidate career records, placement eligibility, and academic standing.</p>
     </div>
-    <div>
+    <div class="d-flex flex-wrap gap-2">
+        <!-- CSV Export Button with active filter query parameters -->
+        <a href="/students/export-csv?search={{ active_filters.search }}&branch={{ active_filters.branch }}&batch_year={{ active_filters.batch_year }}&min_cgpa={{ active_filters.min_cgpa }}&max_cgpa={{ active_filters.max_cgpa }}&placement_status={{ active_filters.placement_status }}&sort_by={{ active_filters.sort_by }}&sort_dir={{ active_filters.sort_dir }}" 
+           class="btn btn-outline-secondary btn-sm"
+           title="Export filtered student records to CSV">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export CSV
+        </a>
         <a href="/students/new" class="btn btn-primary btn-sm">
             <i class="bi bi-person-plus-fill me-1"></i> Register Student
         </a>
     </div>
 </div>
 
-<!-- Search & Filter Card -->
-<div class="table-card mb-4" data-paginate="true" data-page-size="10" data-search-input="studentSearchInput">
-    <div class="table-filter-bar">
-        <form method="GET" action="/students" class="row g-2 align-items-end">
+<!-- Advanced Search & Filter Card -->
+<div class="table-card shadow-sm mb-4">
+    <div class="p-3 bg-light border-bottom">
+        <form method="GET" action="/students" id="studentFilterForm" class="row g-2 align-items-end">
+            <!-- Search Input: Name, Roll Number, Email -->
             <div class="col-12 col-md-4">
-                <label class="form-label small fw-semibold">Quick Search</label>
+                <label class="form-label small fw-semibold text-secondary mb-1">Quick Search</label>
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                    <input type="text" id="studentSearchInput" name="search" class="form-control border-start-0" placeholder="Filter by name, roll no, email..." value="{{ search_query or '' }}">
+                    <input type="text" id="studentSearchInput" name="search" class="form-control border-start-0" 
+                           placeholder="Search by name, roll no, email..." 
+                           value="{{ active_filters.search }}">
                 </div>
             </div>
 
-            <div class="col-6 col-md-3">
-                <label class="form-label small fw-semibold">Branch</label>
+            <!-- Branch Filter -->
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-semibold text-secondary mb-1">Branch</label>
                 <select name="branch" class="form-select form-select-sm">
                     <option value="">All Branches</option>
-                    {% for code, label in [('CSE', 'Computer Science (CSE)'), ('ECE', 'Electronics & Comm (ECE)'), ('ME', 'Mechanical (ME)'), ('IT', 'Information Tech (IT)')] %}
-                        <option value="{{ code }}" {% if selected_branch == code %}selected{% endif %}>{{ label }}</option>
+                    {% for b, label in [('CSE', 'Computer Science (CSE)'), ('ECE', 'Electronics & Comm (ECE)'), ('ME', 'Mechanical (ME)'), ('IT', 'Information Tech (IT)'), ('Civil', 'Civil Engineering'), ('Electrical', 'Electrical Engineering')] %}
+                    <option value="{{ b }}" {% if active_filters.branch in [b, label] or (b == 'CSE' and active_filters.branch in ['CSE', 'Computer Science']) %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
 
-            <div class="col-6 col-md-3">
-                <label class="form-label small fw-semibold">Minimum CGPA</label>
-                <select name="min_cgpa" class="form-select form-select-sm">
-                    <option value="">Any CGPA</option>
-                    <option value="6.0" {% if selected_min_cgpa == '6.0' %}selected{% endif %}>&ge; 6.0</option>
-                    <option value="7.0" {% if selected_min_cgpa == '7.0' %}selected{% endif %}>&ge; 7.0</option>
-                    <option value="8.0" {% if selected_min_cgpa == '8.0' %}selected{% endif %}>&ge; 8.0</option>
-                    <option value="9.0" {% if selected_min_cgpa == '9.0' %}selected{% endif %}>&ge; 9.0</option>
+            <!-- Graduating Batch Year Filter -->
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-semibold text-secondary mb-1">Batch Year</label>
+                <select name="batch_year" class="form-select form-select-sm">
+                    <option value="">All Batches</option>
+                    {% for y in filter_options.batch_years %}
+                    <option value="{{ y }}" {% if active_filters.batch_year|string == y|string %}selected{% endif %}>Batch {{ y }}</option>
+                    {% endfor %}
                 </select>
             </div>
 
-            <div class="col-12 col-md-2 d-flex gap-2">
-                <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
-                    <i class="bi bi-funnel-fill me-1"></i> Apply
-                </button>
-                <a href="/students" class="btn btn-outline-secondary btn-sm" title="Reset Filters">
-                    <i class="bi bi-arrow-counterclockwise"></i>
-                </a>
+            <!-- Minimum CGPA -->
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-semibold text-secondary mb-1">Min CGPA</label>
+                <select name="min_cgpa" class="form-select form-select-sm">
+                    <option value="">Any CGPA</option>
+                    <option value="6.0" {% if active_filters.min_cgpa == '6.0' %}selected{% endif %}>&ge; 6.0</option>
+                    <option value="7.0" {% if active_filters.min_cgpa == '7.0' %}selected{% endif %}>&ge; 7.0</option>
+                    <option value="8.0" {% if active_filters.min_cgpa == '8.0' %}selected{% endif %}>&ge; 8.0</option>
+                    <option value="9.0" {% if active_filters.min_cgpa == '9.0' %}selected{% endif %}>&ge; 9.0</option>
+                </select>
+            </div>
+
+            <!-- Placement Status Filter -->
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-semibold text-secondary mb-1">Placement Status</label>
+                <select name="placement_status" class="form-select form-select-sm">
+                    <option value="">All Statuses</option>
+                    <option value="Placed" {% if active_filters.placement_status == 'Placed' %}selected{% endif %}>Placed (Accepted/Joined)</option>
+                    <option value="Multiple" {% if active_filters.placement_status == 'Multiple' %}selected{% endif %}>Multiple Offers (&ge; 2)</option>
+                    <option value="Unplaced" {% if active_filters.placement_status == 'Unplaced' %}selected{% endif %}>Unplaced</option>
+                </select>
+            </div>
+
+            <!-- Hidden Sorting Inputs Preserved During Filter Submit -->
+            <input type="hidden" name="sort_by" value="{{ active_filters.sort_by }}">
+            <input type="hidden" name="sort_dir" value="{{ active_filters.sort_dir }}">
+            <input type="hidden" name="per_page" value="{{ active_filters.per_page }}">
+
+            <!-- Actions -->
+            <div class="col-12 d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                <div class="small text-muted">
+                    Found <strong>{{ pagination.total }}</strong> candidate records
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/students" class="btn btn-outline-secondary btn-sm" title="Clear all filters">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                    </a>
+                    <button type="submit" class="btn btn-primary btn-sm px-3">
+                        <i class="bi bi-funnel-fill me-1"></i> Apply Filters
+                    </button>
+                </div>
             </div>
         </form>
     </div>
 
-    <!-- Students Table with Sticky Header -->
+    <!-- Students Directory Table with Sticky Header & Sorting -->
     <div class="table-responsive">
-        <table class="table custom-table" id="studentsTable">
+        <table class="table custom-table mb-0" id="studentsTable">
             <thead>
                 <tr>
-                    <th>Roll No</th>
-                    <th>Student Name</th>
+                    {% macro sort_header(field, label) %}
+                        {% set current_sort = active_filters.sort_by %}
+                        {% set current_dir = active_filters.sort_dir %}
+                        {% set next_dir = 'desc' if (current_sort == field and current_dir == 'asc') else 'asc' %}
+                        <th>
+                            <a href="/students?search={{ active_filters.search }}&branch={{ active_filters.branch }}&batch_year={{ active_filters.batch_year }}&min_cgpa={{ active_filters.min_cgpa }}&max_cgpa={{ active_filters.max_cgpa }}&placement_status={{ active_filters.placement_status }}&sort_by={{ field }}&sort_dir={{ next_dir }}&per_page={{ active_filters.per_page }}" 
+                               class="text-decoration-none text-dark d-inline-flex align-items-center gap-1">
+                                <span>{{ label }}</span>
+                                {% if current_sort == field %}
+                                    <i class="bi bi-caret-{{ 'down' if current_dir == 'desc' else 'up' }}-fill text-primary small"></i>
+                                {% else %}
+                                    <i class="bi bi-arrow-down-up text-muted opacity-50 small"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                    {% endmacro %}
+
+                    {{ sort_header('roll_no', 'Roll No') }}
+                    {{ sort_header('name', 'Student Name') }}
                     <th>Email</th>
-                    <th>Branch</th>
-                    <th>Batch</th>
-                    <th>CGPA</th>
-                    <th>Backlogs</th>
-                    <th>Primary Contact</th>
-                    <th>Placement Status</th>
+                    {{ sort_header('branch', 'Branch') }}
+                    {{ sort_header('batch_year', 'Batch') }}
+                    {{ sort_header('cgpa', 'CGPA') }}
+                    {{ sort_header('backlogs', 'Backlogs') }}
+                    <th>Primary Phone</th>
+                    {{ sort_header('placement_offers', 'Placement Status') }}
                     <th class="text-end">Actions</th>
                 </tr>
             </thead>
@@ -123,8 +185,16 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if s.Placement_Offers and s.Placement_Offers > 0 %}
-                            <span class="badge badge-status-primary">{{ s.Placement_Offers }} Offers</span>
+                        {% if s.Placement_Status == 'Placed' %}
+                            <span class="badge badge-status-success" title="{{ s.Placed_Company }} ({{ s.Placed_Package }} LPA)">
+                                <i class="bi bi-check-circle-fill me-1"></i>Placed ({{ s.Placed_Package }} LPA)
+                            </span>
+                        {% elif s.Placement_Status == 'Multiple Offers' %}
+                            <span class="badge badge-status-primary">
+                                <i class="bi bi-award-fill me-1"></i>{{ s.Placement_Offers }} Offers
+                            </span>
+                        {% elif s.Placement_Offers and s.Placement_Offers > 0 %}
+                            <span class="badge badge-status-primary">1 Offer</span>
                         {% else %}
                             <span class="badge badge-status-neutral">Unplaced</span>
                         {% endif %}
@@ -141,7 +211,7 @@
                                     data-bs-toggle="modal" 
                                     data-bs-target="#deleteConfirmModal"
                                     data-delete-url="/students/{{ s.Student_ID }}/delete"
-                                    data-item-name="{{ s.First_Name }} {{ s.Last_Name }} ({{ s.Roll_No }})"
+                                    data-item-name="{{ s.First_Name }} {{ s.Last_Name or '' }} ({{ s.Roll_No }})"
                                     data-warning="Deletion will be blocked if active placement records or completed internships exist."
                                     title="Delete Student">
                                 <i class="bi bi-trash3"></i>
@@ -152,13 +222,16 @@
                 {% else %}
                 <tr class="no-filter">
                     <td colspan="10">
-                        <div class="empty-state">
+                        <div class="empty-state py-5">
                             <div class="empty-state-icon"><i class="bi bi-people"></i></div>
                             <h3 class="empty-state-title">No Students Found</h3>
                             <p class="empty-state-text">No student records match your query or filters. Clear your filters or register a new student.</p>
-                            <a href="/students/new" class="btn btn-primary btn-sm">
-                                <i class="bi bi-person-plus-fill me-1"></i> Register Student
-                            </a>
+                            <div class="d-flex gap-2 justify-content-center">
+                                <a href="/students" class="btn btn-outline-secondary btn-sm">Clear Filters</a>
+                                <a href="/students/new" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-person-plus-fill me-1"></i> Register Student
+                                </a>
+                            </div>
                         </div>
                     </td>
                 </tr>
@@ -166,5 +239,47 @@
             </tbody>
         </table>
     </div>
+
+    <!-- Server-Side Pagination Bar -->
+    {% if pagination.total_pages > 1 %}
+    <div class="p-3 border-top d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="small text-muted">
+            Showing <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong> to 
+            <strong>{{ [pagination.page * pagination.per_page, pagination.total]|min }}</strong> of 
+            <strong>{{ pagination.total }}</strong> students
+        </div>
+
+        <nav aria-label="Student directory pagination">
+            <ul class="pagination pagination-sm mb-0">
+                <!-- Previous Button -->
+                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                    <a class="page-link" href="/students?search={{ active_filters.search }}&branch={{ active_filters.branch }}&batch_year={{ active_filters.batch_year }}&min_cgpa={{ active_filters.min_cgpa }}&max_cgpa={{ active_filters.max_cgpa }}&placement_status={{ active_filters.placement_status }}&sort_by={{ active_filters.sort_by }}&sort_dir={{ active_filters.sort_dir }}&per_page={{ active_filters.per_page }}&page={{ pagination.prev_page or 1 }}">
+                        &laquo; Prev
+                    </a>
+                </li>
+
+                <!-- Page Numbers -->
+                {% for p in range(1, pagination.total_pages + 1) %}
+                    {% if p == 1 or p == pagination.total_pages or (p >= pagination.page - 2 and p <= pagination.page + 2) %}
+                        <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                            <a class="page-link" href="/students?search={{ active_filters.search }}&branch={{ active_filters.branch }}&batch_year={{ active_filters.batch_year }}&min_cgpa={{ active_filters.min_cgpa }}&max_cgpa={{ active_filters.max_cgpa }}&placement_status={{ active_filters.placement_status }}&sort_by={{ active_filters.sort_by }}&sort_dir={{ active_filters.sort_dir }}&per_page={{ active_filters.per_page }}&page={{ p }}">
+                                {{ p }}
+                            </a>
+                        </li>
+                    {% elif p == pagination.page - 3 or p == pagination.page + 3 %}
+                        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                    {% endif %}
+                {% endfor %}
+
+                <!-- Next Button -->
+                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                    <a class="page-link" href="/students?search={{ active_filters.search }}&branch={{ active_filters.branch }}&batch_year={{ active_filters.batch_year }}&min_cgpa={{ active_filters.min_cgpa }}&max_cgpa={{ active_filters.max_cgpa }}&placement_status={{ active_filters.placement_status }}&sort_by={{ active_filters.sort_by }}&sort_dir={{ active_filters.sort_dir }}&per_page={{ active_filters.per_page }}&page={{ pagination.next_page or pagination.total_pages }}">
+                        Next &raquo;
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

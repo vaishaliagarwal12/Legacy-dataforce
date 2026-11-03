@@ -9,18 +9,168 @@
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
     <div>
-        <h2 class="h4 fw-bold mb-1">Internships & Academic Requirements</h2>
+        <h1 class="h4 fw-bold mb-1">Internships & Academic Compliance Management</h1>
         <p class="text-secondary small mb-0">Track Mandatory degree-fulfilling internships with dynamically resolved prerequisite SGPAs and Additional industry experiences.</p>
     </div>
-    <div>
+    <div class="d-flex gap-2">
+        <a href="/internships/export-csv?{{ request.query_string.decode('utf-8') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-download me-1"></i> Export CSV
+        </a>
         <a href="/internships/new" class="btn btn-primary btn-sm">
             <i class="bi bi-briefcase me-1"></i> Record New Internship
         </a>
     </div>
 </div>
 
+<!-- Executive Metric KPI Cards -->
+<div class="row g-3 mb-4">
+    <!-- Card 1: Total Internships -->
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card h-100 border-0 shadow-sm p-3 rounded-3 bg-white">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="text-muted small fw-semibold">Total Records</span>
+                <span class="badge bg-primary-subtle text-primary p-2 rounded-circle"><i class="bi bi-briefcase-fill"></i></span>
+            </div>
+            <div class="h3 fw-bold mb-0 text-dark">{{ analytics.kpis.total_internships }}</div>
+            <small class="text-secondary mt-1">Recorded Experiences</small>
+        </div>
+    </div>
+
+    <!-- Card 2: Mandatory I1 Completed -->
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card h-100 border-0 shadow-sm p-3 rounded-3 bg-white">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="text-muted small fw-semibold">Mandatory I1</span>
+                <span class="badge bg-info-subtle text-info p-2 rounded-circle"><i class="bi bi-mortarboard-fill"></i></span>
+            </div>
+            <div class="h3 fw-bold mb-0 text-dark">{{ analytics.kpis.mandatory_i1_completed }}</div>
+            <small class="text-info mt-1">Sem 3 Prerequisite</small>
+        </div>
+    </div>
+
+    <!-- Card 3: Mandatory I2 Completed -->
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card h-100 border-0 shadow-sm p-3 rounded-3 bg-white">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="text-muted small fw-semibold">Mandatory I2</span>
+                <span class="badge bg-indigo-subtle text-primary p-2 rounded-circle"><i class="bi bi-award-fill"></i></span>
+            </div>
+            <div class="h3 fw-bold mb-0 text-dark">{{ analytics.kpis.mandatory_i2_completed }}</div>
+            <small class="text-primary mt-1">Sem 5 Prerequisite</small>
+        </div>
+    </div>
+
+    <!-- Card 4: Additional Voluntary Internships -->
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card h-100 border-0 shadow-sm p-3 rounded-3 bg-white">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="text-muted small fw-semibold">Additional</span>
+                <span class="badge bg-secondary-subtle text-secondary p-2 rounded-circle"><i class="bi bi-plus-square-fill"></i></span>
+            </div>
+            <div class="h3 fw-bold mb-0 text-dark">{{ analytics.kpis.additional_internships }}</div>
+            <small class="text-secondary mt-1">Voluntary / Research</small>
+        </div>
+    </div>
+
+    <!-- Card 5: Pending Reports -->
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card h-100 border-0 shadow-sm p-3 rounded-3 bg-white">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="text-muted small fw-semibold">Pending Reports</span>
+                <span class="badge {% if analytics.kpis.pending_reports > 0 %}bg-warning-subtle text-warning{% else %}bg-success-subtle text-success{% endif %} p-2 rounded-circle">
+                    <i class="bi bi-file-earmark-text-fill"></i>
+                </span>
+            </div>
+            <div class="h3 fw-bold mb-0 {% if analytics.kpis.pending_reports > 0 %}text-warning{% else %}text-success{% endif %}">{{ analytics.kpis.pending_reports }}</div>
+            <small class="text-secondary mt-1">Requires Defense</small>
+        </div>
+    </div>
+
+    <!-- Card 6: Degree Compliance Rate -->
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card h-100 border-0 shadow-sm p-3 rounded-3 bg-white">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="text-muted small fw-semibold">Compliance</span>
+                <span class="badge bg-success-subtle text-success p-2 rounded-circle"><i class="bi bi-shield-check"></i></span>
+            </div>
+            <div class="h3 fw-bold mb-0 text-success">{{ analytics.kpis.compliance_rate }}%</div>
+            <small class="text-muted mt-1">{{ analytics.kpis.fully_compliant_students }} / {{ analytics.kpis.total_students }} Compliant</small>
+        </div>
+    </div>
+</div>
+
+<!-- Advanced Search & Filter Bar -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-3">
+        <form method="GET" action="/internships" class="row g-2 align-items-center">
+            <input type="hidden" name="type" value="{{ active_tab }}">
+
+            <!-- Full Text Search -->
+            <div class="col-12 col-md-3">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" class="form-control border-start-0" name="q" 
+                           placeholder="Search student, roll, company, role..." 
+                           value="{{ search_query or '' }}">
+                </div>
+            </div>
+
+            <!-- Branch Filter -->
+            <div class="col-6 col-md-2">
+                <select class="form-select form-select-sm" name="branch">
+                    <option value="">All Branches</option>
+                    {% for b in ['CSE', 'ECE', 'IT', 'ME'] %}
+                        <option value="{{ b }}" {% if selected_branch == b %}selected{% endif %}>{{ b }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Batch Year Filter -->
+            <div class="col-6 col-md-2">
+                <select class="form-select form-select-sm" name="batch_year">
+                    <option value="">All Batches</option>
+                    {% for by in [2022, 2023, 2024, 2025] %}
+                        <option value="{{ by }}" {% if selected_batch == by %}selected{% endif %}>Batch {{ by }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Host Company Filter -->
+            <div class="col-6 col-md-2">
+                <select class="form-select form-select-sm" name="company_id">
+                    <option value="">All Companies</option>
+                    {% for c in companies %}
+                        <option value="{{ c.Company_ID }}" {% if selected_company_id == c.Company_ID %}selected{% endif %}>{{ c.Company_Name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Status Filter -->
+            <div class="col-6 col-md-2">
+                <select class="form-select form-select-sm" name="status">
+                    <option value="">All Statuses</option>
+                    <option value="Completed" {% if selected_status == 'Completed' %}selected{% endif %}>Completed</option>
+                    <option value="In Progress" {% if selected_status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                    <option value="Pending Report" {% if selected_status == 'Pending Report' %}selected{% endif %}>Pending Report</option>
+                    <option value="Upcoming" {% if selected_status == 'Upcoming' %}selected{% endif %}>Upcoming</option>
+                </select>
+            </div>
+
+            <!-- Submit and Reset Buttons -->
+            <div class="col-12 col-md-1 d-flex gap-1 justify-content-end">
+                <button type="submit" class="btn btn-primary btn-sm w-100" title="Apply Filters">
+                    <i class="bi bi-filter"></i>
+                </button>
+                <a href="/internships?type={{ active_tab }}" class="btn btn-outline-secondary btn-sm" title="Clear Filters">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Navigation Tabs -->
-<ul class="nav nav-pills mb-4 gap-2" id="internshipTabs" role="tablist">
+<ul class="nav nav-pills mb-4 gap-2 flex-wrap" id="internshipTabs" role="tablist">
     <li class="nav-item" role="presentation">
         <a href="/internships?type=All" class="nav-link {% if active_tab == 'All' %}active{% endif %}">
             <i class="bi bi-collection-fill me-1"></i> All Internships ({{ all_internships|length }})
@@ -37,20 +187,35 @@
         </a>
     </li>
     <li class="nav-item" role="presentation">
+        <a href="/internships?type=Pending" class="nav-link {% if active_tab == 'Pending' %}active btn-warning text-dark{% else %}text-warning-emphasis border border-warning-subtle{% endif %}">
+            <i class="bi bi-file-earmark-text me-1"></i> Pending Reports ({{ pending_reports|length }})
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
         <a href="/internships?type=Missing" class="nav-link {% if active_tab == 'Missing' %}active btn-danger text-white{% else %}text-danger border border-danger-subtle{% endif %}">
             <i class="bi bi-shield-exclamation me-1"></i> Missing Mandatory Audit ({{ missing_students|length }})
         </a>
     </li>
+    <li class="nav-item" role="presentation">
+        <a href="/internships?type=Compliance" class="nav-link {% if active_tab == 'Compliance' %}active{% endif %}">
+            <i class="bi bi-clipboard2-check-fill me-1"></i> Compliance Reports
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a href="/internships?type=Analytics" class="nav-link {% if active_tab == 'Analytics' %}active{% endif %}">
+            <i class="bi bi-pie-chart-fill me-1"></i> Visual Analytics
+        </a>
+    </li>
 </ul>
 
-<!-- Content according to Active Tab -->
+<!-- TAB CONTENT SECTIONS -->
 
 {% if active_tab == 'Mandatory' %}
 <!-- Tab 1: Mandatory Internships with Dynamic Prerequisite SGPA -->
 <div class="table-card mb-4">
     <div class="table-card-header">
         <div>
-            <h5 class="fw-bold mb-0">Mandatory Internships & Dynamic 3NF Prerequisite SGPAs</h5>
+            <h2 class="h5 fw-bold mb-0">Mandatory Internships & Dynamic 3NF Prerequisite SGPAs</h2>
             <small class="text-muted">Demonstrates <code>INTERNSHIP &rarr; REQUIREMENT &rarr; SEMESTER_RESULT</code> join with zero duplicated SGPA storage.</small>
         </div>
         <div class="d-flex gap-2">
@@ -69,9 +234,10 @@
                     <th>Required Sem</th>
                     <th>Prerequisite SGPA (Dynamic)</th>
                     <th>Company & Role</th>
-                    <th>Credits</th>
-                    <th>Dates</th>
-                    <th class="text-end">Action</th>
+                    <th>Duration & Stipend</th>
+                    <th>Status</th>
+                    <th>Report & Grade</th>
+                    <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -84,43 +250,83 @@
                     </td>
                     <td><span class="code-font text-primary">{{ item.Roll_No }}</span></td>
                     <td><span class="badge bg-light text-dark border">{{ item.Branch }}</span></td>
-                    <td><span class="badge badge-soft-primary">Mandatory #{{ item.Internship_No }}</span></td>
+                    <td><span class="badge badge-status-primary">Mandatory #{{ item.Internship_No }}</span></td>
                     <td>
                         <strong>{{ item.Prescribed_Period }}</strong><br>
-                        <small class="text-muted">Report in Sem {{ 5 if item.Internship_No == 1 else 7 }}</small>
+                        <small class="text-muted">Report in Sem {{ 5 if item.Internship_No == 1 else 7 }} ({{ item.Credits or 4 }} Credits)</small>
                     </td>
                     <td><span class="badge bg-secondary-subtle text-secondary">Semester {{ item.Required_Result_Semester }}</span></td>
                     <td>
                         <!-- Dynamically fetched prerequisite SGPA -->
                         {% if item.Prerequisite_Semester_SGPA is not none %}
-                            <span class="badge badge-soft-success fw-bold fs-6">
+                            <span class="badge badge-status-success fw-bold fs-6">
                                 <i class="bi bi-link-45deg me-1"></i>{{ "%.2f"|format(item.Prerequisite_Semester_SGPA) }} SGPA
                             </span>
-                            <div class="small text-muted">{{ item.Prerequisite_Credits }} Credits</div>
+                            <div class="small text-muted">{{ item.Prerequisite_Credits or 24 }} Credits</div>
                         {% else %}
-                            <span class="badge badge-soft-warning small">Result Pending</span>
+                            <span class="badge badge-status-warning small">Result Pending</span>
                         {% endif %}
                     </td>
                     <td>
                         <strong>{{ item.Company_Name }}</strong><br>
                         <small class="text-muted">{{ item.Role }}</small>
                     </td>
-                    <td><span class="fw-bold">4 Cr</span></td>
-                    <td><small class="code-font text-muted">{{ item.Report_Grade or 'Submitted' }}</small></td>
+                    <td>
+                        <div class="small">
+                            <span class="badge bg-light text-dark border mb-1">{{ item.Duration_Str }}</span>
+                            {% if item.Stipend and item.Stipend > 0 %}
+                                <div class="text-success fw-semibold">&#8377;{{ "{:,.0f}".format(item.Stipend) }}/mo</div>
+                            {% else %}
+                                <div class="text-muted small">Academic</div>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge {% if item.Status == 'Completed' %}badge-status-success{% elif item.Status == 'In Progress' %}badge-status-primary{% elif item.Status == 'Pending Report' %}badge-status-warning{% else %}badge-status-neutral{% endif %}">
+                            {{ item.Status }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if item.Report_Grade %}
+                            <span class="badge badge-status-success fw-semibold">Grade {{ item.Report_Grade }}</span>
+                        {% else %}
+                            <span class="badge badge-status-warning small">Pending</span>
+                        {% endif %}
+                        <div class="d-flex gap-2 mt-1">
+                            {% if item.Report_Link %}
+                                <a href="{{ item.Report_Link }}" target="_blank" class="small text-primary text-decoration-none" title="Report PDF">
+                                    <i class="bi bi-file-earmark-text"></i>
+                                </a>
+                            {% endif %}
+                            {% if item.Certificate_Link %}
+                                <a href="{{ item.Certificate_Link }}" target="_blank" class="small text-success text-decoration-none" title="Certificate">
+                                    <i class="bi bi-patch-check"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </td>
                     <td class="text-end">
-                        <button type="button" class="btn btn-outline-danger btn-sm"
-                                data-bs-toggle="modal" 
-                                data-bs-target="#deleteConfirmModal"
-                                data-delete-url="/internships/{{ item.Internship_ID }}/delete"
-                                data-item-name="Mandatory Internship #{{ item.Internship_No }} for {{ item.Full_Name }}"
-                                title="Delete Internship">
-                            <i class="bi bi-trash3"></i>
-                        </button>
+                        <div class="btn-group btn-group-sm">
+                            <a href="/internships/{{ item.Internship_ID }}" class="btn btn-outline-secondary" title="View Dossier">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="/internships/{{ item.Internship_ID }}/edit" class="btn btn-outline-secondary" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button type="button" class="btn btn-outline-danger"
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#deleteConfirmModal"
+                                    data-delete-url="/internships/{{ item.Internship_ID }}/delete"
+                                    data-item-name="Mandatory Internship #{{ item.Internship_No }} for {{ item.Student_Name }}"
+                                    title="Delete Internship">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="11" class="text-center py-4 text-muted">No mandatory internships recorded yet.</td>
+                    <td colspan="12" class="text-center py-4 text-muted">No mandatory internships recorded yet.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -129,11 +335,11 @@
 </div>
 
 {% elif active_tab == 'Additional' %}
-<!-- Tab 2: Additional Internships -->
+<!-- Tab 2: Additional Voluntary Internships -->
 <div class="table-card mb-4">
     <div class="table-card-header">
         <div>
-            <h5 class="fw-bold mb-0">Additional Voluntary Internships</h5>
+            <h2 class="h5 fw-bold mb-0">Additional Voluntary Internships</h2>
             <small class="text-muted">Extracurricular industry experience (Requirement_ID is NULL by schema domain rule).</small>
         </div>
         <div class="d-flex gap-2">
@@ -150,10 +356,11 @@
                     <th>Internship #</th>
                     <th>Company Name</th>
                     <th>Role Title</th>
-                    <th>Start Date</th>
-                    <th>End Date</th>
-                    <th>Requirement Link</th>
-                    <th class="text-end">Action</th>
+                    <th>Duration & Dates</th>
+                    <th>Stipend & Credits</th>
+                    <th>Status</th>
+                    <th>Report & Grade</th>
+                    <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -161,31 +368,153 @@
                 <tr>
                     <td>
                         <a href="/students/{{ item.Student_ID }}" class="text-dark fw-semibold text-decoration-none">
-                            {{ item.First_Name }} {{ item.Last_Name }}
+                            {{ item.Student_Name }}
                         </a>
                     </td>
                     <td><span class="code-font text-primary">{{ item.Roll_No }}</span></td>
                     <td><span class="badge bg-light text-dark border">{{ item.Branch }}</span></td>
-                    <td><span class="badge bg-secondary-subtle text-secondary">Additional #{{ item.Internship_No }}</span></td>
+                    <td><span class="badge badge-status-neutral">Additional #{{ item.Internship_No }}</span></td>
                     <td><strong>{{ item.Company_Name }}</strong></td>
-                    <td>{{ item.Role_Title }}</td>
-                    <td><span class="code-font text-muted">{{ item.Start_Date }}</span></td>
-                    <td><span class="code-font text-muted">{{ item.End_Date }}</span></td>
-                    <td><span class="text-muted small">&mdash; None (Independent) &mdash;</span></td>
+                    <td>{{ item.Role or 'Intern' }}</td>
+                    <td>
+                        <span class="badge bg-light text-dark border mb-1">{{ item.Duration_Str }}</span>
+                        <div class="code-font text-muted small">{{ item.Start_Date }} to {{ item.End_Date }}</div>
+                    </td>
+                    <td>
+                        {% if item.Stipend and item.Stipend > 0 %}
+                            <strong class="text-success">&#8377;{{ "{:,.0f}".format(item.Stipend) }}/mo</strong>
+                        {% else %}
+                            <span class="text-muted small">Academic</span>
+                        {% endif %}
+                        <div class="small text-muted">{{ item.Credits or 3 }} Credits</div>
+                    </td>
+                    <td>
+                        <span class="badge {% if item.Status == 'Completed' %}badge-status-success{% elif item.Status == 'In Progress' %}badge-status-primary{% elif item.Status == 'Pending Report' %}badge-status-warning{% else %}badge-status-neutral{% endif %}">
+                            {{ item.Status }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if item.Report_Grade %}
+                            <span class="badge badge-status-success">Grade {{ item.Report_Grade }}</span>
+                        {% else %}
+                            <span class="badge badge-status-warning small">Pending</span>
+                        {% endif %}
+                        <div class="d-flex gap-2 mt-1">
+                            {% if item.Report_Link %}
+                                <a href="{{ item.Report_Link }}" target="_blank" class="small text-primary text-decoration-none" title="Report PDF">
+                                    <i class="bi bi-file-earmark-text"></i>
+                                </a>
+                            {% endif %}
+                            {% if item.Certificate_Link %}
+                                <a href="{{ item.Certificate_Link }}" target="_blank" class="small text-success text-decoration-none" title="Certificate">
+                                    <i class="bi bi-patch-check"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </td>
                     <td class="text-end">
-                        <button type="button" class="btn btn-outline-danger btn-sm"
-                                data-bs-toggle="modal" 
-                                data-bs-target="#deleteConfirmModal"
-                                data-delete-url="/internships/{{ item.Internship_ID }}/delete"
-                                data-item-name="Additional Internship for {{ item.First_Name }} {{ item.Last_Name }}"
-                                title="Delete Internship">
-                            <i class="bi bi-trash3"></i>
-                        </button>
+                        <div class="btn-group btn-group-sm">
+                            <a href="/internships/{{ item.Internship_ID }}" class="btn btn-outline-secondary" title="View Dossier">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="/internships/{{ item.Internship_ID }}/edit" class="btn btn-outline-secondary" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button type="button" class="btn btn-outline-danger"
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#deleteConfirmModal"
+                                    data-delete-url="/internships/{{ item.Internship_ID }}/delete"
+                                    data-item-name="Additional Internship #{{ item.Internship_No }} for {{ item.Student_Name }}"
+                                    title="Delete Internship">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="10" class="text-center py-4 text-muted">No additional internships recorded.</td>
+                    <td colspan="11" class="text-center py-4 text-muted">No additional internships recorded.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% elif active_tab == 'Pending' %}
+<!-- Tab 3: Pending Reports & Evaluation Audit -->
+<div class="table-card mb-4 border-warning">
+    <div class="table-card-header bg-warning-subtle border-warning-subtle">
+        <div>
+            <h2 class="h5 fw-bold mb-0 text-dark">
+                <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Pending Internship Reports & Evaluation Audit
+            </h2>
+            <small class="text-muted">Internships requiring report defense submission or academic grade assignment for degree clearance.</small>
+        </div>
+        <div class="d-flex gap-2">
+            <input type="text" class="form-control form-control-sm" placeholder="Search pending reports..." data-table-search="pendingTable">
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table custom-table" id="pendingTable">
+            <thead>
+                <tr>
+                    <th>Student Name</th>
+                    <th>Roll No</th>
+                    <th>Branch</th>
+                    <th>Internship Type</th>
+                    <th>Company Name</th>
+                    <th>End Date</th>
+                    <th>Submission Sem</th>
+                    <th>Report Status</th>
+                    <th>Grade Status</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in pending_reports %}
+                <tr>
+                    <td>
+                        <a href="/students/{{ item.Student_ID }}" class="text-dark fw-semibold text-decoration-none">
+                            {{ item.Student_Name }}
+                        </a>
+                    </td>
+                    <td><span class="code-font text-primary">{{ item.Roll_No }}</span></td>
+                    <td><span class="badge bg-light text-dark border">{{ item.Branch }}</span></td>
+                    <td>
+                        <span class="badge {% if item.Internship_Type == 'Mandatory' %}badge-status-primary{% else %}badge-status-neutral{% endif %}">
+                            {{ item.Internship_Type }} #{{ item.Internship_No }}
+                        </span>
+                    </td>
+                    <td><strong>{{ item.Company_Name }}</strong></td>
+                    <td><span class="code-font text-muted">{{ item.End_Date }}</span></td>
+                    <td><span class="badge bg-secondary-subtle text-secondary">Sem {{ item.Report_Semester or 'Pending' }}</span></td>
+                    <td>
+                        {% if item.Report_Link %}
+                            <span class="badge badge-status-success"><i class="bi bi-check2 me-1"></i> Submitted</span>
+                        {% else %}
+                            <span class="badge badge-status-danger"><i class="bi bi-x-circle me-1"></i> Missing Report PDF</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.Report_Grade and item.Report_Grade != 'Pending' %}
+                            <span class="badge badge-status-success">Grade {{ item.Report_Grade }}</span>
+                        {% else %}
+                            <span class="badge badge-status-warning">Ungraded</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="/internships/{{ item.Internship_ID }}/edit" class="btn btn-warning btn-sm">
+                            <i class="bi bi-pencil-square me-1"></i> Evaluate
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="10" class="text-center py-5 text-success">
+                        <i class="bi bi-check-circle-fill fs-1 d-block mb-2 text-success"></i>
+                        Outstanding! All recorded student internships have submitted reports and verified academic grades.
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -194,13 +523,13 @@
 </div>
 
 {% elif active_tab == 'Missing' %}
-<!-- Tab 3: Missing Mandatory Internships Audit -->
+<!-- Tab 4: Missing Mandatory Internships Audit -->
 <div class="table-card mb-4 border-danger">
     <div class="table-card-header bg-danger-subtle border-danger-subtle">
         <div>
-            <h5 class="fw-bold mb-0 text-danger">
+            <h2 class="h5 fw-bold mb-0 text-danger">
                 <i class="bi bi-shield-slash me-2"></i>Graduation Clearance Audit: Missing Mandatory Internships
-            </h5>
+            </h2>
             <small class="text-muted">Active students currently missing Mandatory Internship #1 (Summer after 2nd yr) or Mandatory Internship #2 (Summer after 3rd yr).</small>
         </div>
         <div class="d-flex gap-2">
@@ -235,20 +564,20 @@
                         </a>
                     </td>
                     <td><span class="badge bg-light text-dark border">{{ item.Branch }}</span></td>
-                    <td><span class="badge bg-secondary-subtle text-secondary">{{ item.Batch_Year }}</span></td>
+                    <td><span class="badge bg-secondary-subtle text-secondary">Batch {{ item.Batch_Year }}</span></td>
                     <td><strong>{{ "%.2f"|format(item.CGPA) }}</strong></td>
                     <td>
                         {% if item.Mandatory_I1_Status == 'Completed' %}
-                            <span class="badge badge-soft-success"><i class="bi bi-check-lg me-1"></i> Completed ({{ item.I1_Company }})</span>
+                            <span class="badge badge-status-success"><i class="bi bi-check-lg me-1"></i> Completed ({{ item.I1_Company }})</span>
                         {% else %}
-                            <span class="badge badge-soft-danger"><i class="bi bi-x-lg me-1"></i> Missing Requirement #1</span>
+                            <span class="badge badge-status-danger"><i class="bi bi-x-lg me-1"></i> Missing Requirement #1</span>
                         {% endif %}
                     </td>
                     <td>
                         {% if item.Mandatory_I2_Status == 'Completed' %}
-                            <span class="badge badge-soft-success"><i class="bi bi-check-lg me-1"></i> Completed ({{ item.I2_Company }})</span>
+                            <span class="badge badge-status-success"><i class="bi bi-check-lg me-1"></i> Completed ({{ item.I2_Company }})</span>
                         {% else %}
-                            <span class="badge badge-soft-danger"><i class="bi bi-x-lg me-1"></i> Missing Requirement #2</span>
+                            <span class="badge badge-status-danger"><i class="bi bi-x-lg me-1"></i> Missing Requirement #2</span>
                         {% endif %}
                     </td>
                     <td class="text-end">
@@ -259,7 +588,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="10" class="text-center py-5 text-success">
+                    <td colspan="8" class="text-center py-5 text-success">
                         <i class="bi bi-patch-check-fill fs-1 d-block mb-2 text-success"></i>
                         Congratulations! All active students have completed both mandatory academic internships!
                     </td>
@@ -270,12 +599,289 @@
     </div>
 </div>
 
+{% elif active_tab == 'Compliance' %}
+<!-- Tab 5: Academic Compliance Reports -->
+<div class="row g-4 mb-4">
+    <!-- Branch-Wise Internship Completion Statistics -->
+    <div class="col-12 col-xl-6">
+        <div class="table-card h-100">
+            <div class="table-card-header">
+                <div>
+                    <h2 class="h6 fw-bold mb-0">Branch-Wise Internship Completion Statistics</h2>
+                    <small class="text-muted">Degree requirement completion breakdown by engineering discipline</small>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table custom-table">
+                    <thead>
+                        <tr>
+                            <th>Branch</th>
+                            <th>Total Students</th>
+                            <th>I1 Completed</th>
+                            <th>I2 Completed</th>
+                            <th>Both Compliant</th>
+                            <th>Avg Stipend</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bs in branch_stats %}
+                        <tr>
+                            <td>
+                                <strong>{{ bs.Branch }}</strong><br>
+                                <small class="text-muted">{{ bs.Branch_Name }}</small>
+                            </td>
+                            <td>{{ bs.total_students }}</td>
+                            <td>
+                                <span class="badge badge-status-primary">{{ bs.i1_completed }}</span>
+                                <small class="text-muted ms-1">({{ bs.i1_rate }}%)</small>
+                            </td>
+                            <td>
+                                <span class="badge badge-status-primary">{{ bs.i2_completed }}</span>
+                                <small class="text-muted ms-1">({{ bs.i2_rate }}%)</small>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="progress flex-grow-1" style="height: 6px;">
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ bs.compliance_rate }}%"></div>
+                                    </div>
+                                    <span class="badge badge-status-success">{{ bs.compliance_rate }}%</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="text-success fw-semibold">&#8377;{{ "{:,.0f}".format(bs.avg_stipend) }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch-Wise Compliance Reports -->
+    <div class="col-12 col-xl-6">
+        <div class="table-card h-100">
+            <div class="table-card-header">
+                <div>
+                    <h2 class="h6 fw-bold mb-0">Batch-Wise Compliance Reports</h2>
+                    <small class="text-muted">Academic cohort progress toward mandatory internship completion</small>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table custom-table">
+                    <thead>
+                        <tr>
+                            <th>Batch</th>
+                            <th>Cohort Size</th>
+                            <th>I1 Progress</th>
+                            <th>I2 Progress</th>
+                            <th>Full Compliance</th>
+                            <th>Non-Compliant</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bt in batch_reports %}
+                        <tr>
+                            <td><strong>Batch {{ bt.Batch_Year }}</strong></td>
+                            <td>{{ bt.total_students }}</td>
+                            <td>
+                                <span class="badge bg-light text-dark border">{{ bt.i1_completed }}/{{ bt.total_students }}</span>
+                                <small class="text-muted ms-1">({{ bt.i1_rate }}%)</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">{{ bt.i2_completed }}/{{ bt.total_students }}</span>
+                                <small class="text-muted ms-1">({{ bt.i2_rate }}%)</small>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="progress flex-grow-1" style="height: 6px;">
+                                        <div class="progress-bar {% if bt.compliance_rate == 100 %}bg-success{% else %}bg-primary{% endif %}" role="progressbar" style="width: {{ bt.compliance_rate }}%"></div>
+                                    </div>
+                                    <span class="badge {% if bt.compliance_rate == 100 %}badge-status-success{% else %}badge-status-primary{% endif %}">{{ bt.compliance_rate }}%</span>
+                                </div>
+                            </td>
+                            <td>
+                                {% if bt.missing_count > 0 %}
+                                    <span class="badge badge-status-danger">{{ bt.missing_count }} Student(s)</span>
+                                {% else %}
+                                    <span class="badge badge-status-success"><i class="bi bi-check-all me-1"></i> 100% Cleared</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% elif active_tab == 'Analytics' %}
+<!-- Tab 6: Visual Analytics Dashboard -->
+<div class="row g-4 mb-4">
+    <!-- Chart 1: Branch-wise Completion Comparison -->
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm p-4 rounded-3 bg-white h-100">
+            <h2 class="h6 fw-bold mb-1">Branch-Wise Internship Completion</h2>
+            <small class="text-muted d-block mb-3">Comparison between Mandatory I1, Mandatory I2, and Both Completed by Branch</small>
+            <div style="height: 280px;">
+                <canvas id="branchCompletionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart 2: Batch Compliance Progression -->
+    <div class="col-12 col-lg-6">
+        <div class="card border-0 shadow-sm p-4 rounded-3 bg-white h-100">
+            <h2 class="h6 fw-bold mb-1">Batch Compliance Rates</h2>
+            <small class="text-muted d-block mb-3">Percentage of graduating cohort satisfying both mandatory requirements</small>
+            <div style="height: 280px;">
+                <canvas id="batchComplianceChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart 3: Internship Type Breakdown -->
+    <div class="col-12 col-md-6">
+        <div class="card border-0 shadow-sm p-4 rounded-3 bg-white h-100">
+            <h2 class="h6 fw-bold mb-1">Internship Category Distribution</h2>
+            <small class="text-muted d-block mb-3">Mandatory 1 vs Mandatory 2 vs Additional Voluntary</small>
+            <div style="height: 260px;">
+                <canvas id="typeDistributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart 4: Report Evaluation Grade Distribution -->
+    <div class="col-12 col-md-6">
+        <div class="card border-0 shadow-sm p-4 rounded-3 bg-white h-100">
+            <h2 class="h6 fw-bold mb-1">Report Evaluation Grade Distribution</h2>
+            <small class="text-muted d-block mb-3">Academic grades achieved in defended internship reports</small>
+            <div style="height: 260px;">
+                <canvas id="gradeDistributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const brandPrimary = '#0d6efd';
+    const brandIndigo = '#6610f2';
+    const brandSuccess = '#198754';
+    const brandWarning = '#ffc107';
+    const brandMuted = '#6c757d';
+
+    // 1. Branch Completion Chart
+    const branchData = {{ branch_stats|tojson }};
+    new Chart(document.getElementById('branchCompletionChart'), {
+        type: 'bar',
+        data: {
+            labels: branchData.map(b => b.Branch),
+            datasets: [
+                {
+                    label: 'Mandatory I1',
+                    data: branchData.map(b => b.i1_completed),
+                    backgroundColor: brandPrimary,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Mandatory I2',
+                    data: branchData.map(b => b.i2_completed),
+                    backgroundColor: brandIndigo,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Both Compliant',
+                    data: branchData.map(b => b.both_completed),
+                    backgroundColor: brandSuccess,
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, ticks: { precision: 0 } }
+            }
+        }
+    });
+
+    // 2. Batch Compliance Chart
+    const batchData = {{ batch_reports|tojson }};
+    new Chart(document.getElementById('batchComplianceChart'), {
+        type: 'bar',
+        data: {
+            labels: batchData.map(b => 'Batch ' + b.Batch_Year),
+            datasets: [{
+                label: 'Compliance Rate (%)',
+                data: batchData.map(b => b.compliance_rate),
+                backgroundColor: batchData.map(b => b.compliance_rate === 100 ? brandSuccess : brandPrimary),
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } }
+            }
+        }
+    });
+
+    // 3. Category Breakdown Doughnut
+    const typeData = {{ analytics.type_distribution|tojson }};
+    new Chart(document.getElementById('typeDistributionChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Mandatory I1', 'Mandatory I2', 'Additional'],
+            datasets: [{
+                data: [typeData.mandatory_1, typeData.mandatory_2, typeData.additional],
+                backgroundColor: [brandPrimary, brandIndigo, brandMuted],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+
+    // 4. Grade Distribution Bar
+    const gradeData = {{ analytics.grade_distribution|tojson }};
+    new Chart(document.getElementById('gradeDistributionChart'), {
+        type: 'bar',
+        data: {
+            labels: gradeData.map(g => g.grade),
+            datasets: [{
+                label: 'Internship Count',
+                data: gradeData.map(g => g.count),
+                backgroundColor: brandSuccess,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, ticks: { precision: 0 } }
+            }
+        }
+    });
+});
+</script>
+
 {% else %}
-<!-- Tab 4: All Internships Overview -->
+<!-- Tab 7: All Internships Overview -->
 <div class="table-card mb-4">
     <div class="table-card-header">
         <div>
-            <h5 class="fw-bold mb-0">All Student Internships</h5>
+            <h2 class="h5 fw-bold mb-0">All Student Internships</h2>
             <small class="text-muted">Consolidated listing of mandatory degree and additional career internships</small>
         </div>
         <div class="d-flex gap-2">
@@ -289,12 +895,13 @@
                     <th>Roll No</th>
                     <th>Student Name</th>
                     <th>Type</th>
-                    <th>Internship #</th>
                     <th>Company Name</th>
                     <th>Role Title</th>
-                    <th>Start Date</th>
-                    <th>End Date</th>
+                    <th>Duration & Dates</th>
+                    <th>Stipend & Credits</th>
                     <th>Requirement</th>
+                    <th>Status</th>
+                    <th>Report & Grade</th>
                     <th class="text-end">Actions</th>
                 </tr>
             </thead>
@@ -302,40 +909,87 @@
                 {% for item in all_internships %}
                 <tr>
                     <td><a href="/students/{{ item.Student_ID }}" class="code-font fw-semibold text-primary text-decoration-none">{{ item.Roll_No }}</a></td>
-                    <td>{{ item.First_Name }} {{ item.Last_Name }}</td>
+                    <td>
+                        <a href="/students/{{ item.Student_ID }}" class="text-dark fw-semibold text-decoration-none">
+                            {{ item.Student_Name }}
+                        </a>
+                        <small class="text-muted d-block">{{ item.Branch }} &bull; Batch {{ item.Batch_Year }}</small>
+                    </td>
                     <td>
                         {% if item.Internship_Type == 'Mandatory' %}
-                            <span class="badge badge-soft-primary">Mandatory</span>
+                            <span class="badge badge-status-primary">Mandatory #{{ item.Internship_No }}</span>
                         {% else %}
-                            <span class="badge bg-secondary-subtle text-secondary">Additional</span>
+                            <span class="badge badge-status-neutral">Additional #{{ item.Internship_No }}</span>
                         {% endif %}
                     </td>
-                    <td>#{{ item.Internship_No }}</td>
                     <td><strong>{{ item.Company_Name }}</strong></td>
                     <td>{{ item.Role or 'Intern' }}</td>
-                    <td><small class="code-font text-muted">{{ item.Start_Date }}</small></td>
-                    <td><small class="code-font text-muted">{{ item.End_Date }}</small></td>
+                    <td>
+                        <span class="badge bg-light text-dark border mb-1">{{ item.Duration_Str }}</span>
+                        <div class="code-font text-muted small">{{ item.Start_Date }} to {{ item.End_Date }}</div>
+                    </td>
+                    <td>
+                        {% if item.Stipend and item.Stipend > 0 %}
+                            <strong class="text-success">&#8377;{{ "{:,.0f}".format(item.Stipend) }}/mo</strong>
+                        {% else %}
+                            <span class="text-muted small">Academic</span>
+                        {% endif %}
+                        <div class="small text-muted">{{ item.Credits or 4 }} Credits</div>
+                    </td>
                     <td>
                         {% if item.Requirement_ID %}
                             <span class="badge bg-info-subtle text-info border">Requirement #{{ item.Requirement_ID }}</span>
+                            <small class="d-block text-muted">Sem {{ item.Required_Result_Semester }} SGPA</small>
                         {% else %}
-                            <span class="text-muted small">&mdash;</span>
+                            <span class="text-muted small">&mdash; Voluntary &mdash;</span>
                         {% endif %}
                     </td>
+                    <td>
+                        <span class="badge {% if item.Status == 'Completed' %}badge-status-success{% elif item.Status == 'In Progress' %}badge-status-primary{% elif item.Status == 'Pending Report' %}badge-status-warning{% else %}badge-status-neutral{% endif %}">
+                            {{ item.Status }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if item.Report_Grade %}
+                            <span class="badge badge-status-success fw-semibold">Grade {{ item.Report_Grade }}</span>
+                        {% else %}
+                            <span class="badge badge-status-warning small">Pending</span>
+                        {% endif %}
+                        <div class="d-flex gap-2 mt-1">
+                            {% if item.Report_Link %}
+                                <a href="{{ item.Report_Link }}" target="_blank" class="small text-primary text-decoration-none" title="Report Document">
+                                    <i class="bi bi-file-earmark-text"></i>
+                                </a>
+                            {% endif %}
+                            {% if item.Certificate_Link %}
+                                <a href="{{ item.Certificate_Link }}" target="_blank" class="small text-success text-decoration-none" title="Certificate">
+                                    <i class="bi bi-patch-check"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </td>
                     <td class="text-end">
-                        <button type="button" class="btn btn-outline-danger btn-sm"
-                                data-bs-toggle="modal" 
-                                data-bs-target="#deleteConfirmModal"
-                                data-delete-url="/internships/{{ item.Internship_ID }}/delete"
-                                data-item-name="Internship #{{ item.Internship_No }} at {{ item.Company_Name }} for {{ item.First_Name }} {{ item.Last_Name }}"
-                                title="Delete Internship">
-                            <i class="bi bi-trash3"></i>
-                        </button>
+                        <div class="btn-group btn-group-sm">
+                            <a href="/internships/{{ item.Internship_ID }}" class="btn btn-outline-secondary" title="View Dossier">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="/internships/{{ item.Internship_ID }}/edit" class="btn btn-outline-secondary" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button type="button" class="btn btn-outline-danger"
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#deleteConfirmModal"
+                                    data-delete-url="/internships/{{ item.Internship_ID }}/delete"
+                                    data-item-name="Internship #{{ item.Internship_No }} at {{ item.Company_Name }} for {{ item.Student_Name }}"
+                                    title="Delete Internship">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="10" class="text-center py-4 text-muted">No internship records found.</td>
+                    <td colspan="11" class="text-center py-4 text-muted">No internship records found.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -344,34 +998,83 @@
 </div>
 {% endif %}
 
-<!-- Academic Requirements Reference Card -->
+<!-- Academic Requirements Policy Reference -->
 <div class="row g-3">
     <div class="col-12 col-md-6">
-        <div class="p-3 bg-white rounded-3 border shadow-sm">
+        <div class="p-3 bg-white rounded-3 border shadow-sm h-100">
             <div class="d-flex align-items-center gap-2 mb-2">
                 <span class="badge bg-primary">Requirement #1</span>
                 <h6 class="mb-0 fw-bold">First Mandatory Internship</h6>
             </div>
             <p class="small text-secondary mb-2">Undertaken in the summer vacation after the <strong>2nd Year</strong> (Semester 4). Requires verified academic performance in <strong>Semester 3 (Prerequisite SGPA)</strong>.</p>
             <div class="small text-muted">
-                <span>Evaluation: <strong>Semester 5</strong></span> &bull; 
-                <span>Weightage: <strong>4 Academic Credits</strong></span>
+                <span>Evaluation Defense: <strong>Semester 5</strong></span> &bull; 
+                <span>Curricular Weightage: <strong>4 Academic Credits</strong></span>
             </div>
         </div>
     </div>
 
     <div class="col-12 col-md-6">
-        <div class="p-3 bg-white rounded-3 border shadow-sm">
+        <div class="p-3 bg-white rounded-3 border shadow-sm h-100">
             <div class="d-flex align-items-center gap-2 mb-2">
-                <span class="badge bg-indigo text-white" style="background-color: var(--brand-indigo);">Requirement #2</span>
+                <span class="badge bg-primary text-white" style="background-color: var(--brand-indigo, #6610f2);">Requirement #2</span>
                 <h6 class="mb-0 fw-bold">Second Mandatory Internship</h6>
             </div>
             <p class="small text-secondary mb-2">Undertaken in the summer vacation after the <strong>3rd Year</strong> (Semester 6). Requires verified academic performance in <strong>Semester 5 (Prerequisite SGPA)</strong>.</p>
             <div class="small text-muted">
-                <span>Evaluation: <strong>Semester 7</strong></span> &bull; 
-                <span>Weightage: <strong>4 Academic Credits</strong></span>
+                <span>Evaluation Defense: <strong>Semester 7</strong></span> &bull; 
+                <span>Curricular Weightage: <strong>4 Academic Credits</strong></span>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold text-danger" id="deleteConfirmModalLabel">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Confirm Deletion
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this internship record?</p>
+                <div class="p-2 bg-light rounded border small mb-3">
+                    <strong id="deleteModalItemName">Internship Record</strong>
+                </div>
+                <div class="alert alert-warning small mb-0">
+                    <i class="bi bi-shield-exclamation me-1"></i> Deleting this will impact academic degree compliance audit if this is a mandatory internship.
+                </div>
+            </div>
+            <div class="modal-footer border-top-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteModalForm" method="POST" action="">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger btn-sm px-3">
+                        <i class="bi bi-trash3 me-1"></i> Confirm Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const deleteModal = document.getElementById('deleteConfirmModal');
+    if (deleteModal) {
+        deleteModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const deleteUrl = button.getAttribute('data-delete-url');
+            const itemName = button.getAttribute('data-item-name');
+            const form = document.getElementById('deleteModalForm');
+            const nameSpan = document.getElementById('deleteModalItemName');
+            if (form && deleteUrl) form.action = deleteUrl;
+            if (nameSpan && itemName) nameSpan.textContent = itemName;
+        });
+    }
+});
+</script>
 {% endblock %}

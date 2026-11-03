@@ -74,14 +74,14 @@ Verify or create the `.env` file in the project root directory. An example confi
 # Server Configuration
 FLASK_ENV=development
 FLASK_DEBUG=1
-SECRET_KEY=dev_legacy_dataforce_secret_key_2026
+SECRET_KEY=your_secret_key_here
 PORT=5000
 
 # MySQL Database Configuration
 MYSQL_HOST=localhost
 MYSQL_PORT=3306
-MYSQL_USER=root
-MYSQL_PASSWORD=12345
+MYSQL_USER=your_mysql_username_here
+MYSQL_PASSWORD=your_mysql_password_here
 MYSQL_DB=placement_db
 MYSQL_CHARSET=utf8mb4
 MYSQL_CONNECT_TIMEOUT=5

@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+
+{% block title %}Offer #{{ offer.Placement_ID }}: {{ offer.Role }} at {{ offer.Company_Name }} | Placement Detail{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="/placements" class="text-decoration-none text-muted">Placements</a></li>
+<li class="breadcrumb-item active" aria-current="page">Offer #{{ offer.Placement_ID }}</li>
+{% endblock %}
+
+{% block content %}
+<!-- Placement Header Card -->
+<div class="detail-header-card mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="student-avatar bg-primary text-white">
+                <i class="bi bi-award-fill"></i>
+            </div>
+            <div>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <h1 class="h4 fw-bold mb-0">{{ offer.Role }}</h1>
+                    <span class="badge badge-status-neutral">Offer #{{ offer.Placement_ID }}</span>
+                    {% if offer.Offer_Status in ['Accepted', 'Joined'] %}
+                        <span class="badge badge-status-success"><i class="bi bi-check-circle-fill me-1"></i>{{ offer.Offer_Status }}</span>
+                    {% elif offer.Offer_Status == 'Declined' %}
+                        <span class="badge badge-status-danger"><i class="bi bi-x-circle-fill me-1"></i>Declined</span>
+                    {% else %}
+                        <span class="badge badge-status-primary">{{ offer.Offer_Status }}</span>
+                    {% endif %}
+
+                    {% if offer.Joined == 'Yes' %}
+                        <span class="badge badge-status-success"><i class="bi bi-building-check me-1"></i>Joined</span>
+                    {% endif %}
+
+                    {% if offer.Is_PPO == 'Yes' %}
+                        <span class="badge badge-status-warning"><i class="bi bi-lightning-charge me-1"></i>PPO</span>
+                    {% endif %}
+                </div>
+                <div class="text-secondary small mt-1 d-flex flex-wrap align-items-center gap-2 gap-md-3">
+                    <span><i class="bi bi-building me-1 text-muted"></i> <strong>{{ offer.Company_Name }}</strong></span>
+                    <span class="d-none d-sm-inline text-muted">&bull;</span>
+                    <span><i class="bi bi-person me-1 text-muted"></i> {{ offer.Student_Name }} (<span class="code-font">{{ offer.Roll_No }}</span>)</span>
+                    <span class="d-none d-sm-inline text-muted">&bull;</span>
+                    <span><i class="bi bi-calendar-event me-1 text-muted"></i> Class of {{ offer.Placement_Year }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex flex-wrap gap-2">
+            <!-- Lifecycle Status Buttons -->
+            <form method="POST" action="/placements/{{ offer.Placement_ID }}/status" class="d-inline-flex gap-1">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% if offer.Offer_Status != 'Accepted' and offer.Offer_Status != 'Joined' %}
+                    <button type="submit" name="status" value="Accepted" class="btn btn-sm btn-outline-success" title="Accept Offer (Enforces single accepted offer rule)">
+                        <i class="bi bi-check-circle me-1"></i> Accept Offer
+                    </button>
+                {% endif %}
+                {% if offer.Offer_Status == 'Accepted' %}
+                    <button type="submit" name="status" value="Joined" class="btn btn-sm btn-primary" title="Confirm Candidate Joined">
+                        <i class="bi bi-building-check me-1"></i> Confirm Joined
+                    </button>
+                {% endif %}
+                {% if offer.Offer_Status != 'Declined' and offer.Offer_Status != 'Joined' %}
+                    <button type="submit" name="status" value="Declined" class="btn btn-sm btn-outline-danger" 
+                            onclick="return confirm('Are you sure you want to decline this offer? If previously accepted, this will allow the student to accept another offer.');"
+                            title="Decline Offer">
+                        <i class="bi bi-x-circle me-1"></i> Decline
+                    </button>
+                {% endif %}
+            </form>
+
+            <a href="/placements/{{ offer.Placement_ID }}/edit" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-pencil me-1"></i> Edit Offer
+            </a>
+            <button type="button" class="btn btn-outline-danger btn-sm"
+                    data-bs-toggle="modal" 
+                    data-bs-target="#deleteConfirmModal"
+                    data-delete-url="/placements/{{ offer.Placement_ID }}/delete"
+                    data-item-name="Offer #{{ offer.Placement_ID }} ({{ offer.Company_Name }} - {{ offer.Package }} LPA for {{ offer.Student_Name }})"
+                    title="Delete Record">
+                <i class="bi bi-trash3 me-1"></i> Delete
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Metric Summary Chips -->
+    <div class="row g-2 g-md-3 mt-3 pt-3 border-top">
+        <div class="col-6 col-md-3">
+            <div class="detail-metric-chip">
+                <small>Annual Compensation (CTC)</small>
+                <span class="text-success fw-bold">{{ "%.2f"|format(offer.Package) }} <small class="fs-6 text-muted fw-normal">LPA</small></span>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="detail-metric-chip">
+                <small>Offer Category</small>
+                <span>{{ offer.Placement_Type or 'On-campus' }} <small class="fs-6 text-muted fw-normal">Drive</small></span>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="detail-metric-chip">
+                <small>Selection Process</small>
+                <span>{{ offer.Interview_Rounds or 1 }} <small class="fs-6 text-muted fw-normal">Rounds Evaluated</small></span>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="detail-metric-chip">
+                <small>Institutional Compliance</small>
+                {% if offer.Candidate_Eligibility_Met %}
+                    <span class="text-success"><i class="bi bi-shield-check me-1"></i>Fully Verified</span>
+                {% else %}
+                    <span class="text-warning"><i class="bi bi-shield-exclamation me-1"></i>Advisory Flags</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Details Grid -->
+<div class="row g-4">
+    <!-- Left Column: Student & Recruiting Company Details -->
+    <div class="col-12 col-lg-6">
+        <!-- Candidate Profile Card -->
+        <div class="table-card mb-4">
+            <div class="table-card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-person-circle text-primary fs-5"></i>
+                    <div>
+                        <h2 class="h6 fw-bold mb-0">Candidate Profile & Academic Standing</h2>
+                        <small class="text-muted">Student identity and institutional metrics at offer issuance</small>
+                    </div>
+                </div>
+                <a href="/students/{{ offer.Student_ID }}" class="btn btn-sm btn-outline-primary py-0 px-2">
+                    <i class="bi bi-arrow-up-right-square me-1"></i> Full Profile
+                </a>
+            </div>
+            <div class="p-3">
+                <dl class="row mb-0 small">
+                    <dt class="col-sm-5 text-muted">Student Name</dt>
+                    <dd class="col-sm-7 fw-semibold">{{ offer.Student_Name }}</dd>
+
+                    <dt class="col-sm-5 text-muted">Roll Number</dt>
+                    <dd class="col-sm-7 code-font fw-bold">{{ offer.Roll_No }}</dd>
+
+                    <dt class="col-sm-5 text-muted">Department / Branch</dt>
+                    <dd class="col-sm-7"><span class="badge badge-status-neutral">{{ offer.Branch }}</span></dd>
+
+                    <dt class="col-sm-5 text-muted">Graduation Cohort</dt>
+                    <dd class="col-sm-7">{{ offer.Batch_Year }} Batch (Section {{ offer.Section or 'A' }})</dd>
+
+                    <dt class="col-sm-5 text-muted">Cumulative GPA</dt>
+                    <dd class="col-sm-7">
+                        <span class="fw-bold fs-6 text-primary">{{ "%.2f"|format(offer.CGPA) }}</span>
+                        <span class="text-muted">/ 10.0</span>
+                    </dd>
+
+                    <dt class="col-sm-5 text-muted">Active Backlogs</dt>
+                    <dd class="col-sm-7">
+                        {% if offer.Backlogs == 0 %}
+                            <span class="badge badge-status-success"><i class="bi bi-check2-circle me-1"></i>0 Backlogs</span>
+                        {% else %}
+                            <span class="badge badge-status-danger">{{ offer.Backlogs }} Backlogs</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-5 text-muted">Official Email</dt>
+                    <dd class="col-sm-7">
+                        <a href="mailto:{{ offer.Email }}" class="text-primary text-decoration-none">
+                            <i class="bi bi-envelope me-1"></i>{{ offer.Email }}
+                        </a>
+                    </dd>
+
+                    <dt class="col-sm-5 text-muted">Student Portfolio</dt>
+                    <dd class="col-sm-7">
+                        {% if offer.Resume_Link %}
+                            <a href="{{ offer.Resume_Link }}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2">
+                                <i class="bi bi-file-earmark-pdf me-1"></i> View Resume
+                            </a>
+                        {% else %}
+                            <span class="text-muted">No resume linked</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <!-- Recruiting Organization Card -->
+        <div class="table-card mb-4">
+            <div class="table-card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-building text-primary fs-5"></i>
+                    <div>
+                        <h2 class="h6 fw-bold mb-0">Recruiting Organization</h2>
+                        <small class="text-muted">Corporate partner profile and industry classification</small>
+                    </div>
+                </div>
+                <a href="/companies/{{ offer.Company_ID }}" class="btn btn-sm btn-outline-primary py-0 px-2">
+                    <i class="bi bi-arrow-up-right-square me-1"></i> Company Hub
+                </a>
+            </div>
+            <div class="p-3">
+                <dl class="row mb-0 small">
+                    <dt class="col-sm-5 text-muted">Company Name</dt>
+                    <dd class="col-sm-7 fw-bold">{{ offer.Company_Name }}</dd>
+
+                    <dt class="col-sm-5 text-muted">Organization Model</dt>
+                    <dd class="col-sm-7">
+                        <span class="badge badge-status-primary">{{ offer.Company_Type or 'Corporate' }}</span>
+                    </dd>
+
+                    <dt class="col-sm-5 text-muted">Industry Sector</dt>
+                    <dd class="col-sm-7">{{ offer.Industry or 'Technology & Software' }}</dd>
+
+                    <dt class="col-sm-5 text-muted">Work Location</dt>
+                    <dd class="col-sm-7">{{ offer.Location or 'Corporate Headquarters' }}</dd>
+
+                    <dt class="col-sm-5 text-muted">Corporate Website</dt>
+                    <dd class="col-sm-7">
+                        {% if offer.Website %}
+                            <a href="{{ offer.Website }}" target="_blank" class="text-primary text-decoration-none">
+                                <i class="bi bi-globe me-1"></i>{{ offer.Website }}
+                            </a>
+                        {% else %}
+                            <span class="text-muted">&mdash;</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Drive Context, Eligibility & Evaluated Skills -->
+    <div class="col-12 col-lg-6">
+        <!-- Recruitment Drive & Opportunity Context -->
+        <div class="table-card mb-4">
+            <div class="table-card-header">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-briefcase text-primary fs-5"></i>
+                    <div>
+                        <h2 class="h6 fw-bold mb-0">Recruitment Drive &amp; Opportunity Opening</h2>
+                        <small class="text-muted">Curricular drive scheduling and hiring campaign details</small>
+                    </div>
+                </div>
+            </div>
+            <div class="p-3">
+                <dl class="row mb-0 small">
+                    <dt class="col-sm-5 text-muted">Designated Offer Role</dt>
+                    <dd class="col-sm-7 fw-bold text-dark">{{ offer.Role }}</dd>
+
+                    <dt class="col-sm-5 text-muted">Opportunity Role</dt>
+                    <dd class="col-sm-7">{{ offer.Opportunity_Role or offer.Role }}</dd>
+
+                    <dt class="col-sm-5 text-muted">Drive Campaign Year</dt>
+                    <dd class="col-sm-7">
+                        {% if offer.Drive_Year %}
+                            <span class="badge badge-status-neutral">{{ offer.Drive_Year }} Drive ({{ offer.Season or 'Annual' }})</span>
+                        {% else %}
+                            <span class="text-muted">Direct Campus Allocation</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-5 text-muted">Drive Event Date</dt>
+                    <dd class="col-sm-7">{{ offer.Drive_Date or 'Scheduled by Placement Cell' }}</dd>
+
+                    <dt class="col-sm-5 text-muted">Opening Package</dt>
+                    <dd class="col-sm-7">
+                        {% if offer.Drive_Package %}
+                            <span class="text-success fw-semibold">{{ offer.Drive_Package }} LPA Baseline</span>
+                        {% else %}
+                            <span class="text-muted">Negotiated Offer</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <!-- Opportunity Eligibility Criteria & Compliance Assessment -->
+        <div class="table-card mb-4">
+            <div class="table-card-header">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-shield-check text-primary fs-5"></i>
+                    <div>
+                        <h2 class="h6 fw-bold mb-0">Opportunity Eligibility &amp; Compliance Audit</h2>
+                        <small class="text-muted">Institutional eligibility rules at the time of recruitment</small>
+                    </div>
+                </div>
+            </div>
+            <div class="p-3">
+                <div class="row g-2 mb-3">
+                    <div class="col-6 col-sm-4">
+                        <div class="p-2 border rounded text-center">
+                            <small class="text-muted d-block">Min CGPA</small>
+                            <strong>{{ "%.2f"|format(offer.Minimum_CGPA or 6.00) }}</strong>
+                        </div>
+                    </div>
+                    <div class="col-6 col-sm-4">
+                        <div class="p-2 border rounded text-center">
+                            <small class="text-muted d-block">Max Backlogs</small>
+                            <strong>{{ offer.Max_Backlogs or 0 }}</strong>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-4">
+                        <div class="p-2 border rounded text-center">
+                            <small class="text-muted d-block">Approved Branches</small>
+                            <small class="fw-semibold">{{ offer.Eligible_Branches|join(', ') if offer.Eligible_Branches else 'All Branches' }}</small>
+                        </div>
+                    </div>
+                </div>
+
+                {% if offer.Candidate_Eligibility_Met %}
+                    <div class="alert alert-success d-flex align-items-center py-2 px-3 small mb-0">
+                        <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+                        <div>
+                            <strong>Eligibility Verified:</strong> Candidate met all academic and institutional standards for this placement opening.
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning py-2 px-3 small mb-0">
+                        <div class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>Advisory Notice:</div>
+                        <ul class="mb-0 ps-3">
+                            {% for note in offer.Eligibility_Notes %}
+                                <li>{{ note }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Evaluated Technical Skills -->
+        <div class="table-card mb-4">
+            <div class="table-card-header">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-tools text-primary fs-5"></i>
+                    <div>
+                        <h2 class="h6 fw-bold mb-0">Evaluated Technical Skills (PLACEMENT_SKILL)</h2>
+                        <small class="text-muted">Core competencies evaluated during selection rounds</small>
+                    </div>
+                </div>
+            </div>
+            <div class="p-3">
+                {% if offer.Skills %}
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for sk in offer.Skills %}
+                            <span class="badge badge-status-primary fs-6 px-3 py-2">
+                                <i class="bi bi-check2 me-1"></i>{{ sk }}
+                            </span>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-0">No specific technical skills recorded for this placement offer.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Selection Process Rounds (if present) -->
+{% if offer.Selection_Rounds %}
+<div class="table-card mb-4">
+    <div class="table-card-header">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-list-ol text-primary fs-5"></i>
+            <div>
+                <h2 class="h6 fw-bold mb-0">Selection Process Rounds Completed</h2>
+                <small class="text-muted">Interview stages cleared by the student during recruitment</small>
+            </div>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table custom-table">
+            <thead>
+                <tr>
+                    <th>Round #</th>
+                    <th>Round Type</th>
+                    <th>Evaluation Scope</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rd in offer.Selection_Rounds %}
+                <tr>
+                    <td><strong class="code-font">Round {{ rd.Round_Number }}</strong></td>
+                    <td><span class="badge badge-status-primary">{{ rd.Round_Type }}</span></td>
+                    <td>{{ rd.Description or 'Evaluated technical competence, problem-solving, and communication.' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

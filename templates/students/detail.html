@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ student.First_Name }} {{ student.Last_Name }} ({{ student.Roll_No }}) | Student Profile{% endblock %}
+{% block title %}{{ student.First_Name }} {{ student.Last_Name or '' }} ({{ student.Roll_No }}) | Student Profile{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="/students" class="text-decoration-none text-muted">Students</a></li>
@@ -9,7 +9,7 @@
 
 {% block content %}
 <!-- Student Header Card -->
-<div class="detail-header-card">
+<div class="detail-header-card mb-4">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div class="d-flex align-items-center gap-3">
             <div class="student-avatar">
@@ -23,6 +23,18 @@
                         <span class="badge badge-status-success"><i class="bi bi-check-circle-fill me-1"></i>Zero Backlogs</span>
                     {% else %}
                         <span class="badge badge-status-danger">{{ student.Backlogs }} Backlogs</span>
+                    {% endif %}
+                    {% if student.Placement_Count and student.Placement_Count > 1 %}
+                        <span class="badge badge-status-primary"><i class="bi bi-stars me-1"></i>Multiple Offers ({{ student.Placement_Count }})</span>
+                    {% elif student.Placement_Count == 1 %}
+                        <span class="badge badge-status-success"><i class="bi bi-check-circle me-1"></i>Placed</span>
+                    {% else %}
+                        <span class="badge badge-status-neutral">Unplaced</span>
+                    {% endif %}
+                    {% if student.Is_Eligible %}
+                        <span class="badge badge-status-success"><i class="bi bi-patch-check me-1"></i>Placement Eligible</span>
+                    {% else %}
+                        <span class="badge badge-status-warning"><i class="bi bi-exclamation-circle me-1"></i>Not Eligible</span>
                     {% endif %}
                 </div>
                 <div class="text-secondary small mt-1 d-flex flex-wrap align-items-center gap-2 gap-md-3">
@@ -43,7 +55,7 @@
                     data-bs-toggle="modal" 
                     data-bs-target="#deleteConfirmModal"
                     data-delete-url="/students/{{ student.Student_ID }}/delete"
-                    data-item-name="{{ student.First_Name }} {{ student.Last_Name }} ({{ student.Roll_No }})"
+                    data-item-name="{{ student.First_Name }} {{ student.Last_Name or '' }} ({{ student.Roll_No }})"
                     data-warning="Deletion will be blocked if active placement records or completed internships exist.">
                 <i class="bi bi-trash3 me-1"></i> Delete
             </button>
@@ -79,83 +91,82 @@
     </div>
 </div>
 
-<!-- Tabs for Profile, Internships, Placements, and Skills -->
-<ul class="nav custom-nav-tabs" id="studentDetailTabs" role="tablist">
+<!-- Tabs for All 9 Required Sections -->
+<ul class="nav custom-nav-tabs mb-4" id="studentDetailTabs" role="tablist">
     <li class="nav-item" role="presentation">
         <button class="nav-link active" id="profile-tab" data-bs-toggle="tab" data-bs-target="#tab-profile" type="button" role="tab" aria-controls="tab-profile" aria-selected="true">
-            <i class="bi bi-person-lines-fill"></i> Profile
+            <i class="bi bi-person-lines-fill me-1"></i> Profile & Academics
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="academics-tab" data-bs-toggle="tab" data-bs-target="#tab-academics" type="button" role="tab" aria-controls="tab-academics" aria-selected="false">
+            <i class="bi bi-journal-check me-1"></i> Results & Courses
+            <span class="badge badge-status-neutral ms-1">{{ semester_results|length + registrations|length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="skills-tab" data-bs-toggle="tab" data-bs-target="#tab-skills" type="button" role="tab" aria-controls="tab-skills" aria-selected="false">
+            <i class="bi bi-code-slash me-1"></i> Skills & Projects
+            <span class="badge badge-status-neutral ms-1">{{ skills|length + projects|length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#tab-documents" type="button" role="tab" aria-controls="tab-documents" aria-selected="false">
+            <i class="bi bi-file-earmark-text me-1"></i> Resumes & Documents
+            <span class="badge badge-status-neutral ms-1">{{ resumes|length + education_docs|length }}</span>
         </button>
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="internships-tab" data-bs-toggle="tab" data-bs-target="#tab-internships" type="button" role="tab" aria-controls="tab-internships" aria-selected="false">
-            <i class="bi bi-briefcase-fill"></i> Internships
+            <i class="bi bi-briefcase-fill me-1"></i> Internships
             <span class="badge badge-status-neutral ms-1">{{ internships|length }}</span>
         </button>
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="placements-tab" data-bs-toggle="tab" data-bs-target="#tab-placements" type="button" role="tab" aria-controls="tab-placements" aria-selected="false">
-            <i class="bi bi-award-fill"></i> Placements
+            <i class="bi bi-award-fill me-1"></i> Placements
             <span class="badge badge-status-neutral ms-1">{{ placements|length }}</span>
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="skills-tab" data-bs-toggle="tab" data-bs-target="#tab-skills" type="button" role="tab" aria-controls="tab-skills" aria-selected="false">
-            <i class="bi bi-code-slash"></i> Skills & Portfolio
         </button>
     </li>
 </ul>
 
 <!-- Tab Content -->
 <div class="tab-content" id="studentDetailTabsContent">
-    <!-- TAB 1: PROFILE -->
+    <!-- TAB 1: PROFILE & ACADEMICS (SECTIONS 1 & 2) -->
     <div class="tab-pane fade show active" id="tab-profile" role="tabpanel" aria-labelledby="profile-tab">
         <div class="row g-4">
-            <!-- Left Sub-column: Student Info & Contacts -->
-            <div class="col-12 col-lg-5">
-                <!-- Academic Identity Card -->
+            <!-- SECTION 1: PERSONAL DETAILS -->
+            <div class="col-12 col-lg-6">
                 <div class="table-card mb-4">
                     <div class="table-card-header">
-                        <h2 class="h6 fw-bold mb-0">Academic & Identity Information</h2>
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-person-vcard text-primary fs-5"></i>
+                            <div>
+                                <h2 class="h6 fw-bold mb-0">Personal Details</h2>
+                                <small class="text-muted">Student identity and direct contact information</small>
+                            </div>
+                        </div>
                     </div>
                     <div class="p-3">
                         <dl class="row mb-0 small">
                             <dt class="col-sm-5 text-muted">Roll Number</dt>
-                            <dd class="col-sm-7 code-font fw-bold">{{ student.Roll_No }}</dd>
+                            <dd class="col-sm-7 code-font fw-bold text-dark">{{ student.Roll_No }}</dd>
 
-                            <dt class="col-sm-5 text-muted">Department</dt>
-                            <dd class="col-sm-7">{{ student.Branch }}</dd>
-
-                            <dt class="col-sm-5 text-muted">Graduation Batch</dt>
-                            <dd class="col-sm-7">{{ student.Batch_Year }}</dd>
-
-                            <dt class="col-sm-5 text-muted">Section</dt>
-                            <dd class="col-sm-7">{{ student.Section or 'A' }}</dd>
+                            <dt class="col-sm-5 text-muted">Full Name</dt>
+                            <dd class="col-sm-7 fw-semibold">{{ student.First_Name }} {{ student.Last_Name or '' }}</dd>
 
                             <dt class="col-sm-5 text-muted">Official Email</dt>
-                            <dd class="col-sm-7"><a href="mailto:{{ student.Email }}" class="text-primary text-decoration-none">{{ student.Email }}</a></dd>
-
-                            <dt class="col-sm-5 text-muted">Cumulative GPA</dt>
-                            <dd class="col-sm-7 fw-bold text-primary">{{ "%.2f"|format(student.CGPA) }} / 10.0</dd>
-
-                            <dt class="col-sm-5 text-muted">Backlogs</dt>
                             <dd class="col-sm-7">
-                                {% if student.Backlogs == 0 %}
-                                    <span class="badge badge-status-success">0 (Clear)</span>
-                                {% else %}
-                                    <span class="badge badge-status-danger">{{ student.Backlogs }} Active</span>
-                                {% endif %}
+                                <a href="mailto:{{ student.Email }}" class="text-primary text-decoration-none">
+                                    <i class="bi bi-envelope me-1"></i>{{ student.Email }}
+                                </a>
                             </dd>
 
-                            <dt class="col-sm-5 text-muted">Resume Portfolio</dt>
-                            <dd class="col-sm-7">
-                                {% if student.Resume_Link %}
-                                    <a href="{{ student.Resume_Link }}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2">
-                                        <i class="bi bi-file-earmark-pdf me-1"></i> View Resume
-                                    </a>
-                                {% else %}
-                                    <span class="text-muted">Not uploaded</span>
-                                {% endif %}
-                            </dd>
+                            <dt class="col-sm-5 text-muted">Assigned Section</dt>
+                            <dd class="col-sm-7">Section {{ student.Section or 'A' }}</dd>
+
+                            <dt class="col-sm-5 text-muted">Student ID</dt>
+                            <dd class="col-sm-7 code-font text-muted">#{{ student.Student_ID }}</dd>
                         </dl>
                     </div>
                 </div>
@@ -163,9 +174,12 @@
                 <!-- Emergency Contact Phone Registry -->
                 <div class="table-card mb-4">
                     <div class="table-card-header">
-                        <div>
-                            <h2 class="h6 fw-bold mb-0">Emergency & Contact Numbers</h2>
-                            <small class="text-muted">Dedicated phone registry (STUDENT_PHONE)</small>
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-telephone text-primary fs-5"></i>
+                            <div>
+                                <h2 class="h6 fw-bold mb-0">Emergency & Contact Numbers</h2>
+                                <small class="text-muted">Direct phone numbers registry (STUDENT_PHONE)</small>
+                            </div>
                         </div>
                     </div>
                     <div class="p-3">
@@ -177,8 +191,9 @@
                                     <span class="code-font fw-medium text-dark">{{ p }}</span>
                                 </div>
                                 <form method="POST" action="/students/{{ student.Student_ID }}/phones/{{ p }}/delete" class="d-inline" onsubmit="return confirm('Remove phone number {{ p }}?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-sm text-danger p-0" title="Remove Phone">
-                                        <i class="bi bi-x-circle"></i>
+                                        <i class="bi bi-trash3"></i>
                                     </button>
                                 </form>
                             </li>
@@ -189,6 +204,7 @@
 
                         <!-- Add Phone Form -->
                         <form method="POST" action="/students/{{ student.Student_ID }}/phones" class="row g-2 align-items-center">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div class="col-8 col-sm-9">
                                 <input type="tel" name="phone_number" class="form-control form-control-sm" placeholder="e.g. +91 9876543210" required>
                             </div>
@@ -202,14 +218,119 @@
                 </div>
             </div>
 
-            <!-- Right Sub-column: Semester Results & Courses -->
-            <div class="col-12 col-lg-7">
-                <!-- Verified Semester Results -->
+            <!-- SECTION 2: ACADEMIC DETAILS -->
+            <div class="col-12 col-lg-6">
                 <div class="table-card mb-4">
                     <div class="table-card-header">
-                        <div>
-                            <h2 class="h6 fw-bold mb-0">Official Semester Results</h2>
-                            <small class="text-muted">Verified SGPA & Credit Tallies</small>
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-mortarboard text-primary fs-5"></i>
+                            <div>
+                                <h2 class="h6 fw-bold mb-0">Academic Details</h2>
+                                <small class="text-muted">Degree metrics, cohort progression, and campus eligibility</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <dl class="row mb-0 small">
+                            <dt class="col-sm-5 text-muted">Department / Branch</dt>
+                            <dd class="col-sm-7 fw-semibold">{{ student.Branch }}</dd>
+
+                            <dt class="col-sm-5 text-muted">Graduation Batch</dt>
+                            <dd class="col-sm-7"><span class="badge badge-status-neutral">{{ student.Batch_Year }} Cohort</span></dd>
+
+                            <dt class="col-sm-5 text-muted">Cumulative GPA</dt>
+                            <dd class="col-sm-7">
+                                <span class="fw-bold fs-6 text-primary">{{ "%.2f"|format(student.CGPA) }}</span>
+                                <span class="text-muted">/ 10.0</span>
+                            </dd>
+
+                            <dt class="col-sm-5 text-muted">Active Backlogs</dt>
+                            <dd class="col-sm-7">
+                                {% if student.Backlogs == 0 %}
+                                    <span class="badge badge-status-success"><i class="bi bi-check2-circle me-1"></i>0 (Clear)</span>
+                                {% else %}
+                                    <span class="badge badge-status-danger"><i class="bi bi-exclamation-triangle me-1"></i>{{ student.Backlogs }} Active</span>
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-5 text-muted">Placement Eligibility</dt>
+                            <dd class="col-sm-7">
+                                {% if student.Is_Eligible %}
+                                    <span class="badge badge-status-success"><i class="bi bi-check-circle-fill me-1"></i>Eligible for Campus Drives</span>
+                                {% else %}
+                                    <span class="badge badge-status-warning"><i class="bi bi-x-circle-fill me-1"></i>Ineligible (Requires CGPA &ge; 6.0 &amp; 0 Backlogs)</span>
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-5 text-muted">Primary Resume Link</dt>
+                            <dd class="col-sm-7">
+                                {% if student.Resume_Link %}
+                                    <a href="{{ student.Resume_Link }}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2">
+                                        <i class="bi bi-file-earmark-pdf me-1"></i> Open Resume
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">Not specified in profile</span>
+                                {% endif %}
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+
+                <!-- Academic Progress Overview Card -->
+                <div class="table-card mb-4">
+                    <div class="table-card-header">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-speedometer2 text-primary fs-5"></i>
+                            <div>
+                                <h2 class="h6 fw-bold mb-0">Degree Standing Summary</h2>
+                                <small class="text-muted">Key academic thresholds and milestone evaluations</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between small text-muted mb-1">
+                                <span>CGPA Standing ({{ "%.2f"|format(student.CGPA) }} / 10.0)</span>
+                                <span class="fw-semibold text-dark">{{ "%.1f"|format(student.CGPA * 10) }}%</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar {% if student.CGPA >= 8.5 %}bg-success{% elif student.CGPA >= 7.0 %}bg-primary{% elif student.CGPA >= 6.0 %}bg-info{% else %}bg-warning{% endif %}"
+                                     role="progressbar" style="width: {{ [student.CGPA * 10, 100]|min }}%;" aria-valuenow="{{ student.CGPA * 10 }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        </div>
+                        <div class="row g-2 text-center small">
+                            <div class="col-4 border-end">
+                                <span class="text-muted d-block">Evaluated Sems</span>
+                                <strong class="fs-6 text-dark">{{ semester_results|length }}</strong>
+                            </div>
+                            <div class="col-4 border-end">
+                                <span class="text-muted d-block">Total Courses</span>
+                                <strong class="fs-6 text-dark">{{ registrations|length }}</strong>
+                            </div>
+                            <div class="col-4">
+                                <span class="text-muted d-block">Internships</span>
+                                <strong class="fs-6 text-dark">{{ internships|length }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: SEMESTER RESULTS & REGISTERED COURSES (SECTIONS 3 & 4) -->
+    <div class="tab-pane fade" id="tab-academics" role="tabpanel" aria-labelledby="academics-tab">
+        <div class="row g-4">
+            <!-- SECTION 3: SEMESTER RESULTS -->
+            <div class="col-12">
+                <div class="table-card mb-4">
+                    <div class="table-card-header">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-graph-up-arrow text-primary fs-5"></i>
+                            <div>
+                                <h2 class="h6 fw-bold mb-0">Official Semester Results</h2>
+                                <small class="text-muted">Verified SGPA performance and cumulative credit tallies</small>
+                            </div>
                         </div>
                     </div>
                     <div class="table-responsive">
@@ -218,9 +339,9 @@
                                 <tr>
                                     <th>Semester</th>
                                     <th>SGPA</th>
-                                    <th>Year</th>
-                                    <th>Credits</th>
-                                    <th>Classification</th>
+                                    <th>Academic Year</th>
+                                    <th>Credits Earned</th>
+                                    <th>Performance Classification</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -233,10 +354,10 @@
                                         </span>
                                     </td>
                                     <td>{{ sr.Year }}</td>
-                                    <td>{{ sr.Total_Credits }} Cr</td>
+                                    <td>{{ sr.Total_Credits }} Credits</td>
                                     <td>
                                         {% if sr.SGPA >= 8.0 %}
-                                            <span class="badge badge-status-success">Distinction</span>
+                                            <span class="badge badge-status-success"><i class="bi bi-star-fill me-1"></i>Distinction</span>
                                         {% elif sr.SGPA >= 6.5 %}
                                             <span class="badge badge-status-primary">First Class</span>
                                         {% else %}
@@ -259,21 +380,28 @@
                         </table>
                     </div>
                 </div>
+            </div>
 
-                <!-- Course Registrations -->
+            <!-- SECTION 4: REGISTERED COURSES -->
+            <div class="col-12">
                 <div class="table-card mb-4">
                     <div class="table-card-header">
-                        <div>
-                            <h2 class="h6 fw-bold mb-0">Enrolled Courses & Academic Catalog</h2>
-                            <small class="text-muted">Academic curriculum course history</small>
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-book text-primary fs-5"></i>
+                            <div>
+                                <h2 class="h6 fw-bold mb-0">Enrolled Courses & Academic Catalog</h2>
+                                <small class="text-muted">Registered courses curriculum history and evaluation grades</small>
+                            </div>
                         </div>
                     </div>
                     <div class="table-responsive">
                         <table class="table custom-table">
                             <thead>
                                 <tr>
-                                    <th>Code</th>
+                                    <th>Course Code</th>
                                     <th>Course Title</th>
+                                    <th>Department</th>
+                                    <th>Semester</th>
                                     <th>Credits</th>
                                     <th>Academic Year</th>
                                     <th>Grade</th>
@@ -282,23 +410,27 @@
                             <tbody>
                                 {% for reg in registrations %}
                                 <tr>
-                                    <td><span class="code-font text-primary">{{ reg.Course_Code }}</span></td>
-                                    <td>{{ reg.Course_Name }}</td>
-                                    <td>{{ reg.Credits }}</td>
-                                    <td>{{ reg.Academic_Year }}</td>
+                                    <td><span class="code-font text-primary fw-medium">{{ reg.Course_Code or ('CRS' ~ reg.Course_ID) }}</span></td>
+                                    <td><strong>{{ reg.Course_Name }}</strong></td>
+                                    <td>{{ reg.Department or student.Branch }}</td>
+                                    <td>Sem {{ reg.Semester or '-' }}</td>
+                                    <td>{{ reg.Credits }} Cr</td>
+                                    <td>{{ reg.Enrollment_Year or reg.Academic_Year or '-' }}</td>
                                     <td>
-                                        <span class="badge badge-status-neutral">
-                                            {{ reg.Grade or 'Enrolled' }}
-                                        </span>
+                                        {% if reg.Grade %}
+                                            <span class="badge badge-status-primary">{{ reg.Grade }}</span>
+                                        {% else %}
+                                            <span class="badge badge-status-neutral">Enrolled</span>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="5">
+                                    <td colspan="7">
                                         <div class="empty-state py-4">
                                             <div class="empty-state-icon"><i class="bi bi-book"></i></div>
                                             <div class="empty-state-title">No Course Registrations</div>
-                                            <div class="empty-state-text">No enrolled courses on file.</div>
+                                            <div class="empty-state-text">No enrolled curriculum courses on file for this student.</div>
                                         </div>
                                     </td>
                                 </tr>
@@ -311,13 +443,335 @@
         </div>
     </div>
 
-    <!-- TAB 2: INTERNSHIPS -->
+    <!-- TAB 3: TECHNICAL SKILLS & PROJECTS (SECTIONS 5 & 6) -->
+    <div class="tab-pane fade" id="tab-skills" role="tabpanel" aria-labelledby="skills-tab">
+        <div class="row g-4">
+            <!-- SECTION 5: TECHNICAL SKILLS -->
+            <div class="col-12">
+                <div class="table-card mb-4">
+                    <div class="table-card-header">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-tools text-primary fs-5"></i>
+                            <div>
+                                <h2 class="h6 fw-bold mb-0">Technical Skills</h2>
+                                <small class="text-muted">Verified technical capabilities from skill registry and student profiles</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        {% set all_skills = [] %}
+                        {% for s in skills %}
+                            {% if s not in all_skills %}
+                                {% set _ = all_skills.append(s) %}
+                            {% endif %}
+                        {% endfor %}
+                        {% for prof in profiles %}
+                            {% if prof.Technical_Skills %}
+                                {% for sk in prof.Technical_Skills.split(',') %}
+                                    {% set clean_sk = sk.strip() %}
+                                    {% if clean_sk and clean_sk not in all_skills %}
+                                        {% set _ = all_skills.append(clean_sk) %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if all_skills %}
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for sk in all_skills %}
+                                    <span class="badge badge-status-primary fs-6 px-3 py-2">
+                                        <i class="bi bi-check2 me-1"></i>{{ sk }}
+                                    </span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="empty-state py-4">
+                                <div class="empty-state-icon"><i class="bi bi-code-slash"></i></div>
+                                <div class="empty-state-title">No Technical Skills Listed</div>
+                                <div class="empty-state-text">No technical skills recorded in the registry or profile for this student.</div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 6: PROJECTS AND ACHIEVEMENTS -->
+            <div class="col-12">
+                <div class="table-card mb-4">
+                    <div class="table-card-header">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-trophy text-primary fs-5"></i>
+                            <div>
+                                <h2 class="h6 fw-bold mb-0">Projects and Achievements</h2>
+                                <small class="text-muted">Engineering projects, hackathon records, certifications, and coding portfolios</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <!-- Projects Section -->
+                        <div class="mb-4">
+                            <h3 class="h6 fw-bold text-uppercase text-muted small mb-3">
+                                <i class="bi bi-folder-check me-1 text-primary"></i> Key Projects & Research
+                            </h3>
+                            {% if projects %}
+                                <div class="row g-3">
+                                    {% for proj in projects %}
+                                    <div class="col-12 col-md-6">
+                                        <div class="p-3 bg-light rounded-2 border h-100">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <h4 class="h6 fw-bold mb-0 text-dark">{{ proj.Title or 'Project' }}</h4>
+                                                {% if proj.Year %}
+                                                    <span class="badge badge-status-neutral">{{ proj.Year }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <p class="text-secondary small mb-2">{{ proj.Description or 'No description provided.' }}</p>
+                                            {% if proj.Link %}
+                                                <a href="{{ proj.Link }}" target="_blank" class="small text-primary text-decoration-none">
+                                                    <i class="bi bi-box-arrow-up-right me-1"></i> Project Link
+                                                </a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% elif profiles %}
+                                {% for prof in profiles %}
+                                    {% if prof.Projects %}
+                                    <div class="p-3 bg-light rounded-2 border mb-3">
+                                        <p class="text-dark mb-0">{{ prof.Projects }}</p>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted small mb-0">No specific projects registered.</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Achievements, Hackathons & Certifications Section -->
+                        <div>
+                            <h3 class="h6 fw-bold text-uppercase text-muted small mb-3">
+                                <i class="bi bi-award me-1 text-primary"></i> Achievements, Hackathons &amp; Certifications
+                            </h3>
+                            {% if achievements %}
+                                <div class="row g-3">
+                                    {% for ach in achievements %}
+                                    <div class="col-12 col-md-6">
+                                        <div class="p-3 bg-light rounded-2 border h-100">
+                                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                                <span class="badge badge-status-primary">{{ ach.Profile_Type or 'Achievement' }}</span>
+                                                {% if ach.Year %}
+                                                    <span class="badge badge-status-neutral">{{ ach.Year }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <h4 class="h6 fw-bold mt-2 mb-1 text-dark">{{ ach.Title or 'Award / Recognition' }}</h4>
+                                            <p class="text-secondary small mb-2">{{ ach.Description or '-' }}</p>
+                                            {% if ach.Link %}
+                                                <a href="{{ ach.Link }}" target="_blank" class="small text-primary text-decoration-none">
+                                                    <i class="bi bi-box-arrow-up-right me-1"></i> Verification Link
+                                                </a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% elif profiles %}
+                                <div class="row g-3">
+                                    {% for prof in profiles %}
+                                        {% if prof.Hackathons %}
+                                        <div class="col-12 col-md-6">
+                                            <div class="p-3 bg-light rounded-2 border h-100">
+                                                <h4 class="h6 fw-bold text-dark mb-1">Hackathons & Competitions</h4>
+                                                <p class="text-secondary small mb-0">{{ prof.Hackathons }}</p>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% if prof.Certifications %}
+                                        <div class="col-12 col-md-6">
+                                            <div class="p-3 bg-light rounded-2 border h-100">
+                                                <h4 class="h6 fw-bold text-dark mb-1">Certifications</h4>
+                                                <p class="text-secondary small mb-0">{{ prof.Certifications }}</p>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% if prof.Coding_Profiles %}
+                                        <div class="col-12">
+                                            <div class="p-3 bg-light rounded-2 border">
+                                                <h4 class="h6 fw-bold text-dark mb-1">Competitive Coding Profiles</h4>
+                                                <p class="text-secondary small mb-0">{{ prof.Coding_Profiles }}</p>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted small mb-0">No hackathon or competition achievements on record.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 4: RESUME AND EDUCATION DOCUMENTS (SECTION 7) -->
+    <div class="tab-pane fade" id="tab-documents" role="tabpanel" aria-labelledby="documents-tab">
+        <div class="row g-4">
+            <!-- SECTION 7A: RESUME REPOSITORY -->
+            <div class="col-12">
+                <div class="table-card mb-4">
+                    <div class="table-card-header">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-file-earmark-pdf text-primary fs-5"></i>
+                            <div>
+                                <h2 class="h6 fw-bold mb-0">Resume Repository & Version History</h2>
+                                <small class="text-muted">Active placement resumes and archival version submissions</small>
+                            </div>
+                        </div>
+                        {% if student.Resume_Link %}
+                        <a href="{{ student.Resume_Link }}" target="_blank" class="btn btn-sm btn-primary">
+                            <i class="bi bi-file-earmark-arrow-down me-1"></i> Current Profile Resume
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Resume ID</th>
+                                    <th>File Name</th>
+                                    <th>Catalog Year</th>
+                                    <th>Uploaded Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for res in resumes %}
+                                <tr>
+                                    <td><span class="code-font text-muted">#RES-{{ res.Resume_ID }}</span></td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-file-earmark-pdf text-danger fs-5"></i>
+                                            <strong>{{ res.File_Name or 'Student_Resume.pdf' }}</strong>
+                                        </div>
+                                    </td>
+                                    <td><span class="badge badge-status-neutral">{{ res.Resume_Year or '-' }}</span></td>
+                                    <td><span class="small text-muted">{{ res.Upload_Date or '-' }}</span></td>
+                                    <td>
+                                        {% if res.File_Link %}
+                                            <a href="{{ res.File_Link }}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2">
+                                                <i class="bi bi-box-arrow-up-right me-1"></i> View Document
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted small">&mdash;</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5">
+                                        <div class="empty-state py-4">
+                                            <div class="empty-state-icon"><i class="bi bi-file-earmark-x"></i></div>
+                                            <div class="empty-state-title">No Uploaded Resumes</div>
+                                            <div class="empty-state-text">
+                                                {% if student.Resume_Link %}
+                                                    Student profile links to: <a href="{{ student.Resume_Link }}" target="_blank" class="text-primary">{{ student.Resume_Link }}</a>
+                                                {% else %}
+                                                    No archived resumes registered in the RESUME repository.
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 7B: EDUCATION DOCUMENTS -->
+            <div class="col-12">
+                <div class="table-card mb-4">
+                    <div class="table-card-header">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-patch-check text-primary fs-5"></i>
+                            <div>
+                                <h2 class="h6 fw-bold mb-0">Education Documents & Marksheets</h2>
+                                <small class="text-muted">Verified 10th, 12th, diploma, and qualifying examination credentials</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Document Type</th>
+                                    <th>Board / University</th>
+                                    <th>Passing Year</th>
+                                    <th>Percentage / CGPA</th>
+                                    <th>Associated Resume</th>
+                                    <th>Document Link</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doc in education_docs %}
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-status-primary">
+                                            <i class="bi bi-file-earmark-check me-1"></i>{{ doc.Document_Type }}
+                                        </span>
+                                    </td>
+                                    <td><strong>{{ doc.Board }}</strong></td>
+                                    <td>{{ doc.Year_of_Passing }}</td>
+                                    <td>
+                                        {% if doc.Percentage_CGPA is not none %}
+                                            <span class="fw-bold text-success">{{ "%.2f"|format(doc.Percentage_CGPA) }}%</span>
+                                        {% else %}
+                                            <span class="text-muted">&mdash;</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ doc.Attached_Resume or 'Primary Resume' }}</small>
+                                    </td>
+                                    <td>
+                                        {% if doc.File_Link %}
+                                            <a href="{{ doc.File_Link }}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2">
+                                                <i class="bi bi-box-arrow-up-right me-1"></i> View Marksheet
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted small">&mdash;</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6">
+                                        <div class="empty-state py-4">
+                                            <div class="empty-state-icon"><i class="bi bi-mortarboard"></i></div>
+                                            <div class="empty-state-title">No Education Documents</div>
+                                            <div class="empty-state-text">No verified marksheets or educational certificates recorded.</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 5: INTERNSHIP HISTORY (SECTION 8) -->
     <div class="tab-pane fade" id="tab-internships" role="tabpanel" aria-labelledby="internships-tab">
         <div class="table-card mb-4">
             <div class="table-card-header">
-                <div>
-                    <h2 class="h6 fw-bold mb-0">Internship Records & Academic Compliance</h2>
-                    <small class="text-muted">Mandatory curricular and additional internship completions</small>
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-briefcase text-primary fs-5"></i>
+                    <div>
+                        <h2 class="h6 fw-bold mb-0">Internship History & Academic Compliance</h2>
+                        <small class="text-muted">Mandatory curricular (#1, #2) and additional practical training experiences</small>
+                    </div>
                 </div>
                 <a href="/internships/new?student_id={{ student.Student_ID }}" class="btn btn-sm btn-primary">
                     <i class="bi bi-plus-circle me-1"></i> Record Internship
@@ -331,7 +785,9 @@
                             <th>Company & Role</th>
                             <th>Curriculum Requirement</th>
                             <th>Prerequisite SGPA</th>
-                            <th>Duration</th>
+                            <th>Duration & Stipend</th>
+                            <th>Status & Evaluation</th>
+                            <th class="text-end">Dossier</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -345,22 +801,24 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <strong>{{ intern.Company_Name }}</strong><br>
-                                <small class="text-muted">{{ intern.Role }}</small>
+                                <strong>{{ intern.Company_Name }}</strong>
+                                <small class="text-muted d-block">{{ intern.Role }}</small>
                             </td>
                             <td>
-                                {% if intern.Required_Result_Semester %}
+                                {% if intern.get('Required_Result_Semester') %}
                                     <span class="badge badge-status-primary">
-                                        Req #{{ intern.Internship_No }} (Sem {{ intern.Required_Result_Semester }} SGPA)
+                                        Req #{{ intern.Internship_No }} (Sem {{ intern.get('Required_Result_Semester') }} SGPA)
                                     </span>
+                                    <small class="text-muted d-block mt-1">{{ intern.Credits or 4 }} Credits</small>
                                 {% else %}
                                     <span class="text-muted small">None (Extracurricular)</span>
+                                    <small class="text-muted d-block mt-1">{{ intern.Credits or 3 }} Credits</small>
                                 {% endif %}
                             </td>
                             <td>
-                                {% if intern.Prerequisite_Semester_SGPA is not none %}
+                                {% if intern.get('Prerequisite_Semester_SGPA') is not none %}
                                     <span class="badge badge-status-success fw-bold">
-                                        <i class="bi bi-link-45deg me-1"></i>{{ "%.2f"|format(intern.Prerequisite_Semester_SGPA) }} SGPA
+                                        <i class="bi bi-link-45deg me-1"></i>{{ "%.2f"|format(intern.get('Prerequisite_Semester_SGPA')) }} SGPA
                                     </span>
                                 {% elif intern.Internship_Type == 'Mandatory' %}
                                     <span class="badge badge-status-warning small">Pending Sem Result</span>
@@ -369,12 +827,52 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <small class="code-font text-muted">{{ intern.Start_Date }} to {{ intern.End_Date }}</small>
+                                <div class="small">
+                                    {% if intern.get('Duration_Str') %}
+                                        <span class="badge bg-light text-dark border mb-1">{{ intern.Duration_Str }}</span>
+                                    {% endif %}
+                                    <span class="code-font text-muted d-block">{{ intern.Start_Date }} to {{ intern.End_Date }}</span>
+                                    {% if intern.Stipend %}
+                                        <span class="text-success fw-semibold">&#8377;{{ "{:,.0f}".format(intern.Stipend) }}/mo</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column gap-1">
+                                    <div>
+                                        <span class="badge {% if intern.get('Status') == 'Completed' %}badge-status-success{% elif intern.get('Status') == 'In Progress' %}badge-status-primary{% elif intern.get('Status') == 'Pending Report' %}badge-status-warning{% else %}badge-status-neutral{% endif %}">
+                                            {{ intern.get('Status') or 'Completed' }}
+                                        </span>
+                                    </div>
+                                    {% if intern.Report_Grade %}
+                                        <span class="badge badge-status-success">Grade: {{ intern.Report_Grade }} (Sem {{ intern.Report_Semester or '-' }})</span>
+                                    {% endif %}
+                                    <div class="d-flex gap-2">
+                                        {% if intern.Report_Link %}
+                                            <a href="{{ intern.Report_Link }}" target="_blank" class="small text-primary text-decoration-none">
+                                                <i class="bi bi-file-earmark-text me-1"></i>Report
+                                            </a>
+                                        {% endif %}
+                                        {% if intern.Certificate_Link %}
+                                            <a href="{{ intern.Certificate_Link }}" target="_blank" class="small text-success text-decoration-none">
+                                                <i class="bi bi-patch-check me-1"></i>Certificate
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                    {% if not intern.Report_Link and not intern.Certificate_Link and not intern.Report_Grade %}
+                                        <span class="text-muted small">&mdash;</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="text-end">
+                                <a href="/internships/{{ intern.Internship_ID }}" class="btn btn-sm btn-outline-secondary" title="View Full Dossier">
+                                    <i class="bi bi-eye"></i>
+                                </a>
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="5">
+                            <td colspan="7">
                                 <div class="empty-state py-5">
                                     <div class="empty-state-icon"><i class="bi bi-briefcase"></i></div>
                                     <h3 class="empty-state-title">No Internships Recorded</h3>
@@ -392,13 +890,16 @@
         </div>
     </div>
 
-    <!-- TAB 3: PLACEMENTS -->
+    <!-- TAB 6: PLACEMENT OFFERS (SECTION 9) -->
     <div class="tab-pane fade" id="tab-placements" role="tabpanel" aria-labelledby="placements-tab">
         <div class="table-card mb-4">
             <div class="table-card-header">
-                <div>
-                    <h2 class="h6 fw-bold mb-0">Placement Offers History</h2>
-                    <small class="text-muted">Corporate placement offers, compensation, and statuses</small>
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-award text-primary fs-5"></i>
+                    <div>
+                        <h2 class="h6 fw-bold mb-0">Placement Offers History</h2>
+                        <small class="text-muted">Corporate placement offers, compensation packages, and joining statuses</small>
+                    </div>
                 </div>
                 <a href="/placements" class="btn btn-sm btn-outline-primary">Manage Placement Directory</a>
             </div>
@@ -406,32 +907,53 @@
                 <table class="table custom-table">
                     <thead>
                         <tr>
-                            <th>Company</th>
-                            <th>Role Title</th>
+                            <th>Recruiting Company</th>
+                            <th>Job Role</th>
                             <th>Package (CTC)</th>
                             <th>Placement Year</th>
+                            <th>Offer Type</th>
                             <th>Offer Status</th>
+                            <th>Joining Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for p in placements %}
                         <tr>
-                            <td><strong>{{ p.Company_Name }}</strong></td>
+                            <td>
+                                <strong>{{ p.Company_Name }}</strong>
+                                {% if p.Company_Type %}
+                                    <span class="badge badge-status-neutral ms-1">{{ p.Company_Type }}</span>
+                                {% endif %}
+                            </td>
                             <td>{{ p.Role }}</td>
-                            <td><span class="fw-bold text-success">{{ p.Package }} LPA</span></td>
+                            <td>
+                                <span class="fw-bold text-success fs-6">{{ p.Package }} LPA</span>
+                            </td>
                             <td>{{ p.Placement_Year }}</td>
+                            <td>
+                                <span class="badge badge-status-neutral">{{ p.Placement_Type or 'On-Campus' }}</span>
+                                {% if p.Is_PPO == 'Yes' %}
+                                    <span class="badge badge-status-warning ms-1"><i class="bi bi-lightning-charge me-1"></i>PPO</span>
+                                {% endif %}
+                            </td>
                             <td>
                                 <span class="badge {% if p.Offer_Status in ['Accepted', 'Joined'] %}badge-status-success{% elif p.Offer_Status == 'Declined' %}badge-status-danger{% else %}badge-status-primary{% endif %}">
                                     {{ p.Offer_Status }}
                                 </span>
-                                {% if p.Is_PPO == 'Yes' %}
-                                    <span class="badge badge-status-warning ms-1">PPO</span>
+                            </td>
+                            <td>
+                                {% if p.Joined == 'Yes' %}
+                                    <span class="badge badge-status-success"><i class="bi bi-building-check me-1"></i>Joined</span>
+                                {% elif p.Joined == 'No' %}
+                                    <span class="badge badge-status-neutral">Not Joined</span>
+                                {% else %}
+                                    <span class="text-muted small">&mdash;</span>
                                 {% endif %}
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="5">
+                            <td colspan="7">
                                 <div class="empty-state py-5">
                                     <div class="empty-state-icon"><i class="bi bi-award"></i></div>
                                     <h3 class="empty-state-title">No Placement Offers Recorded</h3>
@@ -442,75 +964,6 @@
                         {% endfor %}
                     </tbody>
                 </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- TAB 4: SKILLS & PORTFOLIO -->
-    <div class="tab-pane fade" id="tab-skills" role="tabpanel" aria-labelledby="skills-tab">
-        <div class="table-card mb-4">
-            <div class="table-card-header">
-                <div>
-                    <h2 class="h6 fw-bold mb-0">Technical Skills & Portfolio Summary</h2>
-                    <small class="text-muted">Student capabilities, key projects, and competitive profiles</small>
-                </div>
-            </div>
-            <div class="p-4">
-                {% if profiles %}
-                    {% for prof in profiles %}
-                        <!-- Technical Skills -->
-                        <div class="mb-4">
-                            <h3 class="h6 fw-bold text-uppercase text-muted small mb-2">Technical Skills</h3>
-                            {% if prof.Technical_Skills %}
-                                <div class="d-flex flex-wrap gap-2">
-                                    {% for skill in prof.Technical_Skills.split(',') %}
-                                        <span class="badge badge-status-primary fs-6 px-3 py-1">{{ skill.strip() }}</span>
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                <p class="text-muted small mb-0">No technical skills listed.</p>
-                            {% endif %}
-                        </div>
-
-                        <!-- Key Projects -->
-                        <div class="mb-4">
-                            <h3 class="h6 fw-bold text-uppercase text-muted small mb-2">Key Projects</h3>
-                            <div class="p-3 bg-light rounded-2 border">
-                                <p class="text-dark mb-0">{{ prof.Projects or 'No projects recorded.' }}</p>
-                            </div>
-                        </div>
-
-                        <!-- Hackathons & Competitions -->
-                        <div class="mb-4">
-                            <h3 class="h6 fw-bold text-uppercase text-muted small mb-2">Hackathons & Competitions</h3>
-                            <div class="p-3 bg-light rounded-2 border">
-                                <p class="text-dark mb-0">{{ prof.Hackathons or 'No hackathons or competitions recorded.' }}</p>
-                            </div>
-                        </div>
-
-                        <!-- Certifications & Coding Profiles -->
-                        <div class="row g-3">
-                            <div class="col-12 col-md-6">
-                                <h3 class="h6 fw-bold text-uppercase text-muted small mb-2">Certifications</h3>
-                                <div class="p-3 bg-light rounded-2 border">
-                                    <p class="text-dark mb-0">{{ prof.Certifications or 'None' }}</p>
-                                </div>
-                            </div>
-                            <div class="col-12 col-md-6">
-                                <h3 class="h6 fw-bold text-uppercase text-muted small mb-2">Competitive Coding Profiles</h3>
-                                <div class="p-3 bg-light rounded-2 border">
-                                    <p class="text-dark mb-0">{{ prof.Coding_Profiles or 'None' }}</p>
-                                </div>
-                            </div>
-                        </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state py-5">
-                        <div class="empty-state-icon"><i class="bi bi-code-slash"></i></div>
-                        <h3 class="empty-state-title">No Skills Portfolio Recorded</h3>
-                        <p class="empty-state-text">No skills, projects, or coding profiles have been registered for this student.</p>
-                    </div>
-                {% endif %}
             </div>
         </div>
     </div>

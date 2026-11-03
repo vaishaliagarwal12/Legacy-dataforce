@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Record Student Internship | Placement Portal{% endblock %}
+{% block title %}{% if mode == 'edit' %}Edit Internship #{{ internship.Internship_ID }}{% else %}Record Student Internship{% endif %} | Placement Portal{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="/internships" class="text-decoration-none text-muted">Internships</a></li>
-<li class="breadcrumb-item active" aria-current="page">Record Internship</li>
+<li class="breadcrumb-item active" aria-current="page">{% if mode == 'edit' %}Edit Record{% else %}Record Internship{% endif %}</li>
 {% endblock %}
 
 {% block content %}
@@ -13,15 +13,23 @@
         <div class="form-card">
             <div class="d-flex align-items-center justify-content-between mb-4 pb-3 border-bottom">
                 <div>
-                    <h1 class="h5 fw-bold mb-1">Record Student Internship</h1>
+                    <h1 class="h5 fw-bold mb-1">
+                        {% if mode == 'edit' %}
+                            Edit Internship Record #{{ internship.Internship_ID }}
+                        {% else %}
+                            Record Student Internship
+                        {% endif %}
+                    </h1>
                     <p class="text-secondary small mb-0">Enforce academic policy: Mandatory internships must link to curriculum Requirement 1 or 2; Additional internships remain unlinked.</p>
                 </div>
-                <a href="/internships" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-arrow-left me-1"></i> Back to Internships
+                <a href="{% if mode == 'edit' %}/internships/{{ internship.Internship_ID }}{% else %}/internships{% endif %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Back
                 </a>
             </div>
 
-            <form method="POST" action="/internships/new" class="needs-validation" novalidate>
+            <form method="POST" action="{% if mode == 'edit' %}/internships/{{ internship.Internship_ID }}/edit{% else %}/internships/new{% endif %}" class="needs-validation" novalidate>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                 <!-- Group 1: Student & Academic Category -->
                 <div class="form-section">
                     <div class="form-section-header">
@@ -30,50 +38,69 @@
                     </div>
 
                     <div class="row g-3">
-                        <!-- Student Selection -->
-                        <div class="col-12">
-                            <label class="form-label" for="Student_ID">Select Student <span class="text-danger">*</span></label>
-                            <select class="form-select" id="Student_ID" name="Student_ID" required>
-                                <option value="">Choose student from registry...</option>
-                                {% for s in students %}
-                                    <option value="{{ s.Student_ID }}" {% if preselected_student_id and preselected_student_id|int == s.Student_ID %}selected{% endif %}>
-                                        {{ s.Roll_No }} &bull; {{ s.First_Name }} {{ s.Last_Name }} ({{ s.Branch }} &bull; Batch {{ s.Batch_Year }})
-                                    </option>
-                                {% endfor %}
-                            </select>
-                            <div class="invalid-feedback">Please select a student from the active registry.</div>
-                        </div>
+                        {% if mode == 'edit' %}
+                            <!-- Read-only Student display during Edit -->
+                            <div class="col-12 col-md-6">
+                                <label class="form-label text-muted small">Student Candidate</label>
+                                <div class="form-control bg-light">
+                                    <strong>{{ internship.Student_Name }}</strong> ({{ internship.Roll_No }}) &bull; {{ internship.Branch }}
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label text-muted small">Category & Sequence</label>
+                                <div class="form-control bg-light">
+                                    <span class="badge {% if internship.Internship_Type == 'Mandatory' %}badge-status-primary{% else %}badge-status-neutral{% endif %} me-2">
+                                        {{ internship.Internship_Type }} #{{ internship.Internship_No }}
+                                    </span>
+                                    {% if internship.Prescribed_Period %}{{ internship.Prescribed_Period }}{% endif %}
+                                </div>
+                            </div>
+                        {% else %}
+                            <!-- Student Selection -->
+                            <div class="col-12">
+                                <label class="form-label" for="Student_ID">Select Student <span class="text-danger">*</span></label>
+                                <select class="form-select" id="Student_ID" name="Student_ID" required>
+                                    <option value="">Choose student from registry...</option>
+                                    {% for s in students %}
+                                        <option value="{{ s.Student_ID }}" {% if preselected_student_id and preselected_student_id|int == s.Student_ID %}selected{% endif %}>
+                                            {{ s.Roll_No }} &bull; {{ s.First_Name }} {{ s.Last_Name or '' }} ({{ s.Branch }} &bull; Batch {{ s.Batch_Year }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="invalid-feedback">Please select a student from the active registry.</div>
+                            </div>
 
-                        <!-- Internship Type -->
-                        <div class="col-12 col-md-6">
-                            <label class="form-label" for="internship_type_select">Internship Category <span class="text-danger">*</span></label>
-                            <select class="form-select" id="internship_type_select" name="Internship_Type" required>
-                                <option value="Mandatory" selected>Mandatory (Degree Requirement)</option>
-                                <option value="Additional">Additional (Extracurricular / Voluntary)</option>
-                            </select>
-                            <div class="form-text small text-muted">Mandatory internships link to Requirement 1 or 2; Additional is unlinked.</div>
-                        </div>
+                            <!-- Internship Type -->
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="internship_type_select">Internship Category <span class="text-danger">*</span></label>
+                                <select class="form-select" id="internship_type_select" name="Internship_Type" required onchange="handleTypeChange()">
+                                    <option value="Mandatory" selected>Mandatory (Degree Requirement)</option>
+                                    <option value="Additional">Additional (Extracurricular / Voluntary)</option>
+                                </select>
+                                <div class="form-text small text-muted">Mandatory internships link to Requirement 1 or 2; Additional is unlinked.</div>
+                            </div>
 
-                        <!-- Academic Requirement (Dynamic) -->
-                        <div class="col-12 col-md-6" id="requirement_group">
-                            <label class="form-label" for="requirement_id_select">Academic Degree Requirement <span class="text-danger">*</span></label>
-                            <select class="form-select" id="requirement_id_select" name="Requirement_ID">
-                                {% for r in requirements %}
-                                    <option value="{{ r.Requirement_ID }}" data-req-no="{{ r.Internship_No }}">
-                                        Requirement #{{ r.Requirement_ID }}: {{ r.Prescribed_Period }} (Sem {{ r.Required_Result_Semester }} SGPA, 4 Cr)
-                                    </option>
-                                {% endfor %}
-                            </select>
-                            <div class="invalid-feedback">Please select the applicable degree requirement.</div>
-                        </div>
+                            <!-- Academic Requirement (Dynamic) -->
+                            <div class="col-12 col-md-6" id="requirement_group">
+                                <label class="form-label" for="requirement_id_select">Academic Degree Requirement <span class="text-danger">*</span></label>
+                                <select class="form-select" id="requirement_id_select" name="Requirement_ID" onchange="handleReqChange()">
+                                    {% for r in requirements %}
+                                        <option value="{{ r.Requirement_ID }}" data-req-no="{{ r.Internship_No }}" data-report-sem="{{ r.Report_Submission_Semester }}" data-credits="{{ r.Credits }}">
+                                            Requirement #{{ r.Requirement_ID }}: {{ r.Prescribed_Period }} (Sem {{ r.Required_Result_Semester }} SGPA, 4 Cr)
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="invalid-feedback">Please select the applicable degree requirement.</div>
+                            </div>
 
-                        <!-- Sequence Number -->
-                        <div class="col-12 col-md-4">
-                            <label class="form-label" for="internship_no_input">Internship Sequence No <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control code-font" id="internship_no_input" name="Internship_No" 
-                                   value="1" min="1" max="10" required>
-                            <div class="form-text small text-muted">1 for Req 1, 2 for Req 2, 3+ for Additional.</div>
-                        </div>
+                            <!-- Sequence Number -->
+                            <div class="col-12 col-md-4">
+                                <label class="form-label" for="internship_no_input">Internship Sequence No <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control code-font" id="internship_no_input" name="Internship_No" 
+                                       value="1" min="1" max="10" required>
+                                <div class="form-text small text-muted">1 for Req 1, 2 for Req 2, 3+ for Additional.</div>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -85,24 +112,53 @@
                     </div>
 
                     <div class="row g-3">
-                        <!-- Company Selector -->
-                        <div class="col-12 col-md-6">
-                            <label class="form-label" for="Company_ID">Host Organization / Company <span class="text-danger">*</span></label>
-                            <select class="form-select" id="Company_ID" name="Company_ID" required>
-                                <option value="">Choose host company...</option>
-                                {% for c in companies %}
-                                    <option value="{{ c.Company_ID }}">{{ c.Company_Name }} ({{ c.Industry or 'Tech' }})</option>
-                                {% endfor %}
-                            </select>
-                            <div class="invalid-feedback">Please select the host organization.</div>
-                        </div>
+                        {% if mode == 'edit' %}
+                            <div class="col-12 col-md-6">
+                                <label class="form-label text-muted small">Host Organization</label>
+                                <div class="form-control bg-light">
+                                    <strong>{{ internship.Company_Name }}</strong> ({{ internship.Company_Type or 'Corporate' }})
+                                </div>
+                            </div>
+                        {% else %}
+                            <!-- Company Selector -->
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="Company_ID">Host Organization / Company <span class="text-danger">*</span></label>
+                                <select class="form-select" id="Company_ID" name="Company_ID" required>
+                                    <option value="">Choose host company...</option>
+                                    {% for c in companies %}
+                                        <option value="{{ c.Company_ID }}">{{ c.Company_Name }} ({{ c.Industry or 'Enterprise' }})</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="invalid-feedback">Please select the host organization.</div>
+                            </div>
+                        {% endif %}
 
                         <!-- Role Title -->
                         <div class="col-12 col-md-6">
                             <label class="form-label" for="Role">Role / Domain Title <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="Role" name="Role" 
+                                   value="{% if internship %}{{ internship.Role or '' }}{% endif %}"
                                    placeholder="e.g. Software Engineering Intern" required>
                             <div class="invalid-feedback">Role title or domain is required.</div>
+                        </div>
+
+                        <!-- Monthly Stipend -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="Stipend">Monthly Stipend (INR &#8377;)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">&#8377;</span>
+                                <input type="number" class="form-control" id="Stipend" name="Stipend" 
+                                       step="500" min="0" value="{% if internship %}{{ internship.Stipend or 0.0 }}{% else %}15000{% endif %}">
+                            </div>
+                            <div class="form-text small text-muted">Enter 0 for unpaid or research engagements.</div>
+                        </div>
+
+                        <!-- Academic Credits -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="Credits">Academic Credits</label>
+                            <input type="number" class="form-control" id="Credits" name="Credits" 
+                                   value="{% if internship %}{{ internship.Credits or 4 }}{% else %}4{% endif %}" min="0" max="10">
+                            <div class="form-text small text-muted">Standard 4 credits for mandatory requirements.</div>
                         </div>
                     </div>
                 </div>
@@ -118,28 +174,138 @@
                         <!-- Start Date -->
                         <div class="col-12 col-md-6">
                             <label class="form-label" for="Start_Date">Start Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="Start_Date" name="Start_Date" required>
+                            <input type="date" class="form-control" id="Start_Date" name="Start_Date" 
+                                   value="{% if internship %}{{ internship.Start_Date }}{% endif %}" required>
                             <div class="invalid-feedback">Please specify the internship start date.</div>
                         </div>
 
                         <!-- End Date -->
                         <div class="col-12 col-md-6">
                             <label class="form-label" for="End_Date">Completion Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="End_Date" name="End_Date" required>
+                            <input type="date" class="form-control" id="End_Date" name="End_Date" 
+                                   value="{% if internship %}{{ internship.End_Date }}{% endif %}" required>
                             <div class="invalid-feedback">Please specify the completion date.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Group 4: Report Submission & Academic Evaluation -->
+                <div class="form-section">
+                    <div class="form-section-header">
+                        <h2 class="form-section-title"><i class="bi bi-file-earmark-check text-primary"></i> Report Submission & Evaluation</h2>
+                        <p class="form-section-subtitle">Defended report submission semester, evaluation grade, and document links.</p>
+                    </div>
+
+                    <div class="row g-3">
+                        <!-- Report Semester -->
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="Report_Semester">Report Submission Semester</label>
+                            <select class="form-select" id="Report_Semester" name="Report_Semester">
+                                <option value="">Select defense semester...</option>
+                                {% for sem in range(1, 9) %}
+                                    <option value="{{ sem }}" {% if internship and internship.Report_Semester == sem %}selected{% elif not internship and sem == 5 %}selected{% endif %}>
+                                        Semester {{ sem }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text small text-muted">Sem 5 for I1, Sem 7 for I2.</div>
+                        </div>
+
+                        <!-- Report Grade -->
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="Report_Grade">Evaluation Grade</label>
+                            <select class="form-select" id="Report_Grade" name="Report_Grade">
+                                <option value="Pending" {% if not internship or not internship.Report_Grade or internship.Report_Grade == 'Pending' %}selected{% endif %}>Pending Evaluation</option>
+                                <option value="O" {% if internship and internship.Report_Grade == 'O' %}selected{% endif %}>O (Outstanding)</option>
+                                <option value="A+" {% if internship and internship.Report_Grade == 'A+' %}selected{% endif %}>A+ (Excellent)</option>
+                                <option value="A" {% if internship and internship.Report_Grade == 'A' %}selected{% endif %}>A (Very Good)</option>
+                                <option value="B+" {% if internship and internship.Report_Grade == 'B+' %}selected{% endif %}>B+ (Good)</option>
+                                <option value="B" {% if internship and internship.Report_Grade == 'B' %}selected{% endif %}>B (Above Average)</option>
+                                <option value="P" {% if internship and internship.Report_Grade == 'P' %}selected{% endif %}>P (Pass)</option>
+                            </select>
+                        </div>
+
+                        <!-- Report Document URL -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="Report_Link">Internship Report Document URL</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-file-earmark-pdf"></i></span>
+                                <input type="url" class="form-control" id="Report_Link" name="Report_Link" 
+                                       placeholder="https://storage.fictional.edu/reports/rep_1_1.pdf"
+                                       value="{% if internship %}{{ internship.Report_Link or '' }}{% endif %}">
+                            </div>
+                        </div>
+
+                        <!-- Certificate Document URL -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="Certificate_Link">Completion Certificate URL</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-patch-check"></i></span>
+                                <input type="url" class="form-control" id="Certificate_Link" name="Certificate_Link" 
+                                       placeholder="https://storage.fictional.edu/certs/cert_1_1.pdf"
+                                       value="{% if internship %}{{ internship.Certificate_Link or '' }}{% endif %}">
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Form Action Buttons -->
                 <div class="d-flex justify-content-end gap-2 pt-3 border-top">
-                    <a href="/internships" class="btn btn-outline-secondary btn-sm px-3">Cancel</a>
+                    <a href="{% if mode == 'edit' %}/internships/{{ internship.Internship_ID }}{% else %}/internships{% endif %}" class="btn btn-outline-secondary btn-sm px-3">Cancel</a>
                     <button type="submit" class="btn btn-primary btn-sm px-4">
-                        <i class="bi bi-check2-circle me-1"></i> Save Internship Record
+                        <i class="bi bi-check2-circle me-1"></i> {% if mode == 'edit' %}Save Changes{% else %}Save Internship Record{% endif %}
                     </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<script>
+function handleTypeChange() {
+    const itypeSelect = document.getElementById('internship_type_select');
+    const reqGroup = document.getElementById('requirement_group');
+    const reqSelect = document.getElementById('requirement_id_select');
+    const noInput = document.getElementById('internship_no_input');
+    const repSemSelect = document.getElementById('Report_Semester');
+    const creditsInput = document.getElementById('Credits');
+
+    if (!itypeSelect) return;
+
+    if (itypeSelect.value === 'Mandatory') {
+        if (reqGroup) reqGroup.style.display = 'block';
+        if (reqSelect) reqSelect.required = true;
+        handleReqChange();
+    } else {
+        if (reqGroup) reqGroup.style.display = 'none';
+        if (reqSelect) {
+            reqSelect.required = false;
+            reqSelect.value = '';
+        }
+        if (noInput && parseInt(noInput.value) <= 2) {
+            noInput.value = '3';
+        }
+        if (repSemSelect) repSemSelect.value = '8';
+        if (creditsInput) creditsInput.value = '3';
+    }
+}
+
+function handleReqChange() {
+    const reqSelect = document.getElementById('requirement_id_select');
+    const noInput = document.getElementById('internship_no_input');
+    const repSemSelect = document.getElementById('Report_Semester');
+    const creditsInput = document.getElementById('Credits');
+
+    if (!reqSelect) return;
+    const opt = reqSelect.selectedOptions[0];
+    if (opt) {
+        const reqNo = opt.getAttribute('data-req-no');
+        const repSem = opt.getAttribute('data-report-sem');
+        const credits = opt.getAttribute('data-credits');
+        if (noInput && reqNo) noInput.value = reqNo;
+        if (repSemSelect && repSem) repSemSelect.value = repSem;
+        if (creditsInput && credits) creditsInput.value = credits;
+    }
+}
+</script>
 {% endblock %}

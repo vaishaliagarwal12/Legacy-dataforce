@@ -16,6 +16,7 @@
 
     <!-- Clean Light Custom Theme Stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -174,6 +175,7 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <form id="deleteConfirmForm" method="POST" action="">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-sm btn-danger">
                             <i class="bi bi-trash3 me-1"></i> Delete Record
                         </button>

@@ -33,13 +33,25 @@ def check_system_health() -> Tuple[Dict[str, Any], int]:
     except DatabaseError as err:
         latency_ms = round((time.time() - start_time) * 1000, 2)
         logger.error("Health check database failure: %s", err)
+        try:
+            from flask import current_app
+            is_prod = bool(current_app and current_app.config.get("ENV") == "production")
+        except Exception:
+            is_prod = False
+        raw_err = str(err)
+        has_sensitive_data = any(k in raw_err.lower() for k in ("password", "access denied", "user '", "identified by", "select ", "insert ", "update ", "delete ", "table "))
+        if is_prod or has_sensitive_data:
+            err_output = "Database connection unavailable"
+        else:
+            err_output = raw_err
+
         response = {
             "status": "unhealthy",
             "service": "Placement & Internship Management API",
             "database": {
                 "connection": "disconnected",
                 "engine": "MySQL",
-                "error": str(err),
+                "error": err_output,
                 "latency_ms": latency_ms,
             },
         }
@@ -50,7 +62,7 @@ def check_system_health() -> Tuple[Dict[str, Any], int]:
         response = {
             "status": "error",
             "service": "Placement & Internship Management API",
-            "error": str(exc),
+            "error": "Internal service error during health check",
             "latency_ms": latency_ms,
         }
         return response, 500

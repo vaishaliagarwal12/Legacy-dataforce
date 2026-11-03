@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import Dict, Any, List, Optional
 from db.connection import get_cursor, execute_one, execute_query
 from services.exceptions import ValidationError, NotFoundError, ConflictError
@@ -164,17 +165,24 @@ def create_placement_offer(data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def get_placement_offer(placement_id: int) -> Dict[str, Any]:
-    """Retrieves full placement offer record with joined student, company, and opportunity metadata."""
+    """Retrieves full placement offer record with joined student, company, opportunity, drive, and eligibility metadata."""
     sql = """
-        SELECT p.Placement_ID, p.Student_ID, s.Roll_No, s.First_Name, s.Last_Name, s.Branch, s.CGPA,
-               p.Company_ID, c.Company_Name, c.Company_Type, c.Industry,
+        SELECT p.Placement_ID, p.Student_ID, s.Roll_No, s.First_Name, s.Last_Name,
+               CONCAT(s.First_Name, ' ', COALESCE(s.Last_Name, '')) AS Student_Name,
+               s.Branch, s.Batch_Year, s.Section, s.CGPA, s.Backlogs, s.Email, s.Resume_Link,
+               p.Company_ID, c.Company_Name, c.Company_Type, c.Industry, c.Location, c.Website,
                p.Opportunity_ID, o.Role AS Opportunity_Role, o.Package_Stipend AS Drive_Package,
+               o.Opportunity_Type, o.Duration_Months,
+               rd.Drive_ID, rd.Drive_Year, rd.Drive_Type, rd.Season, rd.Drive_Date,
+               e.Eligibility_ID, e.Minimum_CGPA, e.Max_Backlogs, e.Other_Criteria, e.Eligible_Branch,
                p.Role, p.Package, p.Placement_Year, p.Placement_Type, p.Is_PPO,
                p.Joined, p.Offer_Status, p.Interview_Rounds
         FROM PLACEMENT p
         JOIN STUDENT s ON p.Student_ID = s.Student_ID
         JOIN COMPANY c ON p.Company_ID = c.Company_ID
         LEFT JOIN OPPORTUNITY o ON p.Opportunity_ID = o.Opportunity_ID
+        LEFT JOIN RECRUITMENT_DRIVE rd ON o.Drive_ID = rd.Drive_ID
+        LEFT JOIN ELIGIBILITY e ON o.Opportunity_ID = e.Opportunity_ID
         WHERE p.Placement_ID = %s
     """
     offer = execute_one(sql, (placement_id,))
@@ -185,11 +193,49 @@ def get_placement_offer(placement_id: int) -> Dict[str, Any]:
     offer["CGPA"] = float(offer["CGPA"])
     if offer.get("Drive_Package") is not None:
         offer["Drive_Package"] = float(offer["Drive_Package"])
+    if offer.get("Minimum_CGPA") is not None:
+        offer["Minimum_CGPA"] = float(offer["Minimum_CGPA"])
 
     # Fetch evaluated skills
     skills_sql = "SELECT Skill FROM PLACEMENT_SKILL WHERE Placement_ID = %s ORDER BY Skill"
     skills = execute_query(skills_sql, (placement_id,))
     offer["Skills"] = [s["Skill"] for s in skills]
+
+    # Fetch selection rounds if linked to an opportunity
+    if offer.get("Opportunity_ID"):
+        rounds_sql = """
+            SELECT Round_ID, Round_Number, Round_Type, Description
+            FROM SELECTION_PROCESS
+            WHERE Opportunity_ID = %s
+            ORDER BY Round_Number ASC
+        """
+        offer["Selection_Rounds"] = execute_query(rounds_sql, (offer["Opportunity_ID"],))
+    else:
+        offer["Selection_Rounds"] = []
+
+    # Fetch eligible branches list
+    if offer.get("Eligibility_ID"):
+        b_sql = "SELECT Branch FROM ELIGIBILITY_BRANCH WHERE Eligibility_ID = %s ORDER BY Branch"
+        b_rows = execute_query(b_sql, (offer["Eligibility_ID"],))
+        offer["Eligible_Branches"] = [b["Branch"] for b in b_rows]
+    else:
+        offer["Eligible_Branches"] = []
+
+    # Candidate Opportunity Eligibility Compliance Summary
+    is_eligible = True
+    eligibility_notes = []
+    if offer.get("Minimum_CGPA") is not None and offer["CGPA"] < offer["Minimum_CGPA"]:
+        is_eligible = False
+        eligibility_notes.append(f"CGPA ({offer['CGPA']:.2f}) is below minimum requirement ({offer['Minimum_CGPA']:.2f})")
+    if offer.get("Max_Backlogs") is not None and offer["Backlogs"] > offer["Max_Backlogs"]:
+        is_eligible = False
+        eligibility_notes.append(f"Active backlogs ({offer['Backlogs']}) exceed allowance ({offer['Max_Backlogs']})")
+    if offer.get("Eligible_Branches") and offer["Branch"] not in offer["Eligible_Branches"]:
+        is_eligible = False
+        eligibility_notes.append(f"Branch '{offer['Branch']}' is not in approved list ({', '.join(offer['Eligible_Branches'])})")
+
+    offer["Candidate_Eligibility_Met"] = is_eligible
+    offer["Eligibility_Notes"] = eligibility_notes
 
     return offer
 
@@ -199,16 +245,29 @@ def list_placement_offers(
     company_id: Optional[int] = None,
     opportunity_id: Optional[int] = None,
     placement_year: Optional[int] = None,
+    batch_year: Optional[int] = None,
+    branch: Optional[str] = None,
     offer_status: Optional[str] = None,
     placement_type: Optional[str] = None,
     is_ppo: Optional[str] = None,
     joined: Optional[str] = None,
     min_package: Optional[float] = None,
+    max_package: Optional[float] = None,
     search: Optional[str] = None,
+    sort_by: Optional[str] = "package",
+    sort_dir: Optional[str] = "desc",
+    page: Optional[int] = None,
     limit: int = 50,
     offset: int = 0,
+    per_page: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Lists, searches, and filters placement offers with pagination."""
+    """Lists, searches, and filters placement offers with advanced criteria, safe sorting, and server-side pagination."""
+    if per_page is not None:
+        try:
+            limit = int(per_page)
+        except (ValueError, TypeError):
+            pass
+
     where_clauses = ["1=1"]
     params: List[Any] = []
 
@@ -225,57 +284,125 @@ def list_placement_offers(
         params.append(int(opportunity_id))
 
     if placement_year is not None:
-        where_clauses.append("p.Placement_Year = %s")
-        params.append(int(placement_year))
+        try:
+            py = int(placement_year)
+            where_clauses.append("p.Placement_Year = %s")
+            params.append(py)
+        except (ValueError, TypeError):
+            pass
 
-    if offer_status:
+    if batch_year is not None:
+        try:
+            by = int(batch_year)
+            where_clauses.append("s.Batch_Year = %s")
+            params.append(by)
+        except (ValueError, TypeError):
+            pass
+
+    if branch and str(branch).strip() and str(branch).strip().lower() not in ("all", "none"):
+        where_clauses.append("s.Branch = %s")
+        params.append(str(branch).strip())
+
+    if offer_status and str(offer_status).strip() and str(offer_status).strip().lower() not in ("all", "none"):
         where_clauses.append("p.Offer_Status = %s")
-        params.append(offer_status.strip())
+        params.append(str(offer_status).strip())
 
-    if placement_type:
+    if placement_type and str(placement_type).strip() and str(placement_type).strip().lower() not in ("all", "none"):
         where_clauses.append("p.Placement_Type = %s")
-        params.append(placement_type.strip())
+        params.append(str(placement_type).strip())
 
-    if is_ppo:
+    if is_ppo and str(is_ppo).strip() and str(is_ppo).strip().lower() not in ("all", "none"):
         where_clauses.append("p.Is_PPO = %s")
-        params.append(is_ppo.strip())
+        params.append(str(is_ppo).strip())
 
-    if joined:
+    if joined and str(joined).strip() and str(joined).strip().lower() not in ("all", "none"):
         where_clauses.append("p.Joined = %s")
-        params.append(joined.strip())
+        params.append(str(joined).strip())
 
     if min_package is not None:
-        where_clauses.append("p.Package >= %s")
-        params.append(float(min_package))
+        try:
+            min_p = float(min_package)
+            where_clauses.append("p.Package >= %s")
+            params.append(min_p)
+        except (ValueError, TypeError):
+            pass
 
-    if search:
-        search_pattern = f"%{search.strip()}%"
-        where_clauses.append("(s.Roll_No LIKE %s OR s.First_Name LIKE %s OR c.Company_Name LIKE %s OR p.Role LIKE %s)")
-        params.extend([search_pattern, search_pattern, search_pattern, search_pattern])
+    if max_package is not None:
+        try:
+            max_p = float(max_package)
+            where_clauses.append("p.Package <= %s")
+            params.append(max_p)
+        except (ValueError, TypeError):
+            pass
+
+    if search and str(search).strip():
+        search_pattern = f"%{str(search).strip()}%"
+        where_clauses.append(
+            "("
+            "s.Roll_No LIKE %s OR "
+            "s.First_Name LIKE %s OR "
+            "s.Last_Name LIKE %s OR "
+            "CONCAT(s.First_Name, ' ', COALESCE(s.Last_Name, '')) LIKE %s OR "
+            "c.Company_Name LIKE %s OR "
+            "p.Role LIKE %s OR "
+            "EXISTS (SELECT 1 FROM PLACEMENT_SKILL ps WHERE ps.Placement_ID = p.Placement_ID AND ps.Skill LIKE %s)"
+            ")"
+        )
+        params.extend([search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern])
 
     where_sql = " AND ".join(where_clauses)
 
     count_sql = f"""
-        SELECT COUNT(*) AS total
+        SELECT COUNT(DISTINCT p.Placement_ID) AS total
         FROM PLACEMENT p
         JOIN STUDENT s ON p.Student_ID = s.Student_ID
         JOIN COMPANY c ON p.Company_ID = c.Company_ID
         WHERE {where_sql}
     """
-    total_count = execute_one(count_sql, tuple(params))["total"]
+    count_res = execute_one(count_sql, tuple(params))
+    total_count = int(count_res["total"] if count_res else 0)
+
+    SORT_MAP = {
+        "package": "p.Package",
+        "id": "p.Placement_ID",
+        "placement_id": "p.Placement_ID",
+        "roll_no": "s.Roll_No",
+        "name": "s.First_Name, s.Last_Name",
+        "student_name": "s.First_Name, s.Last_Name",
+        "branch": "s.Branch",
+        "company": "c.Company_Name",
+        "company_name": "c.Company_Name",
+        "role": "p.Role",
+        "year": "p.Placement_Year",
+        "placement_year": "p.Placement_Year",
+        "batch_year": "s.Batch_Year",
+        "status": "p.Offer_Status",
+        "offer_status": "p.Offer_Status",
+        "joined": "p.Joined",
+        "is_ppo": "p.Is_PPO",
+        "rounds": "p.Interview_Rounds",
+    }
+    sort_key = str(sort_by or "package").strip().lower()
+    order_col = SORT_MAP.get(sort_key, "p.Package")
+    order_dir = "ASC" if str(sort_dir).strip().lower() == "asc" else "DESC"
+
+    if page is not None and int(page) >= 1:
+        offset = (int(page) - 1) * int(limit)
 
     query_sql = f"""
-        SELECT p.Placement_ID, p.Student_ID, s.Roll_No, s.First_Name, s.Last_Name, s.Branch,
-               p.Company_ID, c.Company_Name, p.Opportunity_ID, p.Role, p.Package,
-               p.Placement_Year, p.Placement_Type, p.Is_PPO, p.Joined, p.Offer_Status,
-               GROUP_CONCAT(ps.Skill SEPARATOR ', ') AS Evaluated_Skills
+        SELECT p.Placement_ID, p.Student_ID, s.Roll_No, s.First_Name, s.Last_Name,
+               CONCAT(s.First_Name, ' ', COALESCE(s.Last_Name, '')) AS Student_Name,
+               s.Branch, s.Batch_Year, s.CGPA, s.Backlogs, s.Email,
+               p.Company_ID, c.Company_Name, c.Company_Type, c.Location, p.Opportunity_ID, p.Role, p.Package,
+               p.Placement_Year, p.Placement_Type, p.Is_PPO, p.Joined, p.Offer_Status, p.Interview_Rounds,
+               GROUP_CONCAT(DISTINCT ps.Skill SEPARATOR ', ') AS Evaluated_Skills
         FROM PLACEMENT p
         JOIN STUDENT s ON p.Student_ID = s.Student_ID
         JOIN COMPANY c ON p.Company_ID = c.Company_ID
         LEFT JOIN PLACEMENT_SKILL ps ON p.Placement_ID = ps.Placement_ID
         WHERE {where_sql}
         GROUP BY p.Placement_ID
-        ORDER BY p.Package DESC, p.Placement_ID DESC
+        ORDER BY {order_col} {order_dir}, p.Placement_ID DESC
         LIMIT %s OFFSET %s
     """
     exec_params = list(params) + [int(limit), int(offset)]
@@ -283,13 +410,259 @@ def list_placement_offers(
 
     for r in rows:
         r["Package"] = float(r["Package"])
-        r["Evaluated_Skills"] = r["Evaluated_Skills"].split(", ") if r["Evaluated_Skills"] else []
+        r["CGPA"] = float(r["CGPA"])
+        r["Evaluated_Skills"] = [s.strip() for s in r["Evaluated_Skills"].split(", ") if s.strip()] if r.get("Evaluated_Skills") else []
 
-    return {
+    total_pages = math.ceil(total_count / limit) if limit > 0 else 1
+    current_page = (offset // limit) + 1 if limit > 0 else 1
+
+    pagination_meta = {
         "total": total_count,
         "limit": limit,
         "offset": offset,
+        "page": current_page,
+        "per_page": limit,
+        "total_pages": total_pages,
+        "has_prev": current_page > 1,
+        "has_next": current_page < total_pages,
+        "prev_page": current_page - 1 if current_page > 1 else None,
+        "next_page": current_page + 1 if current_page < total_pages else None,
+    }
+
+    return {
+        **pagination_meta,
+        "pagination": pagination_meta,
+        "sort_by": sort_key,
+        "sort_dir": order_dir.lower(),
         "results": rows,
+    }
+
+
+def get_placement_analytics(
+    placement_year: Optional[int] = None,
+    batch_year: Optional[int] = None,
+    branch: Optional[str] = None,
+    company_id: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Computes placement KPI metrics, company-wise statistics, branch-wise statistics, package distributions, and status distribution."""
+    where_clauses = ["1=1"]
+    params: List[Any] = []
+
+    if placement_year is not None:
+        try:
+            where_clauses.append("p.Placement_Year = %s")
+            params.append(int(placement_year))
+        except (ValueError, TypeError):
+            pass
+
+    if batch_year is not None:
+        try:
+            where_clauses.append("s.Batch_Year = %s")
+            params.append(int(batch_year))
+        except (ValueError, TypeError):
+            pass
+
+    if branch and str(branch).strip() and str(branch).strip().lower() not in ("all", "none"):
+        where_clauses.append("s.Branch = %s")
+        params.append(str(branch).strip())
+
+    if company_id is not None:
+        try:
+            where_clauses.append("p.Company_ID = %s")
+            params.append(int(company_id))
+        except (ValueError, TypeError):
+            pass
+
+    where_sql = " AND ".join(where_clauses)
+
+    # 1. Overall KPIs
+    kpi_sql = f"""
+        SELECT 
+            COUNT(p.Placement_ID) AS total_offers,
+            COUNT(DISTINCT p.Student_ID) AS unique_students_offered,
+            COUNT(DISTINCT CASE WHEN p.Offer_Status IN ('Accepted', 'Joined') THEN p.Student_ID END) AS placed_students,
+            COUNT(DISTINCT CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Student_ID END) AS joined_students,
+            ROUND(COALESCE(AVG(p.Package), 0), 2) AS avg_package,
+            ROUND(COALESCE(MAX(p.Package), 0), 2) AS highest_package,
+            ROUND(COALESCE(MIN(p.Package), 0), 2) AS lowest_package,
+            COUNT(CASE WHEN p.Is_PPO = 'Yes' THEN 1 END) AS ppo_offers,
+            COUNT(CASE WHEN p.Placement_Type = 'On-campus' THEN 1 END) AS on_campus_offers,
+            COUNT(CASE WHEN p.Placement_Type = 'Off-campus' THEN 1 END) AS off_campus_offers
+        FROM PLACEMENT p
+        JOIN STUDENT s ON p.Student_ID = s.Student_ID
+        JOIN COMPANY c ON p.Company_ID = c.Company_ID
+        WHERE {where_sql}
+    """
+    kpi_raw = execute_one(kpi_sql, tuple(params)) or {}
+
+    # Multiple offers count
+    multi_sql = f"""
+        SELECT COUNT(*) AS multi_count FROM (
+            SELECT p.Student_ID
+            FROM PLACEMENT p
+            JOIN STUDENT s ON p.Student_ID = s.Student_ID
+            JOIN COMPANY c ON p.Company_ID = c.Company_ID
+            WHERE {where_sql}
+            GROUP BY p.Student_ID
+            HAVING COUNT(p.Placement_ID) >= 2
+        ) AS multi_sub
+    """
+    multi_raw = execute_one(multi_sql, tuple(params)) or {}
+
+    kpis = {
+        "total_offers": int(kpi_raw.get("total_offers") or 0),
+        "unique_students_offered": int(kpi_raw.get("unique_students_offered") or 0),
+        "placed_students": int(kpi_raw.get("placed_students") or 0),
+        "joined_students": int(kpi_raw.get("joined_students") or 0),
+        "avg_package": float(kpi_raw.get("avg_package") or 0.0),
+        "highest_package": float(kpi_raw.get("highest_package") or 0.0),
+        "lowest_package": float(kpi_raw.get("lowest_package") or 0.0),
+        "multi_offer_students": int(multi_raw.get("multi_count") or 0),
+        "ppo_offers": int(kpi_raw.get("ppo_offers") or 0),
+        "on_campus_offers": int(kpi_raw.get("on_campus_offers") or 0),
+        "off_campus_offers": int(kpi_raw.get("off_campus_offers") or 0),
+    }
+
+    # 2. Company-wise placement statistics
+    comp_sql = f"""
+        SELECT c.Company_ID, c.Company_Name, c.Company_Type, c.Industry,
+               COUNT(p.Placement_ID) AS total_offers,
+               COUNT(DISTINCT CASE WHEN p.Offer_Status IN ('Accepted', 'Joined') THEN p.Student_ID END) AS placed_count,
+               COUNT(DISTINCT CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Student_ID END) AS joined_count,
+               ROUND(AVG(p.Package), 2) AS avg_package,
+               ROUND(MAX(p.Package), 2) AS highest_package
+        FROM PLACEMENT p
+        JOIN STUDENT s ON p.Student_ID = s.Student_ID
+        JOIN COMPANY c ON p.Company_ID = c.Company_ID
+        WHERE {where_sql}
+        GROUP BY c.Company_ID
+        ORDER BY total_offers DESC, avg_package DESC
+        LIMIT 10
+    """
+    comp_rows = execute_query(comp_sql, tuple(params))
+    for cr in comp_rows:
+        cr["avg_package"] = float(cr["avg_package"] or 0.0)
+        cr["highest_package"] = float(cr["highest_package"] or 0.0)
+
+    # 3. Branch-wise placement statistics
+    branch_sql = f"""
+        SELECT s.Branch,
+               COUNT(p.Placement_ID) AS total_offers,
+               COUNT(DISTINCT p.Student_ID) AS unique_offered_students,
+               COUNT(DISTINCT CASE WHEN p.Offer_Status IN ('Accepted', 'Joined') THEN p.Student_ID END) AS placed_students,
+               ROUND(AVG(p.Package), 2) AS avg_package,
+               ROUND(MAX(p.Package), 2) AS highest_package
+        FROM PLACEMENT p
+        JOIN STUDENT s ON p.Student_ID = s.Student_ID
+        JOIN COMPANY c ON p.Company_ID = c.Company_ID
+        WHERE {where_sql}
+        GROUP BY s.Branch
+        ORDER BY placed_students DESC, avg_package DESC
+    """
+    branch_rows = execute_query(branch_sql, tuple(params))
+    for br in branch_rows:
+        br["avg_package"] = float(br["avg_package"] or 0.0)
+        br["highest_package"] = float(br["highest_package"] or 0.0)
+
+    # 4. Package distribution tiers
+    pkg_tier_sql = f"""
+        SELECT 
+            SUM(CASE WHEN p.Package < 6.0 THEN 1 ELSE 0 END) AS tier_below_6,
+            SUM(CASE WHEN p.Package >= 6.0 AND p.Package < 10.0 THEN 1 ELSE 0 END) AS tier_6_to_10,
+            SUM(CASE WHEN p.Package >= 10.0 AND p.Package < 15.0 THEN 1 ELSE 0 END) AS tier_10_to_15,
+            SUM(CASE WHEN p.Package >= 15.0 THEN 1 ELSE 0 END) AS tier_above_15
+        FROM PLACEMENT p
+        JOIN STUDENT s ON p.Student_ID = s.Student_ID
+        JOIN COMPANY c ON p.Company_ID = c.Company_ID
+        WHERE {where_sql}
+    """
+    pt_raw = execute_one(pkg_tier_sql, tuple(params)) or {}
+    package_distribution = {
+        "tier_below_6": int(pt_raw.get("tier_below_6") or 0),
+        "tier_6_to_10": int(pt_raw.get("tier_6_to_10") or 0),
+        "tier_10_to_15": int(pt_raw.get("tier_10_to_15") or 0),
+        "tier_above_15": int(pt_raw.get("tier_above_15") or 0),
+    }
+
+    # 5. Status distribution
+    status_sql = f"""
+        SELECT p.Offer_Status, COUNT(*) AS count
+        FROM PLACEMENT p
+        JOIN STUDENT s ON p.Student_ID = s.Student_ID
+        JOIN COMPANY c ON p.Company_ID = c.Company_ID
+        WHERE {where_sql}
+        GROUP BY p.Offer_Status
+    """
+    status_rows = execute_query(status_sql, tuple(params))
+    status_distribution = {"Offered": 0, "Accepted": 0, "Joined": 0, "Declined": 0}
+    for sr in status_rows:
+        status_distribution[sr["Offer_Status"]] = int(sr["count"] or 0)
+
+    return {
+        "kpis": kpis,
+        "company_stats": comp_rows,
+        "branch_stats": branch_rows,
+        "package_distribution": package_distribution,
+        "status_distribution": status_distribution,
+    }
+
+
+def check_candidate_eligibility_for_opportunity(student_id: int, opportunity_id: int) -> Dict[str, Any]:
+    """Evaluates whether a candidate meets the eligibility criteria of a placement opportunity."""
+    student = execute_one(
+        "SELECT Student_ID, Roll_No, First_Name, Last_Name, Branch, CGPA, Backlogs FROM STUDENT WHERE Student_ID = %s",
+        (student_id,)
+    )
+    if not student:
+        raise NotFoundError(f"Student ID {student_id} not found.")
+
+    opp = execute_one("""
+        SELECT o.Opportunity_ID, o.Role, o.Package_Stipend,
+               e.Eligibility_ID, e.Minimum_CGPA, e.Max_Backlogs, e.Eligible_Branch, e.Other_Criteria
+        FROM OPPORTUNITY o
+        LEFT JOIN ELIGIBILITY e ON o.Opportunity_ID = e.Opportunity_ID
+        WHERE o.Opportunity_ID = %s
+    """, (opportunity_id,))
+    if not opp:
+        raise NotFoundError(f"Opportunity ID {opportunity_id} not found.")
+
+    student_cgpa = float(student["CGPA"])
+    student_backlogs = int(student["Backlogs"])
+    student_branch = student["Branch"]
+
+    eligible_branches = []
+    if opp.get("Eligibility_ID"):
+        b_rows = execute_query("SELECT Branch FROM ELIGIBILITY_BRANCH WHERE Eligibility_ID = %s ORDER BY Branch", (opp["Eligibility_ID"],))
+        eligible_branches = [b["Branch"] for b in b_rows]
+
+    min_cgpa = float(opp["Minimum_CGPA"]) if opp.get("Minimum_CGPA") is not None else 0.0
+    max_backlogs = int(opp["Max_Backlogs"]) if opp.get("Max_Backlogs") is not None else 99
+
+    violations = []
+    if student_cgpa < min_cgpa:
+        violations.append(f"CGPA ({student_cgpa:.2f}) is below minimum required ({min_cgpa:.2f})")
+    if student_backlogs > max_backlogs:
+        violations.append(f"Active backlogs ({student_backlogs}) exceed maximum allowed ({max_backlogs})")
+    if eligible_branches and student_branch not in eligible_branches:
+        violations.append(f"Branch '{student_branch}' is not in approved list ({', '.join(eligible_branches)})")
+
+    return {
+        "is_eligible": len(violations) == 0,
+        "violations": violations,
+        "student": {
+            "Student_ID": student["Student_ID"],
+            "Roll_No": student["Roll_No"],
+            "Name": f"{student['First_Name']} {student.get('Last_Name') or ''}".strip(),
+            "CGPA": student_cgpa,
+            "Backlogs": student_backlogs,
+            "Branch": student_branch,
+        },
+        "criteria": {
+            "Minimum_CGPA": min_cgpa,
+            "Max_Backlogs": max_backlogs,
+            "Eligible_Branches": eligible_branches or [opp.get("Eligible_Branch", "All Branches")],
+            "Other_Criteria": opp.get("Other_Criteria"),
+        }
     }
 
 

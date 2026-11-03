@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+
+{% block title %}Internship Dossier #{{ internship.Internship_ID }} &bull; {{ internship.Student_Name }} | Placement Portal{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="/internships" class="text-decoration-none text-muted">Internships</a></li>
+<li class="breadcrumb-item active" aria-current="page">Internship #{{ internship.Internship_ID }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-xl-10">
+        <!-- Top Action Bar -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge {% if internship.Internship_Type == 'Mandatory' %}badge-status-primary{% else %}badge-status-neutral{% endif %} fs-6">
+                        {{ internship.Internship_Type }} #{{ internship.Internship_No }}
+                    </span>
+                    <span class="badge {% if internship.Status == 'Completed' %}badge-status-success{% elif internship.Status == 'In Progress' %}badge-status-primary{% elif internship.Status == 'Pending Report' %}badge-status-warning{% else %}badge-status-neutral{% endif %} fs-6">
+                        <i class="bi {% if internship.Status == 'Completed' %}bi-check-circle-fill{% elif internship.Status == 'In Progress' %}bi-hourglass-split{% elif internship.Status == 'Pending Report' %}bi-exclamation-triangle-fill{% else %}bi-clock{% endif %} me-1"></i>
+                        {{ internship.Status }}
+                    </span>
+                    <span class="text-muted small">Record ID: #{{ internship.Internship_ID }}</span>
+                </div>
+                <h1 class="h4 fw-bold mb-0">{{ internship.Student_Name }} &bull; {{ internship.Role or 'Intern' }} at {{ internship.Company_Name }}</h1>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="/internships" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Directory
+                </a>
+                <a href="/internships/{{ internship.Internship_ID }}/edit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-pencil-square me-1"></i> Edit Record
+                </a>
+                <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteInternshipModal">
+                    <i class="bi bi-trash3 me-1"></i> Delete
+                </button>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Left Column: Student Academic & Prerequisite Audit -->
+            <div class="col-12 col-lg-6">
+                <!-- Card 1: Student Profile -->
+                <div class="table-card mb-4">
+                    <div class="table-card-header">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-person-badge text-primary fs-5"></i>
+                            <div>
+                                <h2 class="h6 fw-bold mb-0">Student Candidate Profile</h2>
+                                <small class="text-muted">Academic standing and enrollment metadata</small>
+                            </div>
+                        </div>
+                        <a href="/students/{{ internship.Student_ID }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-box-arrow-up-right me-1"></i> View Profile
+                        </a>
+                    </div>
+                    <div class="p-3">
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <span class="text-muted small d-block">Full Name</span>
+                                <strong>{{ internship.Student_Name }}</strong>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted small d-block">Roll Number</span>
+                                <span class="code-font text-primary fw-bold">{{ internship.Roll_No }}</span>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted small d-block">Engineering Branch</span>
+                                <span class="badge bg-light text-dark border">{{ internship.Branch }}</span>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted small d-block">Graduation Batch</span>
+                                <strong>Batch {{ internship.Batch_Year }}</strong>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted small d-block">Cumulative CGPA</span>
+                                <span class="badge badge-status-success fs-6">{{ "%.2f"|format(internship.CGPA) }}</span>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted small d-block">Institutional Email</span>
+                                <span class="small text-truncate d-block">{{ internship.Email }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Academic Prerequisite & Eligibility Audit -->
+                <div class="table-card mb-4">
+                    <div class="table-card-header">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-mortarboard text-primary fs-5"></i>
+                            <div>
+                                <h2 class="h6 fw-bold mb-0">Academic Policy & Eligibility Audit</h2>
+                                <small class="text-muted">Dynamic 3NF relational verification (zero duplicated SGPA storage)</small>
+                            </div>
+                        </div>
+                        {% if eligibility.status == 'Eligible' %}
+                            <span class="badge badge-status-success"><i class="bi bi-check-circle me-1"></i> Eligible</span>
+                        {% elif eligibility.status == 'Ineligible' %}
+                            <span class="badge badge-status-danger"><i class="bi bi-x-circle me-1"></i> Ineligible</span>
+                        {% elif eligibility.status == 'Optional' %}
+                            <span class="badge badge-status-neutral"><i class="bi bi-info-circle me-1"></i> Voluntary</span>
+                        {% else %}
+                            <span class="badge badge-status-warning"><i class="bi bi-exclamation-triangle me-1"></i> Prerequisite Missing</span>
+                        {% endif %}
+                    </div>
+                    <div class="p-3">
+                        <div class="p-3 rounded mb-3 {% if eligibility.status == 'Eligible' %}bg-success-subtle text-success-emphasis border border-success-subtle{% elif eligibility.status == 'Ineligible' %}bg-danger-subtle text-danger-emphasis border border-danger-subtle{% elif eligibility.status == 'Optional' %}bg-light text-secondary border{% else %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% endif %}">
+                            <div class="d-flex align-items-start gap-2">
+                                <i class="bi bi-shield-check fs-5 mt-1"></i>
+                                <div>
+                                    <strong class="d-block mb-1">{{ eligibility.status }} Status</strong>
+                                    <small>{{ eligibility.message }}</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 small">
+                            <div class="col-6">
+                                <span class="text-muted d-block">Curriculum Category</span>
+                                <strong>{{ internship.Internship_Type }} Internship</strong>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted d-block">Curricular Credits</span>
+                                <span class="badge bg-primary-subtle text-primary fw-bold">{{ internship.Credits or 4 }} Credits</span>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted d-block">Prerequisite Result Semester</span>
+                                <strong>{% if internship.Required_Result_Semester %}Semester {{ internship.Required_Result_Semester }}{% else %}None (Extracurricular){% endif %}</strong>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted d-block">Verified Prerequisite SGPA</span>
+                                {% if internship.Prerequisite_Semester_SGPA is not none %}
+                                    <span class="badge badge-status-success fs-6 fw-bold">
+                                        <i class="bi bi-link-45deg me-1"></i>{{ "%.2f"|format(internship.Prerequisite_Semester_SGPA) }} SGPA
+                                    </span>
+                                    <small class="text-muted d-block mt-1">{{ internship.Prerequisite_Credits or 24 }} Sem Credits</small>
+                                {% else %}
+                                    <span class="text-muted">&mdash;</span>
+                                {% endif %}
+                            </div>
+                            <div class="col-12">
+                                <span class="text-muted d-block">Curriculum Requirement Rule</span>
+                                <div class="text-secondary small">{{ internship.Prescribed_Period or 'Additional voluntary industry training (Extracurricular)' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Host Organization, Duration & Reports -->
+            <div class="col-12 col-lg-6">
+                <!-- Card 3: Host Corporate Partner & Role -->
+                <div class="table-card mb-4">
+                    <div class="table-card-header">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-building text-primary fs-5"></i>
+                            <div>
+                                <h2 class="h6 fw-bold mb-0">Host Corporate Partner</h2>
+                                <small class="text-muted">Host organization and operational assignment</small>
+                            </div>
+                        </div>
+                        <a href="/companies/{{ internship.Company_ID }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-box-arrow-up-right me-1"></i> Company
+                        </a>
+                    </div>
+                    <div class="p-3">
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <span class="text-muted small d-block">Host Organization</span>
+                                <strong>{{ internship.Company_Name }}</strong>
+                                <span class="badge bg-light text-muted border small mt-1">{{ internship.Company_Type or 'Enterprise' }}</span>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted small d-block">Designated Domain / Role</span>
+                                <strong class="text-primary">{{ internship.Role or 'Engineering Intern' }}</strong>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted small d-block">Monthly Stipend</span>
+                                {% if internship.Stipend and internship.Stipend > 0 %}
+                                    <strong class="text-success fs-6">&#8377;{{ "{:,.0f}".format(internship.Stipend) }} / month</strong>
+                                {% else %}
+                                    <span class="badge bg-light text-muted border">Unpaid / Academic</span>
+                                {% endif %}
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted small d-block">Interview Rounds</span>
+                                <span>{{ internship.Interview_Rounds or 1 }} Selection Round(s)</span>
+                            </div>
+                            <div class="col-12">
+                                <hr class="my-2">
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted small d-block">Start Date</span>
+                                <span class="code-font fw-semibold">{{ internship.Start_Date }}</span>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted small d-block">Completion Date</span>
+                                <span class="code-font fw-semibold">{{ internship.End_Date }}</span>
+                            </div>
+                            <div class="col-12">
+                                <span class="text-muted small d-block">Calculated Duration</span>
+                                <span class="badge badge-status-primary fs-6">
+                                    <i class="bi bi-calendar-check me-1"></i>{{ internship.Duration_Str }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 4: Evaluation, Report & Certification -->
+                <div class="table-card mb-4">
+                    <div class="table-card-header">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-file-earmark-check text-primary fs-5"></i>
+                            <div>
+                                <h2 class="h6 fw-bold mb-0">Evaluation, Report & Certification</h2>
+                                <small class="text-muted">Document submission links and academic evaluation</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <span class="text-muted small d-block">Report Submission Semester</span>
+                                <strong>{% if internship.Report_Semester %}Semester {{ internship.Report_Semester }}{% else %}N/A{% endif %}</strong>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted small d-block">Academic Evaluation Grade</span>
+                                {% if internship.Report_Grade %}
+                                    <span class="badge badge-status-success fs-6 fw-bold">Grade {{ internship.Report_Grade }}</span>
+                                {% else %}
+                                    <span class="badge badge-status-warning">Pending Evaluation</span>
+                                {% endif %}
+                            </div>
+                            <div class="col-12">
+                                <hr class="my-2">
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <span class="text-muted small d-block mb-1">Internship Report Document</span>
+                                {% if internship.Report_Link %}
+                                    <a href="{{ internship.Report_Link }}" target="_blank" class="btn btn-sm btn-outline-primary w-100 text-truncate">
+                                        <i class="bi bi-file-earmark-pdf me-1"></i> View Report PDF
+                                    </a>
+                                {% else %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle py-2 w-100">
+                                        <i class="bi bi-exclamation-circle me-1"></i> Report Not Uploaded
+                                    </span>
+                                {% endif %}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <span class="text-muted small d-block mb-1">Completion Certificate</span>
+                                {% if internship.Certificate_Link %}
+                                    <a href="{{ internship.Certificate_Link }}" target="_blank" class="btn btn-sm btn-outline-success w-100 text-truncate">
+                                        <i class="bi bi-patch-check me-1"></i> View Certificate
+                                    </a>
+                                {% else %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle py-2 w-100">
+                                        <i class="bi bi-exclamation-circle me-1"></i> Certificate Not Uploaded
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteInternshipModal" tabindex="-1" aria-labelledby="deleteInternshipModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold text-danger" id="deleteInternshipModalLabel">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Confirm Deletion
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this internship record?</p>
+                <div class="p-3 bg-light rounded border small mb-3">
+                    <strong>{{ internship.Student_Name }} ({{ internship.Roll_No }})</strong><br>
+                    <span>{{ internship.Internship_Type }} Internship #{{ internship.Internship_No }} at {{ internship.Company_Name }}</span>
+                </div>
+                <div class="alert alert-warning small mb-0">
+                    <i class="bi bi-shield-exclamation me-1"></i> This action removes the verified record from the student's academic history.
+                </div>
+            </div>
+            <div class="modal-footer border-top-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="/internships/{{ internship.Internship_ID }}/delete">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger btn-sm px-3">
+                        <i class="bi bi-trash3 me-1"></i> Confirm Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

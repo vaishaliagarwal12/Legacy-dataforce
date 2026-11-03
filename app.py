@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request, flash, redirect, render_template
 from config import config_by_name, Config
 from db.connection import DatabaseError
 from routes import (
@@ -18,7 +18,7 @@ from routes import (
     semester_result_bp,
     internship_bp,
 )
-from services import ServiceError
+from services import ServiceError, generate_csrf_token, verify_csrf_token
 
 # Configure logging format
 logging.basicConfig(
@@ -52,6 +52,55 @@ def create_app(config_name: str = None) -> Flask:
     app.register_blueprint(semester_result_bp)
     app.register_blueprint(internship_bp)
 
+    # Expose CSRF token generator to all Jinja2 templates
+    @app.context_processor
+    def inject_csrf_token():
+        return {"csrf_token": generate_csrf_token}
+
+    # State-Changing Request Security & CSRF Enforcement
+    @app.before_request
+    def check_csrf_protection():
+        if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+            # Check if CSRF enforcement is active
+            if not app.config.get("CSRF_ENABLED", True):
+                return
+            # In testing mode, bypass CSRF unless explicitly enabled (e.g. WTF_CSRF_ENABLED)
+            if app.config.get("TESTING", False) and not app.config.get("WTF_CSRF_ENABLED", False):
+                return
+            # Allow purely stateless /api/ requests unless originating from form or cookie session
+            if request.path.startswith("/api/"):
+                return
+
+            # Validate CSRF token from Form data or HTTP Request Headers
+            token = (
+                request.form.get("csrf_token")
+                or request.headers.get("X-CSRFToken")
+                or request.headers.get("X-CSRF-Token")
+            )
+            if not verify_csrf_token(token):
+                logger.warning(
+                    "CSRF validation rejected for %s %s from IP %s",
+                    request.method,
+                    request.path,
+                    request.remote_addr,
+                )
+                if request.accept_mimetypes.accept_html and not request.is_json:
+                    flash("Security Validation Failed: Invalid or missing CSRF token.", "danger")
+                    return redirect(request.referrer or "/")
+                return jsonify({
+                    "status": "fail",
+                    "message": "CSRF validation failed. Token missing or invalid.",
+                    "code": 400,
+                }), 400
+
+    # HTTP Security Headers (OWASP Hardening)
+    @app.after_request
+    def set_security_headers(response):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
 
     # Custom Service Domain Error Handlers
     @app.errorhandler(ServiceError)
@@ -63,12 +112,13 @@ def create_app(config_name: str = None) -> Flask:
             "code": error.status_code,
         }), error.status_code
 
+    # Database Error Handler - Never leaks internal query syntax or database connection strings
     @app.errorhandler(DatabaseError)
     def handle_database_error(error: DatabaseError):
-        logger.error("Database failure: %s", error)
+        logger.error("Internal database error: %s", error)
         return jsonify({
             "status": "error",
-            "message": str(error),
+            "message": "A database error occurred. Internal details have been logged securely.",
             "code": 500,
         }), 500
 
@@ -98,6 +148,6 @@ app = create_app()
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    debug_mode = os.getenv("FLASK_DEBUG", "0") in ("1", "true", "True")
-    logger.info("Starting Flask development server on http://localhost:%s", port)
+    debug_mode = app.config.get("DEBUG", False)
+    logger.info("Starting Flask application server on http://localhost:%s (debug=%s)", port, debug_mode)
     app.run(host="0.0.0.0", port=port, debug=debug_mode)

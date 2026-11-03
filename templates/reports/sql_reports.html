@@ -261,6 +261,7 @@
 
 <!-- Hidden Form for Custom CSV Download -->
 <form id="customCsvForm" method="POST" action="/sql-reports/export-custom" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="sql" id="customCsvSqlInput">
 </form>
 

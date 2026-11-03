@@ -3,6 +3,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from db.connection import get_cursor, execute_one, execute_query
 from services.exceptions import ValidationError, NotFoundError, ConflictError
+from services.security import validate_safe_url
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,9 @@ def validate_profile_payload(data: Dict[str, Any], is_update: bool = False) -> N
         prof = str(data["Proficiency_Level"]).strip()
         if prof not in VALID_PROFICIENCY_LEVELS:
             raise ValidationError(f"Proficiency_Level must be one of: {', '.join(VALID_PROFICIENCY_LEVELS)}")
+
+    if "Link" in data and data["Link"] is not None and str(data["Link"]).strip():
+        validate_safe_url(data["Link"], "Link")
 
 
 def create_profile(data: Dict[str, Any]) -> Dict[str, Any]:

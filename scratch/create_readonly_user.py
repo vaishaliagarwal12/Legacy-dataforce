@@ -4,9 +4,9 @@ from config import Config
 
 def main():
     with get_cursor(commit=True) as cursor:
-        cursor.execute("CREATE USER IF NOT EXISTS 'placement_readonly'@'localhost' IDENTIFIED BY 'ReadOnly_Pass2026!';")
+        cursor.execute("CREATE USER IF NOT EXISTS 'placement_readonly'@'localhost' IDENTIFIED BY Config.MYSQL_READONLY_PASSWORD;")
         cursor.execute("GRANT SELECT ON placement_db.* TO 'placement_readonly'@'localhost';")
-        cursor.execute("CREATE USER IF NOT EXISTS 'placement_readonly'@'%' IDENTIFIED BY 'ReadOnly_Pass2026!';")
+        cursor.execute("CREATE USER IF NOT EXISTS 'placement_readonly'@'%' IDENTIFIED BY Config.MYSQL_READONLY_PASSWORD;")
         cursor.execute("GRANT SELECT ON placement_db.* TO 'placement_readonly'@'%';")
         cursor.execute("FLUSH PRIVILEGES;")
         print("Read-only user created successfully.")
@@ -16,7 +16,7 @@ def main():
         host=Config.MYSQL_HOST,
         port=Config.MYSQL_PORT,
         user="placement_readonly",
-        password="ReadOnly_Pass2026!",
+        password=Config.MYSQL_READONLY_PASSWORD,
         database=Config.MYSQL_DB,
     )
     cur = conn.cursor()

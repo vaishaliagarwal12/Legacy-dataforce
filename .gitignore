@@ -1,18 +1,51 @@
-# Python
+# Python & Virtual Environments
 .venv/
 venv/
+ENV/
+env/
 __pycache__/
 *.py[cod]
+*$py.class
 .pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
 
-# Secrets
+# Secrets & Environment Configurations
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.pfx
+*.p12
 
-# Editors
+# Database Dumps, Backups, and Migrations
+*.sql
+*.dump
+*.bak
+*.backup
+*.sqlite
+*.sqlite3
+*.db
+backups/
+database_dumps/
+
+# Retain essential schema and verification definitions
+!schema.sql
+!verify.sql
+
+# Logs
+*.log
+logs/
+
+# Operating System & IDEs
+.DS_Store
+Thumbs.db
 .vscode/
 .idea/
-# Local database data and backups
-backup_scope_b.sql
-phase9_scope_a_demo.sql
-placement_internship_db.sql
-seed.sql
+*.swp
+*.swo

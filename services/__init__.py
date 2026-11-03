@@ -74,6 +74,8 @@ from .placement_service import (
     delete_placement_offer,
     get_students_with_multiple_offers,
     get_offer_distribution_summary,
+    get_placement_analytics,
+    check_candidate_eligibility_for_opportunity,
 )
 from .semester_result_service import (
     create_semester_result,
@@ -94,13 +96,26 @@ from .internship_service import (
     delete_internship,
     get_mandatory_internships_with_prerequisite_sgpa,
     get_students_missing_mandatory_internships,
+    check_internship_eligibility,
+    get_branch_internship_statistics,
+    get_batch_compliance_reports,
+    get_internship_dashboard_analytics,
+    get_pending_internship_reports,
+    calculate_internship_duration,
+    determine_internship_status,
 )
 from .dashboard_service import (
     get_dashboard_stats,
     get_yearwise_placement_chart_data,
     get_branchwise_analytics_chart_data,
+    get_package_distribution_chart_data,
+    get_placement_vs_internship_chart_data,
+    get_internship_completion_chart_data,
+    get_multiple_offers_chart_data,
     get_offer_status_chart_data,
     get_internship_breakdown_chart_data,
+    get_dashboard_filter_options,
+    get_comprehensive_dashboard_data,
     get_comprehensive_report_data,
 )
 
@@ -164,6 +179,8 @@ __all__ = [
     "delete_placement_offer",
     "get_students_with_multiple_offers",
     "get_offer_distribution_summary",
+    "get_placement_analytics",
+    "check_candidate_eligibility_for_opportunity",
     "create_semester_result",
     "get_semester_result",
     "list_semester_results",
@@ -178,17 +195,33 @@ __all__ = [
     "delete_internship",
     "get_mandatory_internships_with_prerequisite_sgpa",
     "get_students_missing_mandatory_internships",
+    "check_internship_eligibility",
+    "get_branch_internship_statistics",
+    "get_batch_compliance_reports",
+    "get_internship_dashboard_analytics",
+    "get_pending_internship_reports",
+    "calculate_internship_duration",
+    "determine_internship_status",
     "get_dashboard_stats",
     "get_yearwise_placement_chart_data",
     "get_branchwise_analytics_chart_data",
     "get_offer_status_chart_data",
     "get_internship_breakdown_chart_data",
+    "get_package_distribution_chart_data",
+    "get_placement_vs_internship_chart_data",
+    "get_internship_completion_chart_data",
+    "get_multiple_offers_chart_data",
+    "get_dashboard_filter_options",
+    "get_comprehensive_dashboard_data",
     "get_comprehensive_report_data",
     "list_saved_queries",
     "get_saved_query",
     "execute_saved_query",
     "validate_custom_sql",
     "execute_custom_query",
+    "generate_csrf_token",
+    "verify_csrf_token",
+    "validate_safe_url",
 ]
 
 from .sql_report_service import (
@@ -198,5 +231,11 @@ from .sql_report_service import (
     validate_custom_sql,
     execute_custom_query,
 )
+from .security import (
+    generate_csrf_token,
+    verify_csrf_token,
+    validate_safe_url,
+)
+
 
 

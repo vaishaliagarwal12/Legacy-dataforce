@@ -407,6 +407,64 @@ h1, h2, h3, h4, h5, h6 {
     min-height: 240px;
 }
 
+/* Dashboard Filter Toolbar */
+.dashboard-filter-card {
+    background: var(--surface-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-icon-success {
+    background-color: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+    border-color: rgba(16, 185, 129, 0.25);
+}
+
+.stat-icon-warning {
+    background-color: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.25);
+}
+
+.stat-icon-info {
+    background-color: rgba(6, 182, 212, 0.12);
+    color: #06b6d4;
+    border-color: rgba(6, 182, 212, 0.25);
+}
+
+.stat-icon-danger {
+    background-color: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.25);
+}
+
+.chart-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 6px;
+}
+
+.chart-empty-container {
+    display: none;
+    height: 100%;
+    min-height: 220px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    padding: 1.5rem;
+}
+
 /* ------------------------------------------------------------------------------
    Data Tables: Sticky Headers, Search, Filters, Pagination, Badges
    ------------------------------------------------------------------------------ */
