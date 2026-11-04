@@ -5,7 +5,11 @@ import unittest
 import pymysql
 from app import create_app
 from config import Config
-from services.sql_report_service import validate_custom_sql, execute_custom_query, list_saved_queries
+from services.sql_report_service import (
+    validate_custom_sql,
+    execute_custom_query,
+    list_saved_queries,
+)
 from services.exceptions import ValidationError
 
 
@@ -45,7 +49,9 @@ class SqlReportsFeatureTests(unittest.TestCase):
         self.assertIn("Combined", groups)
 
         for q in queries:
-            self.assertTrue(len(q["dbms_concept"]) > 10, f"Query {q['id']} missing DBMS explanation.")
+            self.assertTrue(
+                len(q["dbms_concept"]) > 10, f"Query {q['id']} missing DBMS explanation."
+            )
             self.assertTrue("SELECT" in q["sql"].upper(), f"Query {q['id']} is not a SELECT query.")
 
     def test_run_saved_query_students(self):
@@ -168,7 +174,9 @@ class SqlReportsFeatureTests(unittest.TestCase):
         for sql in non_select_sqls:
             with self.assertRaises(ValidationError) as ctx:
                 validate_custom_sql(sql)
-            self.assertTrue("SELECT" in ctx.exception.message or "Forbidden" in ctx.exception.message)
+            self.assertTrue(
+                "SELECT" in ctx.exception.message or "Forbidden" in ctx.exception.message
+            )
 
             resp = self.client.post("/api/sql-reports/run-custom", json={"sql": sql})
             self.assertEqual(resp.status_code, 400)

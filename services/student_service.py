@@ -49,6 +49,11 @@ def validate_student_payload(data: Dict[str, Any], is_update: bool = False) -> N
         except (ValueError, TypeError):
             raise ValidationError("Batch_Year must be an integer between 2000 and 2100")
 
+    if "Branch" in data and data["Branch"] is not None:
+        branch_val = str(data["Branch"]).strip()
+        if not branch_val or len(branch_val) < 2 or len(branch_val) > 50:
+            raise ValidationError("Branch must be between 2 and 50 characters in length.")
+
     if "Email" in data and data["Email"] is not None:
         email = str(data["Email"]).strip()
         if not EMAIL_REGEX.match(email):
@@ -59,13 +64,19 @@ def validate_student_payload(data: Dict[str, Any], is_update: bool = False) -> N
         if isinstance(phones, str):
             phones = [p.strip() for p in phones.split(",") if p.strip()]
         if not isinstance(phones, list):
-            raise ValidationError("Phone_Numbers must be a list or comma-separated string of phone numbers")
+            raise ValidationError(
+                "Phone_Numbers must be a list or comma-separated string of phone numbers"
+            )
         for phone in phones:
             p_str = str(phone).strip()
             if not PHONE_REGEX.match(p_str):
                 raise ValidationError(f"Invalid phone number format: '{p_str}'")
 
-    if "Resume_Link" in data and data["Resume_Link"] is not None and str(data["Resume_Link"]).strip():
+    if (
+        "Resume_Link" in data
+        and data["Resume_Link"] is not None
+        and str(data["Resume_Link"]).strip()
+    ):
         validate_safe_url(data["Resume_Link"], "Resume_Link")
 
 
@@ -114,7 +125,18 @@ def create_student(data: Dict[str, Any]) -> Dict[str, Any]:
     with get_cursor(commit=True) as cursor:
         cursor.execute(
             insert_sql,
-            (roll_no, first_name, last_name, branch, batch_year, section, cgpa, backlogs, email, resume_link)
+            (
+                roll_no,
+                first_name,
+                last_name,
+                branch,
+                batch_year,
+                section,
+                cgpa,
+                backlogs,
+                email,
+                resume_link,
+            ),
         )
         student_id = cursor.lastrowid
 
@@ -158,7 +180,7 @@ def get_student(student_id: int) -> Dict[str, Any]:
 
     student["CGPA"] = float(student["CGPA"])
     student["Full_Name"] = f"{student['First_Name']} {student.get('Last_Name') or ''}".strip()
-    student["Is_Eligible"] = (student["Backlogs"] == 0 and student["CGPA"] >= 6.0)
+    student["Is_Eligible"] = student["Backlogs"] == 0 and student["CGPA"] >= 6.0
 
     # 1. Personal Details: Phone Numbers
     phones_sql = "SELECT Phone_No FROM STUDENT_PHONE WHERE Student_ID = %s ORDER BY Phone_No"
@@ -186,12 +208,13 @@ def get_student(student_id: int) -> Dict[str, Any]:
     profiles = execute_query(profiles_sql, (student_id,))
     student["Profiles"] = profiles
     student["Projects"] = [
-        p for p in profiles 
-        if str(p.get("Profile_Type", "")).lower() in ("project", "research")
+        p for p in profiles if str(p.get("Profile_Type", "")).lower() in ("project", "research")
     ]
     student["Achievements"] = [
-        p for p in profiles 
-        if str(p.get("Profile_Type", "")).lower() in ("hackathon", "achievement", "award", "certification", "codingprofile", "competitive")
+        p
+        for p in profiles
+        if str(p.get("Profile_Type", "")).lower()
+        in ("hackathon", "achievement", "award", "certification", "codingprofile", "competitive")
     ]
 
     # 4. Technical Skills (STUDENT_SKILL + Profiles)
@@ -231,7 +254,9 @@ def get_student(student_id: int) -> Dict[str, Any]:
     """
     doc_rows = execute_query(doc_sql, (student_id,))
     for dr in doc_rows:
-        dr["Percentage_CGPA"] = float(dr["Percentage_CGPA"]) if dr.get("Percentage_CGPA") is not None else None
+        dr["Percentage_CGPA"] = (
+            float(dr["Percentage_CGPA"]) if dr.get("Percentage_CGPA") is not None else None
+        )
     student["Education_Documents"] = doc_rows
 
     # 8. Placement Offers (with Recruiting Company details)
@@ -272,10 +297,20 @@ def get_student(student_id: int) -> Dict[str, Any]:
         if it.get("Prerequisite_Semester_SGPA") is not None:
             it["Prerequisite_Semester_SGPA"] = float(it["Prerequisite_Semester_SGPA"])
         try:
-            from services.internship_service import calculate_internship_duration, determine_internship_status
+            from services.internship_service import (
+                calculate_internship_duration,
+                determine_internship_status,
+            )
+
             dur = calculate_internship_duration(it.get("Start_Date"), it.get("End_Date"))
             it["Duration_Str"] = dur["duration_str"]
-            it["Status"] = determine_internship_status(it.get("Start_Date"), it.get("End_Date"), it.get("Report_Link"), it.get("Report_Grade"), it.get("Certificate_Link"))
+            it["Status"] = determine_internship_status(
+                it.get("Start_Date"),
+                it.get("End_Date"),
+                it.get("Report_Link"),
+                it.get("Report_Grade"),
+                it.get("Certificate_Link"),
+            )
         except Exception:
             it["Duration_Str"] = "N/A"
             it["Status"] = "Completed"
@@ -302,7 +337,7 @@ def get_student(student_id: int) -> Dict[str, Any]:
         student["Placed_Package"] = None
 
     # Relationship integrity safety check
-    student["Is_Deletable"] = (len(placements) == 0 and len(internships) == 0)
+    student["Is_Deletable"] = len(placements) == 0 and len(internships) == 0
 
     return student
 
@@ -344,7 +379,9 @@ def list_students(
             "CONCAT(s.First_Name, ' ', COALESCE(s.Last_Name, '')) LIKE %s"
             ")"
         )
-        params.extend([search_pattern, search_pattern, search_pattern, search_pattern, search_pattern])
+        params.extend(
+            [search_pattern, search_pattern, search_pattern, search_pattern, search_pattern]
+        )
 
     # 2. Branch Filter
     if branch and str(branch).strip() and str(branch).strip().lower() not in ("all", "none"):
@@ -458,9 +495,15 @@ def list_students(
 
     for r in rows:
         r["CGPA"] = float(r["CGPA"])
-        r["Placed_Package"] = float(r["Placed_Package"]) if r.get("Placed_Package") is not None else None
-        r["Phone_Numbers"] = [p.strip() for p in r["Phone_Numbers"].split(", ") if p.strip()] if r.get("Phone_Numbers") else []
-        r["Is_Eligible"] = (r["Backlogs"] == 0 and r["CGPA"] >= 6.0)
+        r["Placed_Package"] = (
+            float(r["Placed_Package"]) if r.get("Placed_Package") is not None else None
+        )
+        r["Phone_Numbers"] = (
+            [p.strip() for p in r["Phone_Numbers"].split(", ") if p.strip()]
+            if r.get("Phone_Numbers")
+            else []
+        )
+        r["Is_Eligible"] = r["Backlogs"] == 0 and r["CGPA"] >= 6.0
 
         # Placement status label
         if r.get("Accepted_Offers", 0) > 0:
@@ -506,8 +549,16 @@ def update_student(student_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
     validate_student_payload(data, is_update=True)
 
     updatable_fields = [
-        "Roll_No", "First_Name", "Last_Name", "Branch", "Batch_Year",
-        "Section", "CGPA", "Backlogs", "Email", "Resume_Link"
+        "Roll_No",
+        "First_Name",
+        "Last_Name",
+        "Branch",
+        "Batch_Year",
+        "Section",
+        "CGPA",
+        "Backlogs",
+        "Email",
+        "Resume_Link",
     ]
     set_clauses = []
     params: List[Any] = []
@@ -524,16 +575,18 @@ def update_student(student_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
                 if val != existing["Roll_No"]:
                     conflict = execute_one(
                         "SELECT Student_ID FROM STUDENT WHERE Roll_No = %s AND Student_ID != %s",
-                        (val, student_id)
+                        (val, student_id),
                     )
                     if conflict:
-                        raise ConflictError(f"Roll_No '{val}' is already in use by another student.")
+                        raise ConflictError(
+                            f"Roll_No '{val}' is already in use by another student."
+                        )
             elif field == "Email":
                 val = str(val).strip().lower()
                 if val != existing["Email"]:
                     conflict = execute_one(
                         "SELECT Student_ID FROM STUDENT WHERE Email = %s AND Student_ID != %s",
-                        (val, student_id)
+                        (val, student_id),
                     )
                     if conflict:
                         raise ConflictError(f"Email '{val}' is already in use by another student.")
@@ -580,14 +633,14 @@ def update_student(student_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
 
 def delete_student(student_id: int) -> Dict[str, Any]:
     """Safely deletes a student record ONLY if no placement or internship records exist.
-    
+
     BLOCKS deletion if the student has placement offers or internship history to ensure
     career reporting integrity and prevent destruction of institutional audit trails.
     Executes deletion inside a single database transaction.
     """
     student = execute_one(
         "SELECT Student_ID, Roll_No, First_Name, Last_Name FROM STUDENT WHERE Student_ID = %s",
-        (student_id,)
+        (student_id,),
     )
     if not student:
         raise NotFoundError(f"Student with ID {student_id} not found.")

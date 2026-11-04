@@ -14,11 +14,16 @@ def api_register_student_course():
     """Enrolls a student in a course."""
     payload = request.get_json() or {}
     reg = register_student_course(payload)
-    return jsonify({
-        "status": "success",
-        "message": "Student successfully registered for course",
-        "data": reg
-    }), 201
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "message": "Student successfully registered for course",
+                "data": reg,
+            }
+        ),
+        201,
+    )
 
 
 @registration_bp.route("", methods=["GET"])
@@ -35,21 +40,14 @@ def api_list_registrations():
         enrollment_year=enrollment_year,
         grade=grade,
     )
-    return jsonify({
-        "status": "success",
-        "total": len(registrations),
-        "data": registrations
-    }), 200
+    return jsonify({"status": "success", "total": len(registrations), "data": registrations}), 200
 
 
 @registration_bp.route("/<int:student_id>/<int:course_id>", methods=["GET"])
 def api_get_registration(student_id: int, course_id: int):
     """Retrieves a specific enrollment record."""
     reg = get_registration(student_id, course_id)
-    return jsonify({
-        "status": "success",
-        "data": reg
-    }), 200
+    return jsonify({"status": "success", "data": reg}), 200
 
 
 @registration_bp.route("/<int:student_id>/<int:course_id>", methods=["PUT"])
@@ -57,20 +55,24 @@ def api_update_registration(student_id: int, course_id: int):
     """Updates enrollment grade or year."""
     payload = request.get_json() or {}
     reg = update_registration(student_id, course_id, payload)
-    return jsonify({
-        "status": "success",
-        "message": "Registration updated successfully",
-        "data": reg
-    }), 200
+    return (
+        jsonify({"status": "success", "message": "Registration updated successfully", "data": reg}),
+        200,
+    )
 
 
 @registration_bp.route("/<int:student_id>/<int:course_id>", methods=["DELETE"])
 def api_unregister_student_course(student_id: int, course_id: int):
     """Unregisters a student from a course."""
     result = unregister_student_course(student_id, course_id)
-    return jsonify({
-        "status": "success",
-        "message": result["message"],
-        "student_id": result["student_id"],
-        "course_id": result["course_id"]
-    }), 200
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "message": result["message"],
+                "student_id": result["student_id"],
+                "course_id": result["course_id"],
+            }
+        ),
+        200,
+    )

@@ -56,7 +56,9 @@ def validate_opportunity_payload(data: Dict[str, Any], is_update: bool = False) 
 
     if "Eligible_Branches" in data and data["Eligible_Branches"] is not None:
         if not isinstance(data["Eligible_Branches"], list):
-            raise ValidationError("Eligible_Branches must be a list of branch strings (e.g. ['CSE', 'IT'])")
+            raise ValidationError(
+                "Eligible_Branches must be a list of branch strings (e.g. ['CSE', 'IT'])"
+            )
 
 
 def create_opportunity(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -67,13 +69,17 @@ def create_opportunity(data: Dict[str, Any]) -> Dict[str, Any]:
     role = str(data["Role"]).strip()
     opp_type = str(data["Opportunity_Type"]).strip()
     package_stipend = round(float(data["Package_Stipend"]), 2)
-    duration_months = int(data["Duration_Months"]) if data.get("Duration_Months") is not None else None
+    duration_months = (
+        int(data["Duration_Months"]) if data.get("Duration_Months") is not None else None
+    )
 
     # Eligibility attributes
     min_cgpa = round(float(data.get("Minimum_CGPA", 6.00)), 2)
     max_backlogs = int(data.get("Max_Backlogs", 0))
     other_criteria = str(data.get("Other_Criteria", "") or "").strip() or None
-    eligible_branches = [str(b).strip() for b in data.get("Eligible_Branches", []) if str(b).strip()]
+    eligible_branches = [
+        str(b).strip() for b in data.get("Eligible_Branches", []) if str(b).strip()
+    ]
 
     # Verify drive exists
     drive = execute_one("SELECT Drive_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (drive_id,))
@@ -97,15 +103,24 @@ def create_opportunity(data: Dict[str, Any]) -> Dict[str, Any]:
             INSERT INTO ELIGIBILITY (Opportunity_ID, Minimum_CGPA, Eligible_Branch, Max_Backlogs, Other_Criteria)
             VALUES (%s, %s, %s, %s, %s)
         """
-        cursor.execute(elig_insert, (opp_id, min_cgpa, summary_branch, max_backlogs, other_criteria))
+        cursor.execute(
+            elig_insert, (opp_id, min_cgpa, summary_branch, max_backlogs, other_criteria)
+        )
         elig_id = cursor.lastrowid
 
         # 3. Insert Multiple Eligible Branches into decomposed table
         if eligible_branches:
-            branch_insert = "INSERT INTO ELIGIBILITY_BRANCH (Eligibility_ID, Branch) VALUES (%s, %s)"
+            branch_insert = (
+                "INSERT INTO ELIGIBILITY_BRANCH (Eligibility_ID, Branch) VALUES (%s, %s)"
+            )
             cursor.executemany(branch_insert, [(elig_id, b) for b in set(eligible_branches)])
 
-    logger.info("Created opportunity ID %s with eligibility ID %s and %s branches", opp_id, elig_id, len(eligible_branches))
+    logger.info(
+        "Created opportunity ID %s with eligibility ID %s and %s branches",
+        opp_id,
+        elig_id,
+        len(eligible_branches),
+    )
     return get_opportunity(opp_id)
 
 
@@ -134,7 +149,7 @@ def get_opportunity(opportunity_id: int) -> Dict[str, Any]:
     if opp.get("Eligibility_ID"):
         branches = execute_query(
             "SELECT Branch FROM ELIGIBILITY_BRANCH WHERE Eligibility_ID = %s ORDER BY Branch",
-            (opp["Eligibility_ID"],)
+            (opp["Eligibility_ID"],),
         )
         opp["Eligible_Branches"] = [b["Branch"] for b in branches]
     else:
@@ -150,14 +165,17 @@ def get_opportunity(opportunity_id: int) -> Dict[str, Any]:
     opp["Selection_Rounds"] = execute_query(rounds_sql, (opportunity_id,))
 
     # Placement / Internship binding checks
-    bound = execute_one("""
+    bound = execute_one(
+        """
         SELECT 
             (SELECT COUNT(*) FROM PLACEMENT WHERE Opportunity_ID = %s) AS p_count,
             (SELECT COUNT(*) FROM INTERNSHIP WHERE Opportunity_ID = %s) AS i_count
-    """, (opportunity_id, opportunity_id))
+    """,
+        (opportunity_id, opportunity_id),
+    )
     opp["Placement_Offers_Count"] = bound["p_count"]
     opp["Internships_Count"] = bound["i_count"]
-    opp["Is_Deletable"] = (bound["p_count"] == 0 and bound["i_count"] == 0)
+    opp["Is_Deletable"] = bound["p_count"] == 0 and bound["i_count"] == 0
 
     return opp
 
@@ -241,7 +259,9 @@ def update_opportunity(opportunity_id: int, data: Dict[str, Any]) -> Dict[str, A
             opp_params.append(round(float(data["Package_Stipend"]), 2))
         if "Duration_Months" in data:
             opp_updates.append("Duration_Months = %s")
-            opp_params.append(int(data["Duration_Months"]) if data["Duration_Months"] is not None else None)
+            opp_params.append(
+                int(data["Duration_Months"]) if data["Duration_Months"] is not None else None
+            )
 
         if opp_updates:
             opp_sql = f"UPDATE OPPORTUNITY SET {', '.join(opp_updates)} WHERE Opportunity_ID = %s"
@@ -260,7 +280,9 @@ def update_opportunity(opportunity_id: int, data: Dict[str, Any]) -> Dict[str, A
             elig_params.append(int(data["Max_Backlogs"]))
         if "Other_Criteria" in data:
             elig_updates.append("Other_Criteria = %s")
-            elig_params.append(str(data["Other_Criteria"]).strip() if data["Other_Criteria"] is not None else None)
+            elig_params.append(
+                str(data["Other_Criteria"]).strip() if data["Other_Criteria"] is not None else None
+            )
 
         # Update eligible branches
         if "Eligible_Branches" in data and data["Eligible_Branches"] is not None:
@@ -270,11 +292,13 @@ def update_opportunity(opportunity_id: int, data: Dict[str, Any]) -> Dict[str, A
             elig_params.append(summary_str)
 
             if elig_id:
-                cursor.execute("DELETE FROM ELIGIBILITY_BRANCH WHERE Eligibility_ID = %s", (elig_id,))
+                cursor.execute(
+                    "DELETE FROM ELIGIBILITY_BRANCH WHERE Eligibility_ID = %s", (elig_id,)
+                )
                 if new_branches:
                     cursor.executemany(
                         "INSERT INTO ELIGIBILITY_BRANCH (Eligibility_ID, Branch) VALUES (%s, %s)",
-                        [(elig_id, b) for b in set(new_branches)]
+                        [(elig_id, b) for b in set(new_branches)],
                     )
 
         if elig_updates and elig_id:
@@ -288,15 +312,20 @@ def update_opportunity(opportunity_id: int, data: Dict[str, Any]) -> Dict[str, A
 
 def delete_opportunity(opportunity_id: int) -> Dict[str, Any]:
     """Deletes an opportunity, blocking if student placements or internships reference it."""
-    opp = execute_one("SELECT Opportunity_ID, Role FROM OPPORTUNITY WHERE Opportunity_ID = %s", (opportunity_id,))
+    opp = execute_one(
+        "SELECT Opportunity_ID, Role FROM OPPORTUNITY WHERE Opportunity_ID = %s", (opportunity_id,)
+    )
     if not opp:
         raise NotFoundError(f"Opportunity with ID {opportunity_id} not found.")
 
-    bound = execute_one("""
+    bound = execute_one(
+        """
         SELECT 
             (SELECT COUNT(*) FROM PLACEMENT WHERE Opportunity_ID = %s) AS p_bound,
             (SELECT COUNT(*) FROM INTERNSHIP WHERE Opportunity_ID = %s) AS i_bound
-    """, (opportunity_id, opportunity_id))
+    """,
+        (opportunity_id, opportunity_id),
+    )
 
     if bound["p_bound"] > 0 or bound["i_bound"] > 0:
         raise ProtectedDeleteError(

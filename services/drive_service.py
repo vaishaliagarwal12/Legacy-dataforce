@@ -98,7 +98,7 @@ def get_drive(drive_id: int) -> Dict[str, Any]:
         if opp.get("Eligibility_ID"):
             branches = execute_query(
                 "SELECT Branch FROM ELIGIBILITY_BRANCH WHERE Eligibility_ID = %s ORDER BY Branch",
-                (opp["Eligibility_ID"],)
+                (opp["Eligibility_ID"],),
             )
             opp["Eligible_Branches"] = [b["Branch"] for b in branches]
         else:
@@ -107,7 +107,7 @@ def get_drive(drive_id: int) -> Dict[str, Any]:
         # Fetch selection rounds
         rounds = execute_query(
             "SELECT Round_ID, Round_Number, Round_Type, Description FROM SELECTION_PROCESS WHERE Opportunity_ID = %s ORDER BY Round_Number ASC",
-            (opp["Opportunity_ID"],)
+            (opp["Opportunity_ID"],),
         )
         opp["Selection_Rounds"] = rounds
 
@@ -195,16 +195,21 @@ def update_drive(drive_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
 
 def delete_drive(drive_id: int) -> Dict[str, Any]:
     """Deletes a recruitment drive and cascades opportunities unless bound to active placements."""
-    drive = execute_one("SELECT Drive_ID, Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (drive_id,))
+    drive = execute_one(
+        "SELECT Drive_ID, Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (drive_id,)
+    )
     if not drive:
         raise NotFoundError(f"Drive with ID {drive_id} not found.")
 
     # Check if any opportunities under this drive are referenced in PLACEMENT or INTERNSHIP
-    bound_check = execute_one("""
+    bound_check = execute_one(
+        """
         SELECT 
             (SELECT COUNT(*) FROM PLACEMENT p JOIN OPPORTUNITY o ON p.Opportunity_ID = o.Opportunity_ID WHERE o.Drive_ID = %s) AS p_bound,
             (SELECT COUNT(*) FROM INTERNSHIP i JOIN OPPORTUNITY o ON i.Opportunity_ID = o.Opportunity_ID WHERE o.Drive_ID = %s) AS i_bound
-    """, (drive_id, drive_id))
+    """,
+        (drive_id, drive_id),
+    )
 
     if bound_check["p_bound"] > 0 or bound_check["i_bound"] > 0:
         raise ProtectedDeleteError(

@@ -28,7 +28,7 @@ class Phase4APITestCase(unittest.TestCase):
             "Backlogs": 0,
             "Email": "riddhima.sen@test.edu",
             "Resume_Link": "https://storage.test.edu/resumes/riddhima.pdf",
-            "Phone_Numbers": ["+91 9876543210", "+91 9876543211"]
+            "Phone_Numbers": ["+91 9876543210", "+91 9876543211"],
         }
         res = self.client.post("/api/students", json=payload)
         self.assertEqual(res.status_code, 201)
@@ -87,11 +87,13 @@ class Phase4APITestCase(unittest.TestCase):
 
     def test_06_update_student(self):
         """Tests updating student details and modifying phone numbers."""
-        student_id = execute_one("SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST2026_01'")["Student_ID"]
+        student_id = execute_one("SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST2026_01'")[
+            "Student_ID"
+        ]
         update_payload = {
             "First_Name": "Riddhima Updated",
             "CGPA": 9.40,
-            "Phone_Numbers": ["+91 9999988888"]
+            "Phone_Numbers": ["+91 9999988888"],
         }
         res = self.client.put(f"/api/students/{student_id}", json=update_payload)
         self.assertEqual(res.status_code, 200)
@@ -112,7 +114,9 @@ class Phase4APITestCase(unittest.TestCase):
 
     def test_08_safe_delete_allowed_for_student_without_history(self):
         """Tests that a student with NO placements or internships can be safely deleted."""
-        student_id = execute_one("SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST2026_01'")["Student_ID"]
+        student_id = execute_one("SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST2026_01'")[
+            "Student_ID"
+        ]
         res = self.client.delete(f"/api/students/{student_id}")
         self.assertEqual(res.status_code, 200)
         self.assertIn("safely deleted", res.get_json()["message"])
@@ -132,7 +136,7 @@ class Phase4APITestCase(unittest.TestCase):
             "Department": "Computer Science",
             "Semester": 6,
             "Credits": 4,
-            "Course_Type": "Elective"
+            "Course_Type": "Elective",
         }
         res = self.client.post("/api/courses", json=payload)
         self.assertEqual(res.status_code, 201)
@@ -144,7 +148,9 @@ class Phase4APITestCase(unittest.TestCase):
         self.assertEqual(get_res.get_json()["data"]["Course_Name"], "Cloud Distributed Systems")
 
         # Filter courses
-        filter_res = self.client.get("/api/courses?department=Computer Science&course_type=Elective")
+        filter_res = self.client.get(
+            "/api/courses?department=Computer Science&course_type=Elective"
+        )
         self.assertEqual(filter_res.status_code, 200)
         self.assertTrue(len(filter_res.get_json()["data"]) >= 1)
 
@@ -153,14 +159,16 @@ class Phase4APITestCase(unittest.TestCase):
     # -------------------------------------------------------------------------
     def test_10_register_student_course_and_update_grade(self):
         """Tests enrolling a student in a course, viewing enrollment, and updating grade."""
-        course = execute_one("SELECT Course_ID FROM COURSE WHERE Course_Name = 'Cloud Distributed Systems'")
+        course = execute_one(
+            "SELECT Course_ID FROM COURSE WHERE Course_Name = 'Cloud Distributed Systems'"
+        )
         course_id = course["Course_ID"]
 
         reg_payload = {
             "Student_ID": 2,
             "Course_ID": course_id,
             "Enrollment_Year": 2024,
-            "Grade": "A"
+            "Grade": "A",
         }
         res = self.client.post("/api/registrations", json=reg_payload)
         self.assertEqual(res.status_code, 201)
@@ -195,19 +203,21 @@ class Phase4APITestCase(unittest.TestCase):
             "Description": "ROS2 based obstacle avoidance and swarm dispatching",
             "Link": "https://github.com/fictional/warehouse-robot",
             "Year": 2024,
-            "Proficiency_Level": "Advanced"
+            "Proficiency_Level": "Advanced",
         }
         res = self.client.post("/api/profiles", json=profile_payload)
         self.assertEqual(res.status_code, 201)
         profile_id = res.get_json()["data"]["Profile_ID"]
 
         # Filter by profile type
-        filter_res = self.client.get(f"/api/profiles?student_id=2&profile_type=Project")
+        filter_res = self.client.get("/api/profiles?student_id=2&profile_type=Project")
         self.assertEqual(filter_res.status_code, 200)
         self.assertTrue(len(filter_res.get_json()["data"]) >= 1)
 
         # Update profile
-        update_res = self.client.put(f"/api/profiles/{profile_id}", json={"Proficiency_Level": "Expert"})
+        update_res = self.client.put(
+            f"/api/profiles/{profile_id}", json={"Proficiency_Level": "Expert"}
+        )
         self.assertEqual(update_res.status_code, 200)
         self.assertEqual(update_res.get_json()["data"]["Proficiency_Level"], "Expert")
 

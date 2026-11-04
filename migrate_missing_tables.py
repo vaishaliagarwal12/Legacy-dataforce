@@ -132,13 +132,16 @@ def run_migration():
 
             # 3. Create missing secondary indexes idempotently
             for table_name, index_name, columns in SECONDARY_INDEXES:
-                cur.execute("""
+                cur.execute(
+                    """
                     SELECT COUNT(*) AS cnt 
                     FROM information_schema.statistics 
                     WHERE table_schema = DATABASE() 
                       AND table_name = %s 
                       AND index_name = %s
-                """, (table_name.lower(), index_name))
+                """,
+                    (table_name.lower(), index_name),
+                )
                 row = cur.fetchone()
                 if row["cnt"] == 0:
                     try:

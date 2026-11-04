@@ -44,10 +44,11 @@
             <!-- Branch Filter -->
             <div class="col-6 col-md-2">
                 <label class="form-label small fw-semibold text-secondary mb-1">Branch</label>
-                <select name="branch" class="form-select form-select-sm">
+                {% set branch_labels = {'CSE': 'Computer Science (CSE)', 'ECE': 'Electronics & Comm (ECE)', 'ME': 'Mechanical (ME)', 'IT': 'Information Tech (IT)', 'Civil': 'Civil Engineering', 'Electrical': 'Electrical Engineering'} %}
+                <select name="branch" class="form-select form-select-sm" aria-label="Filter by Branch">
                     <option value="">All Branches</option>
-                    {% for b, label in [('CSE', 'Computer Science (CSE)'), ('ECE', 'Electronics & Comm (ECE)'), ('ME', 'Mechanical (ME)'), ('IT', 'Information Tech (IT)'), ('Civil', 'Civil Engineering'), ('Electrical', 'Electrical Engineering')] %}
-                    <option value="{{ b }}" {% if active_filters.branch in [b, label] or (b == 'CSE' and active_filters.branch in ['CSE', 'Computer Science']) %}selected{% endif %}>{{ label }}</option>
+                    {% for b in filter_options.branches %}
+                    <option value="{{ b }}" {% if active_filters.branch == b or (b == 'CSE' and active_filters.branch in ['CSE', 'Computer Science']) %}selected{% endif %}>{{ branch_labels.get(b, b) }}</option>
                     {% endfor %}
                 </select>
             </div>

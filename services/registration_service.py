@@ -40,19 +40,23 @@ def register_student_course(data: Dict[str, Any]) -> Dict[str, Any]:
     grade = str(data.get("Grade", "") or "").strip().upper() or None
 
     # Check Student exists
-    student = execute_one("SELECT Student_ID, Roll_No FROM STUDENT WHERE Student_ID = %s", (student_id,))
+    student = execute_one(
+        "SELECT Student_ID, Roll_No FROM STUDENT WHERE Student_ID = %s", (student_id,)
+    )
     if not student:
         raise NotFoundError(f"Student with ID {student_id} does not exist.")
 
     # Check Course exists
-    course = execute_one("SELECT Course_ID, Course_Name FROM COURSE WHERE Course_ID = %s", (course_id,))
+    course = execute_one(
+        "SELECT Course_ID, Course_Name FROM COURSE WHERE Course_ID = %s", (course_id,)
+    )
     if not course:
         raise NotFoundError(f"Course with ID {course_id} does not exist.")
 
     # Check already registered
     existing = execute_one(
         "SELECT * FROM STUDENT_COURSE WHERE Student_ID = %s AND Course_ID = %s",
-        (student_id, course_id)
+        (student_id, course_id),
     )
     if existing:
         raise ConflictError(
@@ -83,7 +87,9 @@ def get_registration(student_id: int, course_id: int) -> Dict[str, Any]:
     """
     reg = execute_one(sql, (student_id, course_id))
     if not reg:
-        raise NotFoundError(f"Registration for Student ID {student_id} and Course ID {course_id} not found.")
+        raise NotFoundError(
+            f"Registration for Student ID {student_id} and Course ID {course_id} not found."
+        )
     return reg
 
 
@@ -131,10 +137,12 @@ def update_registration(student_id: int, course_id: int, data: Dict[str, Any]) -
     """Updates enrollment grade or year."""
     existing = execute_one(
         "SELECT * FROM STUDENT_COURSE WHERE Student_ID = %s AND Course_ID = %s",
-        (student_id, course_id)
+        (student_id, course_id),
     )
     if not existing:
-        raise NotFoundError(f"Registration for Student {student_id} in Course {course_id} not found.")
+        raise NotFoundError(
+            f"Registration for Student {student_id} in Course {course_id} not found."
+        )
 
     validate_registration_payload(data, is_update=True)
 
@@ -164,15 +172,17 @@ def unregister_student_course(student_id: int, course_id: int) -> Dict[str, Any]
     """Removes a student enrollment from a course safely."""
     existing = execute_one(
         "SELECT * FROM STUDENT_COURSE WHERE Student_ID = %s AND Course_ID = %s",
-        (student_id, course_id)
+        (student_id, course_id),
     )
     if not existing:
-        raise NotFoundError(f"Registration for Student {student_id} in Course {course_id} not found.")
+        raise NotFoundError(
+            f"Registration for Student {student_id} in Course {course_id} not found."
+        )
 
     with get_cursor(commit=True) as cursor:
         cursor.execute(
             "DELETE FROM STUDENT_COURSE WHERE Student_ID = %s AND Course_ID = %s",
-            (student_id, course_id)
+            (student_id, course_id),
         )
 
     logger.info("Unregistered student %s from course %s", student_id, course_id)

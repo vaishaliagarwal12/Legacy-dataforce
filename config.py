@@ -18,7 +18,7 @@ class Config:
     # Flask Settings
     ENV = os.getenv("FLASK_ENV", "production")
     DEBUG = False
-    PORT = int(os.getenv("PORT", 5000))
+    PORT = int(os.getenv("PORT", "5000"))
 
     # Secret Key for session signing & CSRF protection
     # Dynamically generates a secure random key if not explicitly set via environment
@@ -26,23 +26,27 @@ class Config:
     if not _secret_key:
         _secret_key = secrets.token_hex(32)
         if ENV == "production":
-            logger.warning("SECRET_KEY not set in environment! Generated ephemeral key for session security.")
+            logger.warning(
+                "SECRET_KEY not set in environment! Generated ephemeral key for session security."
+            )
     SECRET_KEY = _secret_key
 
     # Session & Cookie Security (OWASP Recommended)
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "0") in ("1", "true", "True")
-    PERMANENT_SESSION_LIFETIME = int(os.getenv("SESSION_LIFETIME_SECONDS", 7200))  # 2 hours default
+    PERMANENT_SESSION_LIFETIME = int(
+        os.getenv("SESSION_LIFETIME_SECONDS", "7200")
+    )  # 2 hours default
 
     # MySQL Settings
     MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
-    MYSQL_PORT = int(os.getenv("MYSQL_PORT", 3306))
+    MYSQL_PORT = int(os.getenv("MYSQL_PORT", "3306"))
     MYSQL_USER = os.getenv("MYSQL_USER", "root")
     MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
     MYSQL_DB = os.getenv("MYSQL_DB", "placement_db")
     MYSQL_CHARSET = os.getenv("MYSQL_CHARSET", "utf8mb4")
-    MYSQL_CONNECT_TIMEOUT = int(os.getenv("MYSQL_CONNECT_TIMEOUT", 5))
+    MYSQL_CONNECT_TIMEOUT = int(os.getenv("MYSQL_CONNECT_TIMEOUT", "5"))
 
     # Dedicated Read-Only User for Custom SQL Execution
     MYSQL_READONLY_USER = os.getenv("MYSQL_READONLY_USER", "placement_readonly")
@@ -53,13 +57,40 @@ class Config:
 
     @classmethod
     def get_db_config(cls) -> dict:
-        """Returns database connection parameters as a dictionary for PyMySQL."""
+        """Returns database connection parameters as a dictionary for PyMySQL.
+
+        Prioritizes Flask current_app configuration (e.g. isolated test databases)
+        and testing environment variables to prevent accidental mutation of production.
+        """
+        try:
+            from flask import current_app, has_app_context
+
+            if has_app_context() and current_app:
+                return {
+                    "host": current_app.config.get("MYSQL_HOST", cls.MYSQL_HOST),
+                    "port": current_app.config.get("MYSQL_PORT", cls.MYSQL_PORT),
+                    "user": current_app.config.get("MYSQL_USER", cls.MYSQL_USER),
+                    "password": current_app.config.get("MYSQL_PASSWORD", cls.MYSQL_PASSWORD),
+                    "database": current_app.config.get("MYSQL_DB", cls.MYSQL_DB),
+                    "charset": current_app.config.get("MYSQL_CHARSET", cls.MYSQL_CHARSET),
+                    "connect_timeout": current_app.config.get(
+                        "MYSQL_CONNECT_TIMEOUT", cls.MYSQL_CONNECT_TIMEOUT
+                    ),
+                    "autocommit": False,
+                }
+        except Exception:
+            pass
+
+        target_db = cls.MYSQL_DB
+        if os.getenv("FLASK_ENV") == "testing" and os.getenv("MYSQL_TEST_DB"):
+            target_db = os.getenv("MYSQL_TEST_DB")
+
         return {
             "host": cls.MYSQL_HOST,
             "port": cls.MYSQL_PORT,
             "user": cls.MYSQL_USER,
             "password": cls.MYSQL_PASSWORD,
-            "database": cls.MYSQL_DB,
+            "database": target_db,
             "charset": cls.MYSQL_CHARSET,
             "connect_timeout": cls.MYSQL_CONNECT_TIMEOUT,
             "autocommit": False,
@@ -68,12 +99,37 @@ class Config:
     @classmethod
     def get_readonly_db_config(cls) -> dict:
         """Returns database connection parameters for dedicated read-only execution."""
+        try:
+            from flask import current_app, has_app_context
+
+            if has_app_context() and current_app:
+                return {
+                    "host": current_app.config.get("MYSQL_HOST", cls.MYSQL_HOST),
+                    "port": current_app.config.get("MYSQL_PORT", cls.MYSQL_PORT),
+                    "user": current_app.config.get("MYSQL_READONLY_USER", cls.MYSQL_READONLY_USER),
+                    "password": current_app.config.get(
+                        "MYSQL_READONLY_PASSWORD", cls.MYSQL_READONLY_PASSWORD
+                    ),
+                    "database": current_app.config.get("MYSQL_DB", cls.MYSQL_DB),
+                    "charset": current_app.config.get("MYSQL_CHARSET", cls.MYSQL_CHARSET),
+                    "connect_timeout": current_app.config.get(
+                        "MYSQL_CONNECT_TIMEOUT", cls.MYSQL_CONNECT_TIMEOUT
+                    ),
+                    "autocommit": False,
+                }
+        except Exception:
+            pass
+
+        target_db = cls.MYSQL_DB
+        if os.getenv("FLASK_ENV") == "testing" and os.getenv("MYSQL_TEST_DB"):
+            target_db = os.getenv("MYSQL_TEST_DB")
+
         return {
             "host": cls.MYSQL_HOST,
             "port": cls.MYSQL_PORT,
             "user": cls.MYSQL_READONLY_USER,
             "password": cls.MYSQL_READONLY_PASSWORD,
-            "database": cls.MYSQL_DB,
+            "database": target_db,
             "charset": cls.MYSQL_CHARSET,
             "connect_timeout": cls.MYSQL_CONNECT_TIMEOUT,
             "autocommit": False,

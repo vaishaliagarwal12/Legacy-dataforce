@@ -85,9 +85,12 @@
                             <label class="form-label" for="Branch">Academic Department / Branch <span class="text-danger">*</span></label>
                             <select class="form-select" id="Branch" name="Branch" required>
                                 <option value="">Select department...</option>
-                                {% for code, label in [('CSE', 'Computer Science (CSE)'), ('ECE', 'Electronics & Comm (ECE)'), ('ME', 'Mechanical Engineering (ME)'), ('IT', 'Information Technology (IT)'), ('Civil', 'Civil Engineering'), ('Electrical', 'Electrical Engineering')] %}
-                                    <option value="{{ code }}" {% if student and (student.Branch == code or student.Branch == label) %}selected{% endif %}>{{ label }}</option>
+                                {% for b in branches %}
+                                    <option value="{{ b }}" {% if student and (student.Branch == b or student.Branch == b|string) %}selected{% endif %}>{{ b }}</option>
                                 {% endfor %}
+                                {% if student and student.Branch and student.Branch not in branches %}
+                                    <option value="{{ student.Branch }}" selected>{{ student.Branch }}</option>
+                                {% endif %}
                             </select>
                             <div class="invalid-feedback">Please select an academic branch.</div>
                         </div>
@@ -96,7 +99,7 @@
                         <div class="col-6 col-md-3">
                             <label class="form-label" for="Batch_Year">Graduation Batch <span class="text-danger">*</span></label>
                             <input type="number" class="form-control" id="Batch_Year" name="Batch_Year" 
-                                   min="2000" max="2100" value="{{ student.Batch_Year if student else '2024' }}" required>
+                                   min="2000" max="2100" value="{{ student.Batch_Year if student and student.Batch_Year else (default_batch_year or 2026) }}" required>
                             <div class="invalid-feedback">Enter a valid 4-digit graduation year.</div>
                         </div>
 

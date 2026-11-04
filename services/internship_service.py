@@ -81,7 +81,11 @@ def determine_internship_status(
         return "In Progress"
 
     has_report = bool(report_link and str(report_link).strip())
-    has_grade = bool(report_grade and str(report_grade).strip() and str(report_grade).strip().lower() != "pending")
+    has_grade = bool(
+        report_grade
+        and str(report_grade).strip()
+        and str(report_grade).strip().lower() != "pending"
+    )
 
     if has_report and has_grade:
         return "Completed"
@@ -97,7 +101,7 @@ def check_internship_eligibility(
     min_sgpa: float = 6.00,
 ) -> Dict[str, Any]:
     """Calculates student academic eligibility for an internship using actual SEMESTER_RESULT records.
-    
+
     Academic Rules:
     - Mandatory Internship 1: Completed during 2nd year summer break after Sem 4.
       Eligibility is governed by Semester 3 SGPA.
@@ -108,7 +112,7 @@ def check_internship_eligibility(
     """
     student = execute_one(
         "SELECT Student_ID, Roll_No, First_Name, Last_Name, Branch, Batch_Year, CGPA, Backlogs FROM STUDENT WHERE Student_ID = %s",
-        (student_id,)
+        (student_id,),
     )
     if not student:
         raise NotFoundError(f"Student with ID {student_id} not found.")
@@ -128,21 +132,23 @@ def check_internship_eligibility(
             "min_required_sgpa": min_sgpa,
             "semester_result_found": True,
             "status": "Optional",
-            "message": "Additional internships are optional and have no mandatory prerequisite semester SGPA constraint."
+            "message": "Additional internships are optional and have no mandatory prerequisite semester SGPA constraint.",
         }
 
     # Fetch requirement for this mandatory internship
     req = execute_one(
         "SELECT Requirement_ID, Internship_No, Required_Result_Semester, Report_Submission_Semester, Credits, Prescribed_Period FROM INTERNSHIP_REQUIREMENT WHERE Internship_No = %s",
-        (internship_no,)
+        (internship_no,),
     )
     req_sem = req["Required_Result_Semester"] if req else (3 if internship_no == 1 else 5)
-    prescribed_period = req["Prescribed_Period"] if req else f"Mandatory Summer Internship #{internship_no}"
+    prescribed_period = (
+        req["Prescribed_Period"] if req else f"Mandatory Summer Internship #{internship_no}"
+    )
 
     # Query student's verified semester result
     sem_res = execute_one(
         "SELECT Result_ID, Semester, SGPA, Total_Credits FROM SEMESTER_RESULT WHERE Student_ID = %s AND Semester = %s",
-        (student_id, req_sem)
+        (student_id, req_sem),
     )
 
     if not sem_res:
@@ -159,7 +165,7 @@ def check_internship_eligibility(
             "semester_result_found": False,
             "status": "Prerequisite Missing",
             "prescribed_period": prescribed_period,
-            "message": f"Candidate has no recorded result for Semester {req_sem}. Semester {req_sem} SGPA is required to verify eligibility."
+            "message": f"Candidate has no recorded result for Semester {req_sem}. Semester {req_sem} SGPA is required to verify eligibility.",
         }
 
     sgpa = float(sem_res["SGPA"])
@@ -187,14 +193,21 @@ def check_internship_eligibility(
         "semester_result_found": True,
         "status": status,
         "prescribed_period": prescribed_period,
-        "message": msg
+        "message": msg,
     }
 
 
 def validate_internship_payload(data: Dict[str, Any], is_update: bool = False) -> None:
     """Validates internship fields, dates, and mandatory/additional requirement constraints."""
     if not is_update:
-        required = ["Student_ID", "Company_ID", "Internship_No", "Internship_Type", "Start_Date", "End_Date"]
+        required = [
+            "Student_ID",
+            "Company_ID",
+            "Internship_No",
+            "Internship_Type",
+            "Start_Date",
+            "End_Date",
+        ]
         for field in required:
             if field not in data or data[field] is None:
                 raise ValidationError(f"Missing required field: '{field}'")
@@ -202,7 +215,9 @@ def validate_internship_payload(data: Dict[str, Any], is_update: bool = False) -
     if "Internship_Type" in data and data["Internship_Type"] is not None:
         itype = str(data["Internship_Type"]).strip()
         if itype not in VALID_INTERNSHIP_TYPES:
-            raise ValidationError(f"Internship_Type must be one of: {', '.join(VALID_INTERNSHIP_TYPES)}")
+            raise ValidationError(
+                f"Internship_Type must be one of: {', '.join(VALID_INTERNSHIP_TYPES)}"
+            )
 
     if "Internship_No" in data and data["Internship_No"] is not None:
         try:
@@ -217,7 +232,9 @@ def validate_internship_payload(data: Dict[str, Any], is_update: bool = False) -
         start_str = str(data["Start_Date"]).strip()
         end_str = str(data["End_Date"]).strip()
         if end_str < start_str:
-            raise ValidationError(f"Invalid dates: End_Date ({end_str}) cannot be earlier than Start_Date ({start_str})")
+            raise ValidationError(
+                f"Invalid dates: End_Date ({end_str}) cannot be earlier than Start_Date ({start_str})"
+            )
 
     if "Stipend" in data and data["Stipend"] is not None:
         try:
@@ -230,7 +247,7 @@ def validate_internship_payload(data: Dict[str, Any], is_update: bool = False) -
 
 def create_internship(data: Dict[str, Any]) -> Dict[str, Any]:
     """Records an internship experience, strictly enforcing requirement linkage constraints.
-    
+
     Academic Policy Constraints Enforced:
     1. Mandatory Internships:
        - MUST link to an existing INTERNSHIP_REQUIREMENT record (Requirement_ID != None).
@@ -253,26 +270,38 @@ def create_internship(data: Dict[str, Any]) -> Dict[str, Any]:
     stipend = round(float(data.get("Stipend", 0.0) or 0.0), 2)
     start_date = str(data["Start_Date"]).strip()
     end_date = str(data["End_Date"]).strip()
-    credits = int(data["Credits"]) if data.get("Credits") is not None else (4 if internship_type == "Mandatory" else 0)
-    report_sem = int(data["Report_Semester"]) if data.get("Report_Semester") is not None else (5 if internship_no == 1 else 7 if internship_no == 2 else None)
+    credits = (
+        int(data["Credits"])
+        if data.get("Credits") is not None
+        else (4 if internship_type == "Mandatory" else 0)
+    )
+    report_sem = (
+        int(data["Report_Semester"])
+        if data.get("Report_Semester") is not None
+        else (5 if internship_no == 1 else 7 if internship_no == 2 else None)
+    )
     report_link = str(data.get("Report_Link", "") or "").strip() or None
     report_grade = str(data.get("Report_Grade", "") or "").strip() or None
     cert_link = str(data.get("Certificate_Link", "") or "").strip() or None
 
     # 1. Verify Student exists
-    student = execute_one("SELECT Student_ID, Roll_No FROM STUDENT WHERE Student_ID = %s", (student_id,))
+    student = execute_one(
+        "SELECT Student_ID, Roll_No FROM STUDENT WHERE Student_ID = %s", (student_id,)
+    )
     if not student:
         raise NotFoundError(f"Student with ID {student_id} does not exist.")
 
     # 2. Verify Company exists
-    company = execute_one("SELECT Company_ID, Company_Name FROM COMPANY WHERE Company_ID = %s", (company_id,))
+    company = execute_one(
+        "SELECT Company_ID, Company_Name FROM COMPANY WHERE Company_ID = %s", (company_id,)
+    )
     if not company:
         raise NotFoundError(f"Company with ID {company_id} does not exist.")
 
     # 3. Unique (Student_ID, Internship_No) check
     existing_no = execute_one(
         "SELECT Internship_ID, Internship_Type, Role FROM INTERNSHIP WHERE Student_ID = %s AND Internship_No = %s",
-        (student_id, internship_no)
+        (student_id, internship_no),
     )
     if existing_no:
         raise ConflictError(
@@ -288,7 +317,7 @@ def create_internship(data: Dict[str, Any]) -> Dict[str, Any]:
             )
         requirement = execute_one(
             "SELECT Requirement_ID, Internship_No, Mandatory, Required_Result_Semester FROM INTERNSHIP_REQUIREMENT WHERE Requirement_ID = %s",
-            (req_id,)
+            (req_id,),
         )
         if not requirement:
             raise NotFoundError(f"Internship Requirement with ID {req_id} does not exist.")
@@ -316,13 +345,34 @@ def create_internship(data: Dict[str, Any]) -> Dict[str, Any]:
     with get_cursor(commit=True) as cursor:
         cursor.execute(
             insert_sql,
-            (student_id, company_id, opp_id, req_id, internship_no,
-             internship_type, role, rounds, stipend, start_date, end_date,
-             credits, report_sem, report_link, report_grade, cert_link)
+            (
+                student_id,
+                company_id,
+                opp_id,
+                req_id,
+                internship_no,
+                internship_type,
+                role,
+                rounds,
+                stipend,
+                start_date,
+                end_date,
+                credits,
+                report_sem,
+                report_link,
+                report_grade,
+                cert_link,
+            ),
         )
         internship_id = cursor.lastrowid
 
-    logger.info("Created %s Internship #%s (ID: %s) for student %s", internship_type, internship_no, internship_id, student["Roll_No"])
+    logger.info(
+        "Created %s Internship #%s (ID: %s) for student %s",
+        internship_type,
+        internship_no,
+        internship_id,
+        student["Roll_No"],
+    )
     return get_internship(internship_id)
 
 
@@ -367,7 +417,11 @@ def get_internship(internship_id: int) -> Dict[str, Any]:
     row["Duration_Str"] = duration["duration_str"]
 
     row["Status"] = determine_internship_status(
-        row["Start_Date"], row["End_Date"], row.get("Report_Link"), row.get("Report_Grade"), row.get("Certificate_Link")
+        row["Start_Date"],
+        row["End_Date"],
+        row.get("Report_Link"),
+        row.get("Report_Grade"),
+        row.get("Certificate_Link"),
     )
 
     eligibility = check_internship_eligibility(row["Student_ID"], row["Internship_No"])
@@ -442,7 +496,11 @@ def list_internships(
         where_clauses.append("i.Report_Grade = %s")
         params.append(report_grade.strip())
 
-    if report_semester is not None and str(report_semester).strip().lower() not in ("all", "none", ""):
+    if report_semester is not None and str(report_semester).strip().lower() not in (
+        "all",
+        "none",
+        "",
+    ):
         try:
             where_clauses.append("i.Report_Semester = %s")
             params.append(int(report_semester))
@@ -452,11 +510,15 @@ def list_internships(
     if status and str(status).strip().lower() not in ("all", "none", ""):
         st = status.strip().lower()
         if st in ("completed", "complete"):
-            where_clauses.append("(i.End_Date <= CURDATE() AND (i.Report_Link IS NOT NULL OR i.Report_Grade IS NOT NULL))")
+            where_clauses.append(
+                "(i.End_Date <= CURDATE() AND (i.Report_Link IS NOT NULL OR i.Report_Grade IS NOT NULL))"
+            )
         elif st in ("in_progress", "in progress", "ongoing"):
             where_clauses.append("(i.Start_Date <= CURDATE() AND i.End_Date >= CURDATE())")
         elif st in ("pending_report", "pending report", "pending"):
-            where_clauses.append("(i.End_Date <= CURDATE() AND (i.Report_Link IS NULL OR i.Report_Grade IS NULL OR i.Report_Grade = 'Pending'))")
+            where_clauses.append(
+                "(i.End_Date <= CURDATE() AND (i.Report_Link IS NULL OR i.Report_Grade IS NULL OR i.Report_Grade = 'Pending'))"
+            )
         elif st == "upcoming":
             where_clauses.append("(i.Start_Date > CURDATE())")
 
@@ -554,7 +616,11 @@ def list_internships(
         r["Duration_Str"] = duration["duration_str"]
 
         r["Status"] = determine_internship_status(
-            r["Start_Date"], r["End_Date"], r.get("Report_Link"), r.get("Report_Grade"), r.get("Certificate_Link")
+            r["Start_Date"],
+            r["End_Date"],
+            r.get("Report_Link"),
+            r.get("Report_Grade"),
+            r.get("Certificate_Link"),
         )
 
         # Eligibility check using joined prerequisite SGPA (zero extra queries)
@@ -572,7 +638,8 @@ def list_internships(
         return {
             "results": rows,
             "total": total_count,
-            "pagination": pagination or {
+            "pagination": pagination
+            or {
                 "total": total_count,
                 "page": 1,
                 "per_page": total_count or 1,
@@ -581,7 +648,7 @@ def list_internships(
                 "has_prev": False,
                 "start_index": 1 if total_count > 0 else 0,
                 "end_index": total_count,
-            }
+            },
         }
 
     return rows
@@ -599,7 +666,9 @@ def update_internship(internship_id: int, data: Dict[str, Any]) -> Dict[str, Any
     if itype == "Mandatory":
         if not req_id:
             raise ValidationError("Mandatory internships must link to an INTERNSHIP_REQUIREMENT.")
-        req = execute_one("SELECT Internship_No FROM INTERNSHIP_REQUIREMENT WHERE Requirement_ID = %s", (req_id,))
+        req = execute_one(
+            "SELECT Internship_No FROM INTERNSHIP_REQUIREMENT WHERE Requirement_ID = %s", (req_id,)
+        )
         if not req:
             raise NotFoundError(f"Requirement ID {req_id} does not exist.")
         if req["Internship_No"] != internship_no:
@@ -608,12 +677,26 @@ def update_internship(internship_id: int, data: Dict[str, Any]) -> Dict[str, Any
             )
     else:
         if req_id is not None:
-            raise ValidationError("Additional internships cannot link to a requirement (Requirement_ID must be null).")
+            raise ValidationError(
+                "Additional internships cannot link to a requirement (Requirement_ID must be null)."
+            )
 
     updatable = [
-        "Company_ID", "Opportunity_ID", "Requirement_ID", "Internship_No", "Internship_Type",
-        "Role", "Interview_Rounds", "Stipend", "Start_Date", "End_Date",
-        "Credits", "Report_Semester", "Report_Link", "Report_Grade", "Certificate_Link"
+        "Company_ID",
+        "Opportunity_ID",
+        "Requirement_ID",
+        "Internship_No",
+        "Internship_Type",
+        "Role",
+        "Interview_Rounds",
+        "Stipend",
+        "Start_Date",
+        "End_Date",
+        "Credits",
+        "Report_Semester",
+        "Report_Link",
+        "Report_Grade",
+        "Certificate_Link",
     ]
     set_clauses = []
     params: List[Any] = []
@@ -623,7 +706,19 @@ def update_internship(internship_id: int, data: Dict[str, Any]) -> Dict[str, Any
             val = data[field]
             if field == "Stipend" and val is not None:
                 val = round(float(val), 2)
-            elif field in ("Company_ID", "Opportunity_ID", "Requirement_ID", "Internship_No", "Interview_Rounds", "Credits", "Report_Semester") and val is not None:
+            elif (
+                field
+                in (
+                    "Company_ID",
+                    "Opportunity_ID",
+                    "Requirement_ID",
+                    "Internship_No",
+                    "Interview_Rounds",
+                    "Credits",
+                    "Report_Semester",
+                )
+                and val is not None
+            ):
                 val = int(val)
             elif val is not None:
                 val = str(val).strip()
@@ -642,14 +737,22 @@ def update_internship(internship_id: int, data: Dict[str, Any]) -> Dict[str, Any
 
 def delete_internship(internship_id: int) -> Dict[str, Any]:
     """Deletes an internship record."""
-    intern = execute_one("SELECT Internship_ID, Student_ID, Internship_No, Internship_Type FROM INTERNSHIP WHERE Internship_ID = %s", (internship_id,))
+    intern = execute_one(
+        "SELECT Internship_ID, Student_ID, Internship_No, Internship_Type FROM INTERNSHIP WHERE Internship_ID = %s",
+        (internship_id,),
+    )
     if not intern:
         raise NotFoundError(f"Internship with ID {internship_id} not found.")
 
     with get_cursor(commit=True) as cursor:
         cursor.execute("DELETE FROM INTERNSHIP WHERE Internship_ID = %s", (internship_id,))
 
-    logger.info("Deleted %s internship #%s (ID: %s)", intern["Internship_Type"], intern["Internship_No"], internship_id)
+    logger.info(
+        "Deleted %s internship #%s (ID: %s)",
+        intern["Internship_Type"],
+        intern["Internship_No"],
+        internship_id,
+    )
     return {
         "success": True,
         "message": f"Internship #{intern['Internship_No']} ({intern['Internship_Type']}) deleted successfully.",
@@ -659,13 +762,13 @@ def delete_internship(internship_id: int) -> Dict[str, Any]:
 
 def get_mandatory_internships_with_prerequisite_sgpa() -> List[Dict[str, Any]]:
     """Demonstrates 3NF normalization:
-    
+
     Semester 3 SGPA (for Internship 1) and Semester 5 SGPA (for Internship 2) are dynamically
     fetched by joining:
         INTERNSHIP i
         -> INTERNSHIP_REQUIREMENT ir (on Requirement_ID)
         -> SEMESTER_RESULT sr (on Student_ID AND sr.Semester = ir.Required_Result_Semester)
-    
+
     Zero redundant SGPA columns stored in the INTERNSHIP table!
     """
     sql = """
@@ -716,7 +819,11 @@ def get_mandatory_internships_with_prerequisite_sgpa() -> List[Dict[str, Any]]:
         r["Duration_Str"] = duration["duration_str"]
 
         r["Status"] = determine_internship_status(
-            r["Start_Date"], r["End_Date"], r.get("Report_Link"), r.get("Report_Grade"), r.get("Certificate_Link")
+            r["Start_Date"],
+            r["End_Date"],
+            r.get("Report_Link"),
+            r.get("Report_Grade"),
+            r.get("Certificate_Link"),
         )
 
         prereq_sgpa = r.get("Prerequisite_Semester_SGPA")
@@ -838,20 +945,22 @@ def get_branch_internship_statistics() -> List[Dict[str, Any]]:
         i1_rate = round((i1 / total * 100), 1) if total > 0 else 0.0
         i2_rate = round((i2 / total * 100), 1) if total > 0 else 0.0
 
-        results.append({
-            "Branch": branch,
-            "Branch_Name": BRANCH_NAMES.get(branch, branch),
-            "total_students": total,
-            "i1_completed": i1,
-            "i1_rate": i1_rate,
-            "i2_completed": i2,
-            "i2_rate": i2_rate,
-            "both_completed": both,
-            "compliance_rate": compliance_rate,
-            "additional_count": int(r["additional_count"]),
-            "avg_stipend": float(r["avg_stipend"]),
-            "max_stipend": float(r["max_stipend"]),
-        })
+        results.append(
+            {
+                "Branch": branch,
+                "Branch_Name": BRANCH_NAMES.get(branch, branch),
+                "total_students": total,
+                "i1_completed": i1,
+                "i1_rate": i1_rate,
+                "i2_completed": i2,
+                "i2_rate": i2_rate,
+                "both_completed": both,
+                "compliance_rate": compliance_rate,
+                "additional_count": int(r["additional_count"]),
+                "avg_stipend": float(r["avg_stipend"]),
+                "max_stipend": float(r["max_stipend"]),
+            }
+        )
     return results
 
 
@@ -891,19 +1000,21 @@ def get_batch_compliance_reports() -> List[Dict[str, Any]]:
         compliance_rate = round((both / total * 100), 1) if total > 0 else 0.0
         missing_count = total - both
 
-        results.append({
-            "Batch_Year": batch,
-            "total_students": total,
-            "i1_completed": i1,
-            "i1_rate": round((i1 / total * 100), 1) if total > 0 else 0.0,
-            "i2_completed": i2,
-            "i2_rate": round((i2 / total * 100), 1) if total > 0 else 0.0,
-            "both_completed": both,
-            "compliance_rate": compliance_rate,
-            "missing_count": missing_count,
-            "additional_count": int(r["additional_count"]),
-            "avg_stipend": float(r["avg_stipend"]),
-        })
+        results.append(
+            {
+                "Batch_Year": batch,
+                "total_students": total,
+                "i1_completed": i1,
+                "i1_rate": round((i1 / total * 100), 1) if total > 0 else 0.0,
+                "i2_completed": i2,
+                "i2_rate": round((i2 / total * 100), 1) if total > 0 else 0.0,
+                "both_completed": both,
+                "compliance_rate": compliance_rate,
+                "missing_count": missing_count,
+                "additional_count": int(r["additional_count"]),
+                "avg_stipend": float(r["avg_stipend"]),
+            }
+        )
     return results
 
 
@@ -915,7 +1026,12 @@ def get_pending_internship_reports() -> List[Dict[str, Any]]:
 def get_internship_dashboard_analytics() -> Dict[str, Any]:
     """Computes comprehensive executive analytics for the Internship Management Dashboard."""
     # 1. Total records
-    tot_res = execute_one("SELECT COUNT(*) AS total_internships, ROUND(COALESCE(AVG(Stipend), 0), 2) AS avg_stipend, ROUND(COALESCE(MAX(Stipend), 0), 2) AS max_stipend FROM INTERNSHIP") or {}
+    tot_res = (
+        execute_one(
+            "SELECT COUNT(*) AS total_internships, ROUND(COALESCE(AVG(Stipend), 0), 2) AS avg_stipend, ROUND(COALESCE(MAX(Stipend), 0), 2) AS max_stipend FROM INTERNSHIP"
+        )
+        or {}
+    )
     total_internships = int(tot_res.get("total_internships") or 0)
     avg_stipend = float(tot_res.get("avg_stipend") or 0.0)
     max_stipend = float(tot_res.get("max_stipend") or 0.0)
@@ -944,7 +1060,9 @@ def get_internship_dashboard_analytics() -> Dict[str, Any]:
     """
     comp_res = execute_one(both_sql) or {}
     fully_compliant = int(comp_res.get("fully_compliant") or 0)
-    compliance_rate = round((fully_compliant / total_students * 100), 1) if total_students > 0 else 0.0
+    compliance_rate = (
+        round((fully_compliant / total_students * 100), 1) if total_students > 0 else 0.0
+    )
 
     # 4. Pending reports
     pending_sql = """

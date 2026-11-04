@@ -48,8 +48,7 @@ class HealthRouteTestCase(unittest.TestCase):
 
         # Test execute_query with multiple rows
         rows = execute_query(
-            "SELECT %s AS val UNION ALL SELECT %s AS val",
-            ("item_alpha", "item_beta")
+            "SELECT %s AS val UNION ALL SELECT %s AS val", ("item_alpha", "item_beta")
         )
         self.assertEqual(len(rows), 2)
         self.assertEqual(rows[0]["val"], "item_alpha")
@@ -58,6 +57,7 @@ class HealthRouteTestCase(unittest.TestCase):
     def test_connection_context_manager_cleanup(self):
         """Verifies that get_connection automatically closes connections upon block exit."""
         from db import get_connection
+
         conn_ref = None
         with get_connection() as conn:
             conn_ref = conn
@@ -68,7 +68,11 @@ class HealthRouteTestCase(unittest.TestCase):
     def test_health_endpoint_db_failure_simulation(self):
         """Tests that /health returns HTTP 503 and status 'unhealthy' if the database is unreachable."""
         from unittest.mock import patch
-        with patch("services.health_service.ping_db", side_effect=DatabaseError("Simulated connection timeout")):
+
+        with patch(
+            "services.health_service.ping_db",
+            side_effect=DatabaseError("Simulated connection timeout"),
+        ):
             response = self.client.get("/health")
             self.assertEqual(response.status_code, 503)
             data = response.get_json()
@@ -85,4 +89,3 @@ class HealthRouteTestCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

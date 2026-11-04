@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}500 - Server & Database Error | Legacy DataForce{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active" aria-current="page">500 Error</li>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6 text-center">
+            <div class="card border-0 shadow-sm p-4 p-md-5 rounded-4 bg-white">
+                <div class="mb-4">
+                    <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-danger-subtle text-danger p-4 mb-3" style="width: 80px; height: 80px;">
+                        <i class="bi bi-database-fill-x fs-1"></i>
+                    </span>
+                    <h1 class="display-6 fw-bold text-dark mb-2">{{ error_title or "500 - Internal Service Error" }}</h1>
+                    <p class="text-secondary lead fs-6">{{ error_message or "An unexpected server or database connection error occurred while processing your request." }}</p>
+                </div>
+
+                <div class="alert alert-light border small text-muted text-start mb-4">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <i class="bi bi-tools text-danger"></i>
+                        <span class="fw-semibold text-dark">Administrator &amp; Live Demo Troubleshooting:</span>
+                    </div>
+                    <ul class="mb-0 ps-3">
+                        <li><strong>MySQL Service Status:</strong> Verify that the local MySQL 8.0 server daemon is active and running on port <code>3306</code>.</li>
+                        <li><strong>Credentials Configuration:</strong> Check that <code>MYSQL_USER</code>, <code>MYSQL_PASSWORD</code>, and <code>MYSQL_DATABASE</code> in your <code>.env</code> file are accurate.</li>
+                        <li><strong>Network Connectivity:</strong> If demonstrating on localhost, ensure your Flask process has local loopback socket access.</li>
+                    </ul>
+                </div>
+
+                <div class="d-flex flex-wrap justify-content-center gap-2">
+                    <button type="button" class="btn btn-primary px-4" onclick="window.location.reload()">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Retry Request
+                    </button>
+                    <a href="/" class="btn btn-outline-primary px-3">
+                        <i class="bi bi-house-door me-1"></i> Return to Dashboard
+                    </a>
+                    <a href="/health" target="_blank" class="btn btn-outline-secondary px-3">
+                        <i class="bi bi-activity me-1"></i> Diagnostics Health
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

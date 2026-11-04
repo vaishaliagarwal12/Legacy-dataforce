@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 def check_system_health() -> Tuple[Dict[str, Any], int]:
     """Evaluates the live health of the application and its MySQL database connection.
-    
+
     Returns:
         Tuple of (response_dict, http_status_code)
     """
@@ -16,7 +16,7 @@ def check_system_health() -> Tuple[Dict[str, Any], int]:
     try:
         db_info = ping_db()
         latency_ms = round((time.time() - start_time) * 1000, 2)
-        
+
         response = {
             "status": "healthy",
             "service": "Placement & Internship Management API",
@@ -35,11 +35,25 @@ def check_system_health() -> Tuple[Dict[str, Any], int]:
         logger.error("Health check database failure: %s", err)
         try:
             from flask import current_app
+
             is_prod = bool(current_app and current_app.config.get("ENV") == "production")
         except Exception:
             is_prod = False
         raw_err = str(err)
-        has_sensitive_data = any(k in raw_err.lower() for k in ("password", "access denied", "user '", "identified by", "select ", "insert ", "update ", "delete ", "table "))
+        has_sensitive_data = any(
+            k in raw_err.lower()
+            for k in (
+                "password",
+                "access denied",
+                "user '",
+                "identified by",
+                "select ",
+                "insert ",
+                "update ",
+                "delete ",
+                "table ",
+            )
+        )
         if is_prod or has_sensitive_data:
             err_output = "Database connection unavailable"
         else:

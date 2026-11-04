@@ -99,7 +99,7 @@ This document prepares you for project defense and viva voce examinations by pro
 
 **Short Answer**:
 > *"The system uses a dynamic relational query joining `INTERNSHIP`, `INTERNSHIP_REQUIREMENT`, and `SEMESTER_RESULT`:*
-> 1. *`INTERNSHIP_REQUIREMENT` defines that Mandatory Summer Internship 1 requires completed results for Semester 4 (`Required_Result_Semester = 4`).*
-> 2. *When recording or auditing an internship, the query joins `SEMESTER_RESULT` on `Student_ID` and `Semester = 4` to dynamically retrieve the student's verified SGPA.*
-> 3. *If the SGPA is below the minimum threshold (e.g. `< 6.50`) or if Semester 4 results are missing, the system flags a compliance violation or blocks registration.*
+> 1. *`INTERNSHIP_REQUIREMENT` defines that Mandatory Summer Internship 1 requires completed results for Semester 3 (`Required_Result_Semester = 3`), while Mandatory Summer Internship 2 requires Semester 5 (`Required_Result_Semester = 5`).*
+> 2. *When recording or auditing an internship, the query dynamically joins `SEMESTER_RESULT` on `Student_ID` and `Semester = Required_Result_Semester` to retrieve the student's verified SGPA.*
+> 3. *If the SGPA is below the minimum threshold (e.g. `< 6.00`) or if prerequisite semester results are missing, the system flags a compliance violation or marks the student Ineligible.*
 > 4. *This replaces hard-coded checks with database-driven academic rule evaluation."*

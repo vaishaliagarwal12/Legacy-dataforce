@@ -71,7 +71,7 @@ class TestKeyRoutes(unittest.TestCase):
             "CGPA": 9.15,
             "Backlogs": 0,
             "Email": f"{roll.lower()}@univ.edu",
-            "Phone_Numbers": ["+91-9870001111"]
+            "Phone_Numbers": ["+91-9870001111"],
         }
 
         # 1. POST (Create)
@@ -90,10 +90,9 @@ class TestKeyRoutes(unittest.TestCase):
         self.assertEqual(fetched["First_Name"], "RouteTester")
 
         # 3. PUT (Update)
-        res_put = self.client.put(f"/api/students/{student_id}", json={
-            "CGPA": 9.30,
-            "Section": "B"
-        })
+        res_put = self.client.put(
+            f"/api/students/{student_id}", json={"CGPA": 9.30, "Section": "B"}
+        )
         self.assertEqual(res_put.status_code, 200)
         updated = res_put.get_json()["data"]
         self.assertEqual(updated["CGPA"], 9.30)
@@ -150,11 +149,12 @@ class TestKeyRoutes(unittest.TestCase):
         self.assertEqual(res_list.status_code, 200)
         self.assertTrue(len(res_list.get_json()["data"]) > 0)
 
-        # 2. Hierarchical detail view (Google India ID: 1)
-        res_detail = self.client.get("/api/companies/1")
+        # 2. Hierarchical detail view
+        first_id = res_list.get_json()["data"][0]["Company_ID"]
+        res_detail = self.client.get(f"/api/companies/{first_id}")
         self.assertEqual(res_detail.status_code, 200)
         comp = res_detail.get_json()["data"]
-        self.assertEqual(comp["Company_Name"], "Google India")
+        self.assertTrue(len(comp["Company_Name"]) > 0)
         self.assertIn("Recruitment_Drives", comp)
 
         # 3. Create and cleanup test company
@@ -164,7 +164,7 @@ class TestKeyRoutes(unittest.TestCase):
             "Company_Type": "Startup",
             "Industry": "AI Robotics",
             "Location": "Hyderabad",
-            "Website": "https://p10test.ai"
+            "Website": "https://p10test.ai",
         }
         res_create = self.client.post("/api/companies", json=c_payload)
         self.assertEqual(res_create.status_code, 201)

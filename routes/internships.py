@@ -23,11 +23,12 @@ def api_create_internship():
     """Records an internship, enforcing mandatory requirement linkages and additional isolation."""
     payload = request.get_json() or {}
     internship = create_internship(payload)
-    return jsonify({
-        "status": "success",
-        "message": "Internship successfully recorded",
-        "data": internship
-    }), 201
+    return (
+        jsonify(
+            {"status": "success", "message": "Internship successfully recorded", "data": internship}
+        ),
+        201,
+    )
 
 
 @internship_bp.route("", methods=["GET"])
@@ -66,12 +67,17 @@ def api_list_internships():
             per_page=per_page,
             as_dict=True,
         )
-        return jsonify({
-            "status": "success",
-            "total": res["total"],
-            "pagination": res["pagination"],
-            "data": res["results"]
-        }), 200
+        return (
+            jsonify(
+                {
+                    "status": "success",
+                    "total": res["total"],
+                    "pagination": res["pagination"],
+                    "data": res["results"],
+                }
+            ),
+            200,
+        )
 
     internships = list_internships(
         search=search,
@@ -87,21 +93,14 @@ def api_list_internships():
         sort_by=sort_by,
         sort_dir=sort_dir,
     )
-    return jsonify({
-        "status": "success",
-        "total": len(internships),
-        "data": internships
-    }), 200
+    return jsonify({"status": "success", "total": len(internships), "data": internships}), 200
 
 
 @internship_bp.route("/<int:internship_id>", methods=["GET"])
 def api_get_internship(internship_id: int):
     """Retrieves full internship details including dynamically joined prerequisite semester SGPA."""
     internship = get_internship(internship_id)
-    return jsonify({
-        "status": "success",
-        "data": internship
-    }), 200
+    return jsonify({"status": "success", "data": internship}), 200
 
 
 @internship_bp.route("/<int:internship_id>", methods=["PUT"])
@@ -109,52 +108,53 @@ def api_update_internship(internship_id: int):
     """Updates internship attributes with constraint validation."""
     payload = request.get_json() or {}
     internship = update_internship(internship_id, payload)
-    return jsonify({
-        "status": "success",
-        "message": "Internship successfully updated",
-        "data": internship
-    }), 200
+    return (
+        jsonify(
+            {"status": "success", "message": "Internship successfully updated", "data": internship}
+        ),
+        200,
+    )
 
 
 @internship_bp.route("/<int:internship_id>", methods=["DELETE"])
 def api_delete_internship(internship_id: int):
     """Deletes an internship record."""
     result = delete_internship(internship_id)
-    return jsonify({
-        "status": "success",
-        "message": result["message"],
-        "deleted_internship_id": result["deleted_internship_id"]
-    }), 200
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "message": result["message"],
+                "deleted_internship_id": result["deleted_internship_id"],
+            }
+        ),
+        200,
+    )
 
 
 # ==============================================================================
 # Academic Policy Requirements Routes
 # ==============================================================================
 
+
 @internship_bp.route("/requirements", methods=["GET"])
 def api_list_requirements():
     """Lists the official mandatory internship requirements."""
     requirements = list_requirements()
-    return jsonify({
-        "status": "success",
-        "total": len(requirements),
-        "data": requirements
-    }), 200
+    return jsonify({"status": "success", "total": len(requirements), "data": requirements}), 200
 
 
 @internship_bp.route("/requirements/<int:req_id>", methods=["GET"])
 def api_get_requirement(req_id: int):
     """Retrieves an official internship requirement by ID."""
     req = get_requirement(req_id)
-    return jsonify({
-        "status": "success",
-        "data": req
-    }), 200
+    return jsonify({"status": "success", "data": req}), 200
 
 
 # ==============================================================================
 # Analytical Routes: Prerequisite SGPA Joins & Missing Mandatory Compliance
 # ==============================================================================
+
 
 @internship_bp.route("/analytics/prerequisite-sgpa", methods=["GET"])
 def api_prerequisite_sgpa_join():
@@ -163,12 +163,17 @@ def api_prerequisite_sgpa_join():
     without redundant SGPA storage.
     """
     records = get_mandatory_internships_with_prerequisite_sgpa()
-    return jsonify({
-        "status": "success",
-        "description": "Prerequisite SGPA fetched dynamically via INTERNSHIP -> INTERNSHIP_REQUIREMENT -> SEMESTER_RESULT (Zero redundancy)",
-        "total": len(records),
-        "data": records
-    }), 200
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "description": "Prerequisite SGPA fetched dynamically via INTERNSHIP -> INTERNSHIP_REQUIREMENT -> SEMESTER_RESULT (Zero redundancy)",
+                "total": len(records),
+                "data": records,
+            }
+        ),
+        200,
+    )
 
 
 @internship_bp.route("/analytics/missing-mandatory", methods=["GET"])
@@ -182,55 +187,47 @@ def api_missing_mandatory_internships():
         branch=branch,
         batch_year=batch_year,
     )
-    return jsonify({
-        "status": "success",
-        "target_internship_evaluated": f"Internship #{target_no}" if target_no else "All Mandatory (1 & 2)",
-        "total_missing_students": len(missing_students),
-        "data": missing_students
-    }), 200
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "target_internship_evaluated": (
+                    f"Internship #{target_no}" if target_no else "All Mandatory (1 & 2)"
+                ),
+                "total_missing_students": len(missing_students),
+                "data": missing_students,
+            }
+        ),
+        200,
+    )
 
 
 @internship_bp.route("/analytics/dashboard", methods=["GET"])
 def api_internship_dashboard_analytics():
     """Returns aggregated executive analytics for the Internship Management Dashboard."""
     analytics = get_internship_dashboard_analytics()
-    return jsonify({
-        "status": "success",
-        "data": analytics
-    }), 200
+    return jsonify({"status": "success", "data": analytics}), 200
 
 
 @internship_bp.route("/analytics/branch-statistics", methods=["GET"])
 def api_branch_internship_statistics():
     """Returns branch-wise internship completion statistics."""
     stats = get_branch_internship_statistics()
-    return jsonify({
-        "status": "success",
-        "total_branches": len(stats),
-        "data": stats
-    }), 200
+    return jsonify({"status": "success", "total_branches": len(stats), "data": stats}), 200
 
 
 @internship_bp.route("/analytics/batch-compliance", methods=["GET"])
 def api_batch_compliance_reports():
     """Returns batch-wise internship compliance reports."""
     reports = get_batch_compliance_reports()
-    return jsonify({
-        "status": "success",
-        "total_batches": len(reports),
-        "data": reports
-    }), 200
+    return jsonify({"status": "success", "total_batches": len(reports), "data": reports}), 200
 
 
 @internship_bp.route("/analytics/pending-reports", methods=["GET"])
 def api_pending_internship_reports():
     """Returns internships with pending report submissions or pending grades."""
     pending = get_pending_internship_reports()
-    return jsonify({
-        "status": "success",
-        "total_pending": len(pending),
-        "data": pending
-    }), 200
+    return jsonify({"status": "success", "total_pending": len(pending), "data": pending}), 200
 
 
 @internship_bp.route("/check-eligibility", methods=["GET"])
@@ -241,10 +238,10 @@ def api_check_internship_eligibility():
     min_sgpa = request.args.get("min_sgpa", default=6.00, type=float)
 
     if not student_id:
-        return jsonify({"status": "error", "message": "Query parameter 'student_id' is required."}), 400
+        return (
+            jsonify({"status": "error", "message": "Query parameter 'student_id' is required."}),
+            400,
+        )
 
     result = check_internship_eligibility(student_id, internship_no, min_sgpa)
-    return jsonify({
-        "status": "success",
-        "data": result
-    }), 200
+    return jsonify({"status": "success", "data": result}), 200

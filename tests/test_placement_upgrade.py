@@ -27,7 +27,9 @@ class PlacementUpgradeTestCase(unittest.TestCase):
         cls.app = create_app("testing")
         cls.client = cls.app.test_client()
         with get_cursor(commit=True) as cur:
-            cur.execute("DELETE FROM PLACEMENT WHERE Student_ID IN (SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST_PL_001')")
+            cur.execute(
+                "DELETE FROM PLACEMENT WHERE Student_ID IN (SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST_PL_001')"
+            )
             cur.execute("DELETE FROM STUDENT WHERE Roll_No = 'TEST_PL_001'")
             cur.execute("""
                 INSERT INTO STUDENT (Roll_No, First_Name, Last_Name, Branch, Batch_Year, CGPA, Backlogs, Email)
@@ -204,8 +206,16 @@ class PlacementUpgradeTestCase(unittest.TestCase):
 
         header = rows[0]
         expected_cols = [
-            "Placement ID", "Roll No", "Student Name", "Branch", "CGPA",
-            "Company Name", "Designated Role", "Package (LPA)", "Placement Year", "Offer Status"
+            "Placement ID",
+            "Roll No",
+            "Student Name",
+            "Branch",
+            "CGPA",
+            "Company Name",
+            "Designated Role",
+            "Package (LPA)",
+            "Placement Year",
+            "Offer Status",
         ]
         for col in expected_cols:
             self.assertIn(col, header)
@@ -216,44 +226,56 @@ class PlacementUpgradeTestCase(unittest.TestCase):
     def test_07_multiple_offers_and_single_accepted_rule(self):
         """Verifies students may receive multiple offers, but can accept only ONE offer at a time."""
         # Find 2 distinct placement opportunities
-        opps = execute_query("SELECT Opportunity_ID, Drive_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Placement' LIMIT 2")
+        opps = execute_query(
+            "SELECT Opportunity_ID, Drive_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Placement' LIMIT 2"
+        )
         self.assertEqual(len(opps), 2)
         opp1 = opps[0]
         opp2 = opps[1]
 
-        drive1 = execute_one("SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (opp1["Drive_ID"],))
-        drive2 = execute_one("SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (opp2["Drive_ID"],))
+        drive1 = execute_one(
+            "SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (opp1["Drive_ID"],)
+        )
+        drive2 = execute_one(
+            "SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (opp2["Drive_ID"],)
+        )
 
         # Use isolated test candidate
         candidate_id = self.test_student_id
         execute_mutation("DELETE FROM PLACEMENT WHERE Student_ID = %s", (candidate_id,))
 
         # 1. Issue first offer
-        o1 = create_placement_offer({
-            "Student_ID": candidate_id,
-            "Company_ID": drive1["Company_ID"],
-            "Opportunity_ID": opp1["Opportunity_ID"],
-            "Role": "Cloud Architect Associate",
-            "Package": 15.00,
-            "Placement_Year": 2024,
-            "Offer_Status": "Offered"
-        })
+        o1 = create_placement_offer(
+            {
+                "Student_ID": candidate_id,
+                "Company_ID": drive1["Company_ID"],
+                "Opportunity_ID": opp1["Opportunity_ID"],
+                "Role": "Cloud Architect Associate",
+                "Package": 15.00,
+                "Placement_Year": 2024,
+                "Offer_Status": "Offered",
+            }
+        )
         self.assertEqual(o1["Offer_Status"], "Offered")
 
         # 2. Issue second distinct offer (preserves multiple separate offers)
-        o2 = create_placement_offer({
-            "Student_ID": candidate_id,
-            "Company_ID": drive2["Company_ID"],
-            "Opportunity_ID": opp2["Opportunity_ID"],
-            "Role": "Systems Analyst",
-            "Package": 12.50,
-            "Placement_Year": 2024,
-            "Offer_Status": "Offered"
-        })
+        o2 = create_placement_offer(
+            {
+                "Student_ID": candidate_id,
+                "Company_ID": drive2["Company_ID"],
+                "Opportunity_ID": opp2["Opportunity_ID"],
+                "Role": "Systems Analyst",
+                "Package": 12.50,
+                "Placement_Year": 2024,
+                "Offer_Status": "Offered",
+            }
+        )
         self.assertEqual(o2["Offer_Status"], "Offered")
 
         # Verify candidate holds 2 distinct offers in database
-        student_offers = execute_query("SELECT Placement_ID FROM PLACEMENT WHERE Student_ID = %s", (candidate_id,))
+        student_offers = execute_query(
+            "SELECT Placement_ID FROM PLACEMENT WHERE Student_ID = %s", (candidate_id,)
+        )
         self.assertEqual(len(student_offers), 2)
 
         # 3. Accept first offer
@@ -279,34 +301,42 @@ class PlacementUpgradeTestCase(unittest.TestCase):
     # -------------------------------------------------------------------------
     def test_08_duplicate_offer_for_same_opportunity_rejected(self):
         """Verifies duplicate placement offer for the same opportunity is rejected with ConflictError."""
-        opp = execute_one("SELECT Opportunity_ID, Drive_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Placement' LIMIT 1")
-        drive = execute_one("SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (opp["Drive_ID"],))
+        opp = execute_one(
+            "SELECT Opportunity_ID, Drive_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Placement' LIMIT 1"
+        )
+        drive = execute_one(
+            "SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (opp["Drive_ID"],)
+        )
 
         # Dedicated test student
         candidate_id = self.test_student_id
         execute_mutation("DELETE FROM PLACEMENT WHERE Student_ID = %s", (candidate_id,))
 
-        create_placement_offer({
-            "Student_ID": candidate_id,
-            "Company_ID": drive["Company_ID"],
-            "Opportunity_ID": opp["Opportunity_ID"],
-            "Role": "Test Engineer",
-            "Package": 10.00,
-            "Placement_Year": 2024,
-            "Offer_Status": "Offered"
-        })
-
-        # Duplicate attempt
-        with self.assertRaises(ConflictError) as ctx:
-            create_placement_offer({
+        create_placement_offer(
+            {
                 "Student_ID": candidate_id,
                 "Company_ID": drive["Company_ID"],
                 "Opportunity_ID": opp["Opportunity_ID"],
                 "Role": "Test Engineer",
                 "Package": 10.00,
                 "Placement_Year": 2024,
-                "Offer_Status": "Offered"
-            })
+                "Offer_Status": "Offered",
+            }
+        )
+
+        # Duplicate attempt
+        with self.assertRaises(ConflictError) as ctx:
+            create_placement_offer(
+                {
+                    "Student_ID": candidate_id,
+                    "Company_ID": drive["Company_ID"],
+                    "Opportunity_ID": opp["Opportunity_ID"],
+                    "Role": "Test Engineer",
+                    "Package": 10.00,
+                    "Placement_Year": 2024,
+                    "Offer_Status": "Offered",
+                }
+            )
         self.assertIn("Duplicate offer rejected", str(ctx.exception))
 
         # Cleanup
@@ -317,18 +347,25 @@ class PlacementUpgradeTestCase(unittest.TestCase):
     # -------------------------------------------------------------------------
     def test_09_opportunity_type_enforcement(self):
         """Verifies placement offers cannot be issued for Internship opportunities."""
-        intern_opp = execute_one("SELECT Opportunity_ID, Drive_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Internship' LIMIT 1")
+        intern_opp = execute_one(
+            "SELECT Opportunity_ID, Drive_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Internship' LIMIT 1"
+        )
         if intern_opp:
-            drive = execute_one("SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (intern_opp["Drive_ID"],))
+            drive = execute_one(
+                "SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s",
+                (intern_opp["Drive_ID"],),
+            )
             with self.assertRaises(ValidationError) as ctx:
-                create_placement_offer({
-                    "Student_ID": self.test_student_id,
-                    "Company_ID": drive["Company_ID"],
-                    "Opportunity_ID": intern_opp["Opportunity_ID"],
-                    "Role": "Intern Role",
-                    "Package": 6.00,
-                    "Placement_Year": 2024,
-                })
+                create_placement_offer(
+                    {
+                        "Student_ID": self.test_student_id,
+                        "Company_ID": drive["Company_ID"],
+                        "Opportunity_ID": intern_opp["Opportunity_ID"],
+                        "Role": "Intern Role",
+                        "Package": 6.00,
+                        "Placement_Year": 2024,
+                    }
+                )
             self.assertIn("is of type 'Internship'", str(ctx.exception))
 
     # -------------------------------------------------------------------------
@@ -336,7 +373,9 @@ class PlacementUpgradeTestCase(unittest.TestCase):
     # -------------------------------------------------------------------------
     def test_10_candidate_eligibility_checker(self):
         """Verifies check_candidate_eligibility_for_opportunity correctly evaluates candidate standards."""
-        opp = execute_one("SELECT Opportunity_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Placement' LIMIT 1")
+        opp = execute_one(
+            "SELECT Opportunity_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Placement' LIMIT 1"
+        )
         # Student 1 has CGPA > 9.0 and 0 backlogs
         res = check_candidate_eligibility_for_opportunity(1, opp["Opportunity_ID"])
         self.assertIn("is_eligible", res)
@@ -348,35 +387,42 @@ class PlacementUpgradeTestCase(unittest.TestCase):
     # -------------------------------------------------------------------------
     def test_11_offer_update_and_skill_sync(self):
         """Verifies updating an offer updates fields and synchronizes PLACEMENT_SKILL in an atomic transaction."""
-        opp = execute_one("SELECT Opportunity_ID, Drive_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Placement' LIMIT 1")
-        drive = execute_one("SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (opp["Drive_ID"],))
+        opp = execute_one(
+            "SELECT Opportunity_ID, Drive_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Placement' LIMIT 1"
+        )
+        drive = execute_one(
+            "SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (opp["Drive_ID"],)
+        )
 
         candidate_id = self.test_student_id
         execute_mutation("DELETE FROM PLACEMENT WHERE Student_ID = %s", (candidate_id,))
 
-        created = create_placement_offer({
-            "Student_ID": candidate_id,
-            "Company_ID": drive["Company_ID"],
-            "Opportunity_ID": opp["Opportunity_ID"],
-            "Role": "Junior Analyst",
-            "Package": 9.50,
-            "Placement_Year": 2024,
-            "Skills": ["SQL", "Excel"]
-        })
+        created = create_placement_offer(
+            {
+                "Student_ID": candidate_id,
+                "Company_ID": drive["Company_ID"],
+                "Opportunity_ID": opp["Opportunity_ID"],
+                "Role": "Junior Analyst",
+                "Package": 9.50,
+                "Placement_Year": 2024,
+                "Skills": ["SQL", "Excel"],
+            }
+        )
         pl_id = created["Placement_ID"]
 
         # Update package, role, and skills
-        updated = update_placement_offer(pl_id, {
-            "Role": "Senior Analyst",
-            "Package": 12.00,
-            "Skills": ["SQL", "Python", "Tableau"]
-        })
+        updated = update_placement_offer(
+            pl_id,
+            {"Role": "Senior Analyst", "Package": 12.00, "Skills": ["SQL", "Python", "Tableau"]},
+        )
         self.assertEqual(updated["Role"], "Senior Analyst")
         self.assertEqual(updated["Package"], 12.00)
         self.assertEqual(len(updated["Skills"]), 3)
 
         # Verify DB records
-        skills_in_db = execute_query("SELECT Skill FROM PLACEMENT_SKILL WHERE Placement_ID = %s", (pl_id,))
+        skills_in_db = execute_query(
+            "SELECT Skill FROM PLACEMENT_SKILL WHERE Placement_ID = %s", (pl_id,)
+        )
         self.assertEqual(len(skills_in_db), 3)
 
         # Cleanup

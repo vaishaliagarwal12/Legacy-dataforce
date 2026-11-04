@@ -6,8 +6,13 @@ from services.exceptions import ValidationError, NotFoundError, ConflictError
 logger = logging.getLogger(__name__)
 
 VALID_ROUND_TYPES = (
-    "Aptitude Test", "Coding Round", "Technical Interview",
-    "HR Interview", "Group Discussion", "Managerial Interview", "Other"
+    "Aptitude Test",
+    "Coding Round",
+    "Technical Interview",
+    "HR Interview",
+    "Group Discussion",
+    "Managerial Interview",
+    "Other",
 )
 
 
@@ -50,7 +55,7 @@ def create_round(data: Dict[str, Any]) -> Dict[str, Any]:
     # Unique check (Opportunity_ID, Round_Number)
     dup = execute_one(
         "SELECT Round_ID FROM SELECTION_PROCESS WHERE Opportunity_ID = %s AND Round_Number = %s",
-        (opp_id, rnum)
+        (opp_id, rnum),
     )
     if dup:
         raise ConflictError(f"Round number {rnum} already exists for Opportunity ID {opp_id}.")
@@ -63,7 +68,9 @@ def create_round(data: Dict[str, Any]) -> Dict[str, Any]:
         cursor.execute(insert_sql, (opp_id, rnum, rtype, desc))
         round_id = cursor.lastrowid
 
-    logger.info("Created round ID %s (Round #%s: %s) for Opportunity %s", round_id, rnum, rtype, opp_id)
+    logger.info(
+        "Created round ID %s (Round #%s: %s) for Opportunity %s", round_id, rnum, rtype, opp_id
+    )
     return get_round(round_id)
 
 
@@ -124,7 +131,7 @@ def update_round(round_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
         if new_rnum != existing["Round_Number"]:
             dup = execute_one(
                 "SELECT Round_ID FROM SELECTION_PROCESS WHERE Opportunity_ID = %s AND Round_Number = %s AND Round_ID != %s",
-                (existing["Opportunity_ID"], new_rnum, round_id)
+                (existing["Opportunity_ID"], new_rnum, round_id),
             )
             if dup:
                 raise ConflictError(f"Round number {new_rnum} already exists for this opportunity.")
@@ -152,7 +159,10 @@ def update_round(round_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
 
 def delete_round(round_id: int) -> Dict[str, Any]:
     """Deletes a selection round."""
-    round_item = execute_one("SELECT Round_ID, Round_Number, Round_Type FROM SELECTION_PROCESS WHERE Round_ID = %s", (round_id,))
+    round_item = execute_one(
+        "SELECT Round_ID, Round_Number, Round_Type FROM SELECTION_PROCESS WHERE Round_ID = %s",
+        (round_id,),
+    )
     if not round_item:
         raise NotFoundError(f"Selection round with ID {round_id} not found.")
 

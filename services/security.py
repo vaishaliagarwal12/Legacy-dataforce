@@ -9,7 +9,7 @@ import logging
 import secrets
 from urllib.parse import urlparse
 from typing import Optional
-from flask import session, request
+from flask import session
 from services.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 def generate_csrf_token() -> str:
     """Generates a cryptographically secure CSRF token tied to the user's session.
-    
+
     If the session does not yet have a token, one is generated and stored.
     """
     if "_csrf_token" not in session:
@@ -36,7 +36,7 @@ def verify_csrf_token(token: Optional[str]) -> bool:
 def validate_safe_url(url: Optional[str], field_name: str = "URL") -> None:
     """Validates that a URL uses safe protocols (http or https) to prevent stored XSS attacks
     such as 'javascript:' or 'data:' URI schemes.
-    
+
     Raises:
         ValidationError if an unsafe scheme or malformed URL is detected.
     """
@@ -49,4 +49,3 @@ def validate_safe_url(url: Optional[str], field_name: str = "URL") -> None:
         raise ValidationError(
             f"Invalid {field_name}: Only secure HTTP/HTTPS URLs are allowed (e.g., https://example.com)."
         )
-

@@ -8,7 +8,12 @@ from services.security import validate_safe_url
 logger = logging.getLogger(__name__)
 
 VALID_PROFILE_TYPES = (
-    "Skill", "Project", "Hackathon", "Certification", "Competitive Coding", "Other"
+    "Skill",
+    "Project",
+    "Hackathon",
+    "Certification",
+    "Competitive Coding",
+    "Other",
 )
 VALID_PROFICIENCY_LEVELS = ("Beginner", "Intermediate", "Advanced", "Expert")
 PHONE_REGEX = re.compile(r"^\+?[0-9\s\-()]{7,20}$")
@@ -35,10 +40,16 @@ def validate_profile_payload(data: Dict[str, Any], is_update: bool = False) -> N
         except (ValueError, TypeError):
             raise ValidationError("Year must be an integer between 2000 and 2100")
 
-    if "Proficiency_Level" in data and data["Proficiency_Level"] is not None and str(data["Proficiency_Level"]).strip() != "":
+    if (
+        "Proficiency_Level" in data
+        and data["Proficiency_Level"] is not None
+        and str(data["Proficiency_Level"]).strip() != ""
+    ):
         prof = str(data["Proficiency_Level"]).strip()
         if prof not in VALID_PROFICIENCY_LEVELS:
-            raise ValidationError(f"Proficiency_Level must be one of: {', '.join(VALID_PROFICIENCY_LEVELS)}")
+            raise ValidationError(
+                f"Proficiency_Level must be one of: {', '.join(VALID_PROFICIENCY_LEVELS)}"
+            )
 
     if "Link" in data and data["Link"] is not None and str(data["Link"]).strip():
         validate_safe_url(data["Link"], "Link")
@@ -66,7 +77,9 @@ def create_profile(data: Dict[str, Any]) -> Dict[str, Any]:
         VALUES (%s, %s, %s, %s, %s, %s, %s)
     """
     with get_cursor(commit=True) as cursor:
-        cursor.execute(insert_sql, (student_id, profile_type, title, description, link, year, proficiency))
+        cursor.execute(
+            insert_sql, (student_id, profile_type, title, description, link, year, proficiency)
+        )
         profile_id = cursor.lastrowid
 
     logger.info("Created profile ID %s for student ID %s", profile_id, student_id)
@@ -161,7 +174,9 @@ def update_profile(profile_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
 
 def delete_profile(profile_id: int) -> Dict[str, Any]:
     """Deletes a student profile."""
-    profile = execute_one("SELECT Profile_ID, Title FROM STUDENT_PROFILE WHERE Profile_ID = %s", (profile_id,))
+    profile = execute_one(
+        "SELECT Profile_ID, Title FROM STUDENT_PROFILE WHERE Profile_ID = %s", (profile_id,)
+    )
     if not profile:
         raise NotFoundError(f"Profile with ID {profile_id} not found.")
 
@@ -180,27 +195,30 @@ def delete_profile(profile_id: int) -> Dict[str, Any]:
 # Phone Numbers Decomposition Operations
 # ==============================================================================
 
+
 def add_student_phone(student_id: int, phone_no: str) -> Dict[str, Any]:
     """Adds a phone number for a student."""
     p_str = str(phone_no).strip()
     if not PHONE_REGEX.match(p_str):
         raise ValidationError(f"Invalid phone number format: '{p_str}'")
 
-    student = execute_one("SELECT Student_ID, Roll_No FROM STUDENT WHERE Student_ID = %s", (student_id,))
+    student = execute_one(
+        "SELECT Student_ID, Roll_No FROM STUDENT WHERE Student_ID = %s", (student_id,)
+    )
     if not student:
         raise NotFoundError(f"Student with ID {student_id} does not exist.")
 
     existing = execute_one(
-        "SELECT * FROM STUDENT_PHONE WHERE Student_ID = %s AND Phone_No = %s",
-        (student_id, p_str)
+        "SELECT * FROM STUDENT_PHONE WHERE Student_ID = %s AND Phone_No = %s", (student_id, p_str)
     )
     if existing:
-        raise ConflictError(f"Phone number '{p_str}' is already associated with student ID {student_id}.")
+        raise ConflictError(
+            f"Phone number '{p_str}' is already associated with student ID {student_id}."
+        )
 
     with get_cursor(commit=True) as cursor:
         cursor.execute(
-            "INSERT INTO STUDENT_PHONE (Student_ID, Phone_No) VALUES (%s, %s)",
-            (student_id, p_str)
+            "INSERT INTO STUDENT_PHONE (Student_ID, Phone_No) VALUES (%s, %s)", (student_id, p_str)
         )
 
     logger.info("Added phone %s to student ID %s", p_str, student_id)
@@ -219,8 +237,7 @@ def list_student_phones(student_id: int) -> List[str]:
         raise NotFoundError(f"Student with ID {student_id} does not exist.")
 
     rows = execute_query(
-        "SELECT Phone_No FROM STUDENT_PHONE WHERE Student_ID = %s ORDER BY Phone_No",
-        (student_id,)
+        "SELECT Phone_No FROM STUDENT_PHONE WHERE Student_ID = %s ORDER BY Phone_No", (student_id,)
     )
     return [r["Phone_No"] for r in rows]
 
@@ -229,16 +246,14 @@ def delete_student_phone(student_id: int, phone_no: str) -> Dict[str, Any]:
     """Deletes a phone number for a student."""
     p_str = str(phone_no).strip()
     existing = execute_one(
-        "SELECT * FROM STUDENT_PHONE WHERE Student_ID = %s AND Phone_No = %s",
-        (student_id, p_str)
+        "SELECT * FROM STUDENT_PHONE WHERE Student_ID = %s AND Phone_No = %s", (student_id, p_str)
     )
     if not existing:
         raise NotFoundError(f"Phone number '{p_str}' not found for student ID {student_id}.")
 
     with get_cursor(commit=True) as cursor:
         cursor.execute(
-            "DELETE FROM STUDENT_PHONE WHERE Student_ID = %s AND Phone_No = %s",
-            (student_id, p_str)
+            "DELETE FROM STUDENT_PHONE WHERE Student_ID = %s AND Phone_No = %s", (student_id, p_str)
         )
 
     logger.info("Deleted phone %s from student ID %s", p_str, student_id)

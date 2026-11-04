@@ -22,7 +22,7 @@ class Phase7AcademicInternshipsTestCase(unittest.TestCase):
             "Semester": 4,
             "SGPA": 7.20,
             "Year": 2022,
-            "Total_Credits": 24
+            "Total_Credits": 24,
         }
         res = self.client.post("/api/semester-results", json=payload)
         self.assertEqual(res.status_code, 201)
@@ -33,13 +33,7 @@ class Phase7AcademicInternshipsTestCase(unittest.TestCase):
 
     def test_02_duplicate_semester_result_rejected(self):
         """CRITICAL: Enforces (Student_ID, Semester) uniqueness -> HTTP 409."""
-        payload = {
-            "Student_ID": 5,
-            "Semester": 4,
-            "SGPA": 8.00,
-            "Year": 2022,
-            "Total_Credits": 24
-        }
+        payload = {"Student_ID": 5, "Semester": 4, "SGPA": 8.00, "Year": 2022, "Total_Credits": 24}
         res = self.client.post("/api/semester-results", json=payload)
         self.assertEqual(res.status_code, 409)
         self.assertIn("Duplicate result rejected", res.get_json()["message"])
@@ -51,11 +45,13 @@ class Phase7AcademicInternshipsTestCase(unittest.TestCase):
             "Semester": 6,
             "SGPA": 11.50,  # Invalid
             "Year": 2023,
-            "Total_Credits": 24
+            "Total_Credits": 24,
         }
         res = self.client.post("/api/semester-results", json=payload)
         self.assertEqual(res.status_code, 400)
-        self.assertIn("SGPA must be a decimal number between 0.00 and 10.00", res.get_json()["message"])
+        self.assertIn(
+            "SGPA must be a decimal number between 0.00 and 10.00", res.get_json()["message"]
+        )
 
     # -------------------------------------------------------------------------
     # 2. ACADEMIC POLICY INTERNSHIP REQUIREMENTS
@@ -91,7 +87,7 @@ class Phase7AcademicInternshipsTestCase(unittest.TestCase):
             "Internship_Type": "Mandatory",
             "Requirement_ID": None,  # ILLEGAL: Mandatory requires Requirement_ID
             "Start_Date": "2022-06-01",
-            "End_Date": "2022-07-31"
+            "End_Date": "2022-07-31",
         }
         res = self.client.post("/api/internships", json=payload)
         self.assertEqual(res.status_code, 400)
@@ -106,7 +102,7 @@ class Phase7AcademicInternshipsTestCase(unittest.TestCase):
             "Internship_Type": "Mandatory",
             "Requirement_ID": 2,  # ILLEGAL: Internship 1 cannot link to Requirement 2
             "Start_Date": "2022-06-01",
-            "End_Date": "2022-07-31"
+            "End_Date": "2022-07-31",
         }
         res = self.client.post("/api/internships", json=payload)
         self.assertEqual(res.status_code, 400)
@@ -121,11 +117,14 @@ class Phase7AcademicInternshipsTestCase(unittest.TestCase):
             "Internship_Type": "Additional",
             "Requirement_ID": 1,  # ILLEGAL: Additional internships must have Requirement_ID = NULL
             "Start_Date": "2023-12-01",
-            "End_Date": "2024-01-15"
+            "End_Date": "2024-01-15",
         }
         res = self.client.post("/api/internships", json=payload)
         self.assertEqual(res.status_code, 400)
-        self.assertIn("Additional internships cannot be linked to mandatory academic requirements", res.get_json()["message"])
+        self.assertIn(
+            "Additional internships cannot be linked to mandatory academic requirements",
+            res.get_json()["message"],
+        )
 
     def test_08_bad_case_invalid_date_ordering(self):
         """CRITICAL BAD CASE: End_Date earlier than Start_Date must be rejected (HTTP 400)."""
@@ -136,7 +135,7 @@ class Phase7AcademicInternshipsTestCase(unittest.TestCase):
             "Internship_Type": "Mandatory",
             "Requirement_ID": 1,
             "Start_Date": "2022-07-31",
-            "End_Date": "2022-06-01"  # ILLEGAL: End earlier than Start
+            "End_Date": "2022-06-01",  # ILLEGAL: End earlier than Start
         }
         res = self.client.post("/api/internships", json=payload)
         self.assertEqual(res.status_code, 400)
@@ -155,7 +154,7 @@ class Phase7AcademicInternshipsTestCase(unittest.TestCase):
             "Role": "Automotive Engineering Trainee",
             "Stipend": 15000.00,
             "Start_Date": "2022-06-01",
-            "End_Date": "2022-07-31"
+            "End_Date": "2022-07-31",
         }
         res_m1 = self.client.post("/api/internships", json=m1_payload)
         self.assertEqual(res_m1.status_code, 201)
@@ -173,7 +172,7 @@ class Phase7AcademicInternshipsTestCase(unittest.TestCase):
             "Role": "Winter Open Source Fellow",
             "Stipend": 20000.00,
             "Start_Date": "2023-12-01",
-            "End_Date": "2024-01-15"
+            "End_Date": "2024-01-15",
         }
         res_a3 = self.client.post("/api/internships", json=a3_payload)
         self.assertEqual(res_a3.status_code, 201)
@@ -190,7 +189,7 @@ class Phase7AcademicInternshipsTestCase(unittest.TestCase):
             "Internship_Type": "Mandatory",
             "Requirement_ID": 1,
             "Start_Date": "2022-06-01",
-            "End_Date": "2022-07-31"
+            "End_Date": "2022-07-31",
         }
         res = self.client.post("/api/internships", json=dup_payload)
         self.assertEqual(res.status_code, 409)
@@ -201,7 +200,8 @@ class Phase7AcademicInternshipsTestCase(unittest.TestCase):
     # -------------------------------------------------------------------------
     def test_11_demonstrate_prerequisite_sgpa_join_without_storing_twice(self):
         """CRITICAL: Demonstrates that Semester 3 SGPA (for Internship 1) and Semester 5 SGPA (for Internship 2)
-        are fetched dynamically via INTERNSHIP -> INTERNSHIP_REQUIREMENT -> SEMESTER_RESULT with zero redundancy."""
+        are fetched dynamically via INTERNSHIP -> INTERNSHIP_REQUIREMENT -> SEMESTER_RESULT with zero redundancy.
+        """
         res = self.client.get("/api/internships/analytics/prerequisite-sgpa")
         self.assertEqual(res.status_code, 200)
         data = res.get_json()["data"]
@@ -241,7 +241,9 @@ class Phase7AcademicInternshipsTestCase(unittest.TestCase):
         for i in internships:
             self.client.delete(f"/api/internships/{i['Internship_ID']}")
 
-        sem_res = execute_one("SELECT Result_ID FROM SEMESTER_RESULT WHERE Student_ID = 5 AND Semester = 4")
+        sem_res = execute_one(
+            "SELECT Result_ID FROM SEMESTER_RESULT WHERE Student_ID = 5 AND Semester = 4"
+        )
         if sem_res:
             self.client.delete(f"/api/semester-results/{sem_res['Result_ID']}")
 

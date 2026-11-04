@@ -1,7 +1,5 @@
 import argparse
 import logging
-import re
-import sys
 from db.connection import get_connection
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -354,13 +352,16 @@ def execute_statements(conn, sql_text: str):
 def ensure_indexes(conn):
     with conn.cursor() as cur:
         for table_name, index_name, columns in SECONDARY_INDEXES:
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT COUNT(*) AS cnt 
                 FROM information_schema.statistics 
                 WHERE table_schema = DATABASE() 
                   AND table_name = %s 
                   AND index_name = %s
-            """, (table_name.lower(), index_name))
+            """,
+                (table_name.lower(), index_name),
+            )
             row = cur.fetchone()
             if row["cnt"] == 0:
                 try:
@@ -405,7 +406,9 @@ def init(reset: bool = False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Initialize or migrate MySQL placement_db")
-    parser.add_argument("--reset", action="store_true", help="Perform destructive full reset and reload seed data")
+    parser.add_argument(
+        "--reset", action="store_true", help="Perform destructive full reset and reload seed data"
+    )
     args = parser.parse_args()
 
     init(reset=args.reset)

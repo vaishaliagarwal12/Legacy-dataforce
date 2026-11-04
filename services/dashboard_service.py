@@ -10,20 +10,28 @@ def _extract_clean_filters(filters: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if not filters:
         return {}
     clean: Dict[str, Any] = {}
-    
+
     branch = filters.get("branch")
     if branch and str(branch).strip() and str(branch).strip().lower() not in ("all", "none"):
         clean["branch"] = str(branch).strip()
-        
+
     batch_year = filters.get("batch_year")
-    if batch_year and str(batch_year).strip() and str(batch_year).strip().lower() not in ("all", "none"):
+    if (
+        batch_year
+        and str(batch_year).strip()
+        and str(batch_year).strip().lower() not in ("all", "none")
+    ):
         try:
             clean["batch_year"] = int(batch_year)
         except (ValueError, TypeError):
             pass
 
     placement_year = filters.get("placement_year")
-    if placement_year and str(placement_year).strip() and str(placement_year).strip().lower() not in ("all", "none"):
+    if (
+        placement_year
+        and str(placement_year).strip()
+        and str(placement_year).strip().lower() not in ("all", "none")
+    ):
         try:
             clean["placement_year"] = int(placement_year)
         except (ValueError, TypeError):
@@ -48,16 +56,22 @@ def get_dashboard_filter_options() -> Dict[str, List[Any]]:
         return {
             "branches": [r["Branch"] for r in branches_raw if r.get("Branch")],
             "batch_years": [int(r["Batch_Year"]) for r in batch_raw if r.get("Batch_Year")],
-            "placement_years": [int(r["Placement_Year"]) for r in placement_raw if r.get("Placement_Year")],
+            "placement_years": [
+                int(r["Placement_Year"]) for r in placement_raw if r.get("Placement_Year")
+            ],
         }
     except Exception as exc:
-        logger.error("Error fetching dashboard filter options: %s", exc)
-        return {"branches": ["CSE", "ECE", "IT", "ME"], "batch_years": [2025, 2024, 2023, 2022], "placement_years": [2025, 2024, 2023, 2022]}
+        logger.error("Error fetching dashboard filter options from database: %s", exc)
+        return {
+            "branches": [],
+            "batch_years": [],
+            "placement_years": [],
+        }
 
 
 def get_dashboard_stats(filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Aggregates enterprise university placement KPI metrics for the executive dashboard cards.
-    
+
     Calculates the 8 core KPIs:
     1. Total Students
     2. Eligible Students (0 Backlogs and qualifying CGPA >= 6.0)
@@ -67,7 +81,7 @@ def get_dashboard_stats(filters: Optional[Dict[str, Any]] = None) -> Dict[str, A
     6. Successfully Placed Students
     7. Average Package (LPA)
     8. Highest Package (LPA)
-    
+
     Also preserves legacy dictionary keys ('students', 'companies', 'placements', 'internships')
     to prevent breaking existing tests and routes.
     """
@@ -90,7 +104,9 @@ def get_dashboard_stats(filters: Optional[Dict[str, Any]] = None) -> Dict[str, A
         s_params.append(placement_year)
 
     s_clause = " AND ".join(s_conds)
-    student_stats = execute_one(f"""
+    student_stats = (
+        execute_one(
+            f"""
         SELECT 
             COUNT(*) AS total_students,
             COUNT(*) AS active_students,
@@ -98,7 +114,11 @@ def get_dashboard_stats(filters: Optional[Dict[str, Any]] = None) -> Dict[str, A
             ROUND(COALESCE(AVG(s.CGPA), 0), 2) AS avg_cgpa
         FROM STUDENT s
         WHERE {s_clause}
-    """, tuple(s_params)) or {}
+    """,
+            tuple(s_params),
+        )
+        or {}
+    )
 
     total_students = int(student_stats.get("total_students") or 0)
     total_active = int(student_stats.get("active_students") or 0)
@@ -118,7 +138,9 @@ def get_dashboard_stats(filters: Optional[Dict[str, Any]] = None) -> Dict[str, A
         p_params.append(batch_year)
 
     p_clause = " AND ".join(p_conds)
-    placement_stats = execute_one(f"""
+    placement_stats = (
+        execute_one(
+            f"""
         SELECT 
             COUNT(p.Placement_ID) AS total_offers,
             COUNT(DISTINCT p.Student_ID) AS distinct_students_offered,
@@ -132,7 +154,11 @@ def get_dashboard_stats(filters: Optional[Dict[str, Any]] = None) -> Dict[str, A
         FROM PLACEMENT p
         JOIN STUDENT s ON p.Student_ID = s.Student_ID
         WHERE {p_clause}
-    """, tuple(p_params)) or {}
+    """,
+            tuple(p_params),
+        )
+        or {}
+    )
 
     total_offers = int(placement_stats.get("total_offers") or 0)
     placed_students = int(placement_stats.get("placed_students") or 0)
@@ -141,7 +167,9 @@ def get_dashboard_stats(filters: Optional[Dict[str, Any]] = None) -> Dict[str, A
     avg_package = float(placement_stats.get("avg_package") or 0.0)
     highest_package = float(placement_stats.get("highest_package") or 0.0)
     lowest_package = float(placement_stats.get("lowest_package") or 0.0)
-    placement_rate = round((placed_students / total_students * 100), 1) if total_students > 0 else 0.0
+    placement_rate = (
+        round((placed_students / total_students * 100), 1) if total_students > 0 else 0.0
+    )
 
     # 3. Companies Statistics
     if branch or batch_year or placement_year:
@@ -150,7 +178,12 @@ def get_dashboard_stats(filters: Optional[Dict[str, Any]] = None) -> Dict[str, A
         comp_res = execute_one("SELECT COUNT(*) AS total_companies FROM COMPANY") or {}
         total_companies = int(comp_res.get("total_companies") or 0)
 
-    tier1_res = execute_one("SELECT SUM(CASE WHEN Company_Type = 'Product' THEN 1 ELSE 0 END) AS tier1_companies FROM COMPANY") or {}
+    tier1_res = (
+        execute_one(
+            "SELECT SUM(CASE WHEN Company_Type = 'Product' THEN 1 ELSE 0 END) AS tier1_companies FROM COMPANY"
+        )
+        or {}
+    )
     tier1_companies = int(tier1_res.get("tier1_companies") or 0)
 
     # 4. Recruitment Drives Statistics
@@ -160,7 +193,13 @@ def get_dashboard_stats(filters: Optional[Dict[str, Any]] = None) -> Dict[str, A
         d_conds.append("rd.Drive_Year = %s")
         d_params.append(target_year)
     d_clause = " AND ".join(d_conds)
-    drive_res = execute_one(f"SELECT COUNT(*) AS active_drives FROM RECRUITMENT_DRIVE rd WHERE {d_clause}", tuple(d_params)) or {}
+    drive_res = (
+        execute_one(
+            f"SELECT COUNT(*) AS active_drives FROM RECRUITMENT_DRIVE rd WHERE {d_clause}",
+            tuple(d_params),
+        )
+        or {}
+    )
     active_drives = int(drive_res.get("active_drives") or 0)
 
     # 5. Internship Statistics
@@ -176,7 +215,9 @@ def get_dashboard_stats(filters: Optional[Dict[str, Any]] = None) -> Dict[str, A
         i_params.append(placement_year)
 
     i_clause = " AND ".join(i_conds)
-    internship_stats = execute_one(f"""
+    internship_stats = (
+        execute_one(
+            f"""
         SELECT 
             COUNT(i.Internship_ID) AS total_internships,
             SUM(CASE WHEN i.Internship_Type = 'Mandatory' THEN 1 ELSE 0 END) AS mandatory_internships,
@@ -185,7 +226,11 @@ def get_dashboard_stats(filters: Optional[Dict[str, Any]] = None) -> Dict[str, A
         FROM INTERNSHIP i
         JOIN STUDENT s ON i.Student_ID = s.Student_ID
         WHERE {i_clause}
-    """, tuple(i_params)) or {}
+    """,
+            tuple(i_params),
+        )
+        or {}
+    )
 
     total_internships = int(internship_stats.get("total_internships") or 0)
     mandatory_internships = int(internship_stats.get("mandatory_internships") or 0)
@@ -193,7 +238,9 @@ def get_dashboard_stats(filters: Optional[Dict[str, Any]] = None) -> Dict[str, A
     distinct_students_interned = int(internship_stats.get("distinct_students_interned") or 0)
 
     # 6. Missing Mandatory Count
-    missing_mandatory = execute_one(f"""
+    missing_mandatory = (
+        execute_one(
+            f"""
         SELECT COUNT(*) AS missing_count
         FROM (
             SELECT s.Student_ID
@@ -202,7 +249,11 @@ def get_dashboard_stats(filters: Optional[Dict[str, Any]] = None) -> Dict[str, A
             LEFT JOIN INTERNSHIP i2 ON s.Student_ID = i2.Student_ID AND i2.Internship_No = 2 AND i2.Internship_Type = 'Mandatory'
             WHERE {s_clause} AND (i1.Internship_ID IS NULL OR i2.Internship_ID IS NULL)
         ) AS missing_students
-    """, tuple(s_params)) or {}
+    """,
+            tuple(s_params),
+        )
+        or {}
+    )
     missing_count = int(missing_mandatory.get("missing_count") or 0)
 
     # Build Unified KPI Structure
@@ -290,7 +341,8 @@ def get_branchwise_analytics_chart_data(filters: Optional[Dict[str, Any]] = None
         p_extra_join = f" AND p.Placement_Year = {int(placement_year)}"
 
     s_clause = " AND ".join(s_conds)
-    rows = execute_query(f"""
+    rows = execute_query(
+        f"""
         SELECT 
             s.Branch,
             COUNT(DISTINCT s.Student_ID) AS student_count,
@@ -306,7 +358,9 @@ def get_branchwise_analytics_chart_data(filters: Optional[Dict[str, Any]] = None
         WHERE {s_clause}
         GROUP BY s.Branch
         ORDER BY student_count DESC, s.Branch ASC
-    """, tuple(s_params))
+    """,
+        tuple(s_params),
+    )
 
     labels = [r["Branch"] for r in rows]
     student_counts = [int(r["student_count"]) for r in rows]
@@ -314,7 +368,7 @@ def get_branchwise_analytics_chart_data(filters: Optional[Dict[str, Any]] = None
     placed_students = [int(r["placed_students"]) for r in rows]
     internship_counts = [int(r["internship_count"]) for r in rows]
     avg_packages = [float(r["avg_package"] or 0.0) for r in rows]
-    
+
     placement_rates = []
     for sc, ps in zip(student_counts, placed_students):
         rate = round((ps / sc * 100), 1) if sc > 0 else 0.0
@@ -351,7 +405,8 @@ def get_yearwise_placement_chart_data(filters: Optional[Dict[str, Any]] = None) 
         params.append(batch_year)
 
     clause = " AND ".join(conds)
-    rows = execute_query(f"""
+    rows = execute_query(
+        f"""
         SELECT 
             p.Placement_Year,
             COUNT(p.Placement_ID) AS offer_count,
@@ -363,7 +418,9 @@ def get_yearwise_placement_chart_data(filters: Optional[Dict[str, Any]] = None) 
         WHERE {clause}
         GROUP BY p.Placement_Year
         ORDER BY p.Placement_Year ASC
-    """, tuple(params))
+    """,
+        tuple(params),
+    )
 
     labels = [str(r["Placement_Year"]) for r in rows]
     offer_counts = [int(r["offer_count"]) for r in rows]
@@ -411,12 +468,15 @@ def get_package_distribution_chart_data(filters: Optional[Dict[str, Any]] = None
     ]
 
     tier_counts = {t["key"]: 0 for t in tiers}
-    rows = execute_query(f"""
+    rows = execute_query(
+        f"""
         SELECT p.Package
         FROM PLACEMENT p
         JOIN STUDENT s ON p.Student_ID = s.Student_ID
         WHERE {clause}
-    """, tuple(params))
+    """,
+        tuple(params),
+    )
 
     total = len(rows)
     for r in rows:
@@ -444,7 +504,9 @@ def get_package_distribution_chart_data(filters: Optional[Dict[str, Any]] = None
     }
 
 
-def get_placement_vs_internship_chart_data(filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def get_placement_vs_internship_chart_data(
+    filters: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """Visualization 4: Placement versus internship statistics.
     Direct branch comparison between secured placement offers and completed internships.
     """
@@ -467,7 +529,8 @@ def get_placement_vs_internship_chart_data(filters: Optional[Dict[str, Any]] = N
     p_extra_join = f" AND p.Placement_Year = {int(placement_year)}" if placement_year else ""
 
     s_clause = " AND ".join(s_conds)
-    rows = execute_query(f"""
+    rows = execute_query(
+        f"""
         SELECT 
             s.Branch,
             COUNT(DISTINCT p.Placement_ID) AS placement_offers,
@@ -480,14 +543,18 @@ def get_placement_vs_internship_chart_data(filters: Optional[Dict[str, Any]] = N
         WHERE {s_clause}
         GROUP BY s.Branch
         ORDER BY s.Branch ASC
-    """, tuple(s_params))
+    """,
+        tuple(s_params),
+    )
 
     labels = [r["Branch"] for r in rows]
     placement_offers = [int(r["placement_offers"]) for r in rows]
     total_internships = [int(r["total_internships"]) for r in rows]
     placed_students = [int(r["placed_students"]) for r in rows]
     interned_students = [int(r["interned_students"]) for r in rows]
-    is_empty = len(rows) == 0 or (all(po == 0 for po in placement_offers) and all(ti == 0 for ti in total_internships))
+    is_empty = len(rows) == 0 or (
+        all(po == 0 for po in placement_offers) and all(ti == 0 for ti in total_internships)
+    )
 
     return {
         "labels": labels,
@@ -499,7 +566,9 @@ def get_placement_vs_internship_chart_data(filters: Optional[Dict[str, Any]] = N
     }
 
 
-def get_internship_completion_chart_data(filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def get_internship_completion_chart_data(
+    filters: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """Visualization 5: Internship completion percentage.
     Analyzes student curriculum degree compliance:
     - Fully Completed (Completed Both Mandatory #1 and #2)
@@ -523,7 +592,8 @@ def get_internship_completion_chart_data(filters: Optional[Dict[str, Any]] = Non
         s_params.append(placement_year)
 
     s_clause = " AND ".join(s_conds)
-    rows = execute_query(f"""
+    rows = execute_query(
+        f"""
         SELECT 
             status_category,
             COUNT(*) AS student_count
@@ -545,16 +615,24 @@ def get_internship_completion_chart_data(filters: Optional[Dict[str, Any]] = Non
         ) AS student_compliance
         GROUP BY status_category
         ORDER BY FIELD(status_category, 'Fully Completed (Both)', 'Partially Completed (1 of 2)', 'Pending / Incomplete')
-    """, tuple(s_params))
+    """,
+        tuple(s_params),
+    )
 
     # Standardize categories
-    expected_categories = ["Fully Completed (Both)", "Partially Completed (1 of 2)", "Pending / Incomplete"]
+    expected_categories = [
+        "Fully Completed (Both)",
+        "Partially Completed (1 of 2)",
+        "Pending / Incomplete",
+    ]
     cat_map = {r["status_category"]: int(r["student_count"]) for r in rows}
     counts = [cat_map.get(cat, 0) for cat in expected_categories]
     total_students = sum(counts)
-    
+
     fully_completed_count = counts[0]
-    completion_rate = round((fully_completed_count / total_students * 100), 1) if total_students > 0 else 0.0
+    completion_rate = (
+        round((fully_completed_count / total_students * 100), 1) if total_students > 0 else 0.0
+    )
     is_empty = total_students == 0
 
     return {
@@ -593,7 +671,8 @@ def get_multiple_offers_chart_data(filters: Optional[Dict[str, Any]] = None) -> 
     p_extra_join = f" AND p.Placement_Year = {int(placement_year)}" if placement_year else ""
 
     s_clause = " AND ".join(s_conds)
-    rows = execute_query(f"""
+    rows = execute_query(
+        f"""
         SELECT 
             offer_tier,
             COUNT(*) AS student_count
@@ -613,9 +692,16 @@ def get_multiple_offers_chart_data(filters: Optional[Dict[str, Any]] = None) -> 
         ) AS student_offers
         GROUP BY offer_tier
         ORDER BY FIELD(offer_tier, '0 Offers (Unplaced)', '1 Offer (Single)', '2 Offers (Dual)', '3+ Offers (Multiple)')
-    """, tuple(s_params))
+    """,
+        tuple(s_params),
+    )
 
-    expected_tiers = ["0 Offers (Unplaced)", "1 Offer (Single)", "2 Offers (Dual)", "3+ Offers (Multiple)"]
+    expected_tiers = [
+        "0 Offers (Unplaced)",
+        "1 Offer (Single)",
+        "2 Offers (Dual)",
+        "3+ Offers (Multiple)",
+    ]
     tier_map = {r["offer_tier"]: int(r["student_count"]) for r in rows}
     counts = [tier_map.get(tier, 0) for tier in expected_tiers]
     total_students = sum(counts)
@@ -650,7 +736,8 @@ def get_offer_status_chart_data(filters: Optional[Dict[str, Any]] = None) -> Dic
         params.append(placement_year)
 
     clause = " AND ".join(conds)
-    rows = execute_query(f"""
+    rows = execute_query(
+        f"""
         SELECT 
             p.Offer_Status,
             COUNT(*) AS count
@@ -659,7 +746,9 @@ def get_offer_status_chart_data(filters: Optional[Dict[str, Any]] = None) -> Dic
         WHERE {clause}
         GROUP BY p.Offer_Status
         ORDER BY FIELD(p.Offer_Status, 'Offered', 'Accepted', 'Joined', 'Declined')
-    """, tuple(params))
+    """,
+        tuple(params),
+    )
 
     labels = [r["Offer_Status"] for r in rows]
     counts = [int(r["count"]) for r in rows]
@@ -691,7 +780,8 @@ def get_internship_breakdown_chart_data(filters: Optional[Dict[str, Any]] = None
         params.append(placement_year)
 
     clause = " AND ".join(conds)
-    rows = execute_query(f"""
+    rows = execute_query(
+        f"""
         SELECT 
             CASE 
                 WHEN i.Internship_Type = 'Mandatory' AND i.Internship_No = 1 THEN 'Mandatory #1 (Sem 3)'
@@ -704,7 +794,9 @@ def get_internship_breakdown_chart_data(filters: Optional[Dict[str, Any]] = None
         WHERE {clause}
         GROUP BY category
         ORDER BY category ASC
-    """, tuple(params))
+    """,
+        tuple(params),
+    )
 
     labels = [r["category"] for r in rows]
     counts = [int(r["count"]) for r in rows]
@@ -719,7 +811,7 @@ def get_internship_breakdown_chart_data(filters: Optional[Dict[str, Any]] = None
 
 def get_comprehensive_dashboard_data(filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Aggregates all 8 KPI cards, all 6 interactive charts, filter options, and recent offers.
-    
+
     Serves as the primary enterprise data provider for both server-rendered views
     and dynamic asynchronous AJAX updates.
     """
@@ -812,7 +904,9 @@ def get_comprehensive_report_data(filters: Dict[str, Any]) -> Dict[str, Any]:
 
     for r in rows:
         r["CGPA"] = float(r["CGPA"])
-        r["Placed_Package"] = float(r["Placed_Package"]) if r.get("Placed_Package") is not None else None
+        r["Placed_Package"] = (
+            float(r["Placed_Package"]) if r.get("Placed_Package") is not None else None
+        )
 
         # Placement status filtering
         is_placed = r["Placed_Company"] is not None
@@ -835,7 +929,7 @@ def get_comprehensive_report_data(filters: Dict[str, Any]) -> Dict[str, Any]:
                 pass
 
         # Internship status filtering
-        both_mandatory = (r["Has_Mandatory_1"] > 0 and r["Has_Mandatory_2"] > 0)
+        both_mandatory = r["Has_Mandatory_1"] > 0 and r["Has_Mandatory_2"] > 0
         missing_mandatory = not both_mandatory
 
         if internship_status_filter == "Complete" and not both_mandatory:
@@ -854,7 +948,9 @@ def get_comprehensive_report_data(filters: Dict[str, Any]) -> Dict[str, Any]:
     # Calculate summary aggregations over the filtered set
     total_students = len(filtered_rows)
     placed_students = sum(1 for r in filtered_rows if r["Placed_Company"] is not None)
-    placement_rate = round((placed_students / total_students * 100), 1) if total_students > 0 else 0.0
+    placement_rate = (
+        round((placed_students / total_students * 100), 1) if total_students > 0 else 0.0
+    )
     packages = [r["Placed_Package"] for r in filtered_rows if r["Placed_Package"] is not None]
     avg_package = round(sum(packages) / len(packages), 2) if packages else 0.0
     max_package = max(packages) if packages else 0.0

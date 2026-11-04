@@ -43,7 +43,9 @@ def validate_placement_payload(data: Dict[str, Any], is_update: bool = False) ->
     if "Placement_Type" in data and data["Placement_Type"] is not None:
         ptype = str(data["Placement_Type"]).strip()
         if ptype not in VALID_PLACEMENT_TYPES:
-            raise ValidationError(f"Placement_Type must be one of: {', '.join(VALID_PLACEMENT_TYPES)}")
+            raise ValidationError(
+                f"Placement_Type must be one of: {', '.join(VALID_PLACEMENT_TYPES)}"
+            )
 
     if "Is_PPO" in data and data["Is_PPO"] is not None:
         ppo = str(data["Is_PPO"]).strip()
@@ -58,7 +60,7 @@ def validate_placement_payload(data: Dict[str, Any], is_update: bool = False) ->
 
 def create_placement_offer(data: Dict[str, Any]) -> Dict[str, Any]:
     """Issues and records a placement offer, enforcing all business domain constraints.
-    
+
     Business Rules Enforced:
     1. Opportunity must be of type 'Placement' (not 'Internship').
     2. No duplicate offer for the same opportunity to the same student.
@@ -87,12 +89,17 @@ def create_placement_offer(data: Dict[str, Any]) -> Dict[str, Any]:
         joined = "Yes"
 
     # 1. Verify Student Exists
-    student = execute_one("SELECT Student_ID, Roll_No, First_Name, Last_Name FROM STUDENT WHERE Student_ID = %s", (student_id,))
+    student = execute_one(
+        "SELECT Student_ID, Roll_No, First_Name, Last_Name FROM STUDENT WHERE Student_ID = %s",
+        (student_id,),
+    )
     if not student:
         raise NotFoundError(f"Student with ID {student_id} does not exist.")
 
     # 2. Verify Company Exists
-    company = execute_one("SELECT Company_ID, Company_Name FROM COMPANY WHERE Company_ID = %s", (company_id,))
+    company = execute_one(
+        "SELECT Company_ID, Company_Name FROM COMPANY WHERE Company_ID = %s", (company_id,)
+    )
     if not company:
         raise NotFoundError(f"Company with ID {company_id} does not exist.")
 
@@ -100,7 +107,7 @@ def create_placement_offer(data: Dict[str, Any]) -> Dict[str, Any]:
     if opp_id:
         opp = execute_one(
             "SELECT Opportunity_ID, Role, Opportunity_Type, Package_Stipend FROM OPPORTUNITY WHERE Opportunity_ID = %s",
-            (opp_id,)
+            (opp_id,),
         )
         if not opp:
             raise NotFoundError(f"Opportunity with ID {opp_id} does not exist.")
@@ -116,7 +123,7 @@ def create_placement_offer(data: Dict[str, Any]) -> Dict[str, Any]:
     if opp_id:
         duplicate_check = execute_one(
             "SELECT Placement_ID, Role, Offer_Status FROM PLACEMENT WHERE Student_ID = %s AND Opportunity_ID = %s",
-            (student_id, opp_id)
+            (student_id, opp_id),
         )
         if duplicate_check:
             raise ConflictError(
@@ -126,12 +133,15 @@ def create_placement_offer(data: Dict[str, Any]) -> Dict[str, Any]:
 
     # 5. Rule 2: Enforce at most ONE Accepted/Joined offer per student
     if offer_status in ("Accepted", "Joined"):
-        existing_accepted = execute_one("""
+        existing_accepted = execute_one(
+            """
             SELECT p.Placement_ID, p.Role, p.Offer_Status, c.Company_Name
             FROM PLACEMENT p
             JOIN COMPANY c ON p.Company_ID = c.Company_ID
             WHERE p.Student_ID = %s AND p.Offer_Status IN ('Accepted', 'Joined')
-        """, (student_id,))
+        """,
+            (student_id,),
+        )
         if existing_accepted:
             raise ConflictError(
                 f"Cannot accept offer: Student {student['Roll_No']} already holds an accepted offer "
@@ -151,8 +161,19 @@ def create_placement_offer(data: Dict[str, Any]) -> Dict[str, Any]:
     with get_cursor(commit=True) as cursor:
         cursor.execute(
             insert_sql,
-            (student_id, company_id, opp_id, role, package_lpa,
-             placement_year, placement_type, is_ppo, joined, offer_status, rounds)
+            (
+                student_id,
+                company_id,
+                opp_id,
+                role,
+                package_lpa,
+                placement_year,
+                placement_type,
+                is_ppo,
+                joined,
+                offer_status,
+                rounds,
+            ),
         )
         placement_id = cursor.lastrowid
 
@@ -160,7 +181,13 @@ def create_placement_offer(data: Dict[str, Any]) -> Dict[str, Any]:
             skill_insert = "INSERT INTO PLACEMENT_SKILL (Placement_ID, Skill) VALUES (%s, %s)"
             cursor.executemany(skill_insert, [(placement_id, s) for s in set(skills)])
 
-    logger.info("Issued placement offer ID %s to student %s at %s (%s LPA)", placement_id, student["Roll_No"], company["Company_Name"], package_lpa)
+    logger.info(
+        "Issued placement offer ID %s to student %s at %s (%s LPA)",
+        placement_id,
+        student["Roll_No"],
+        company["Company_Name"],
+        package_lpa,
+    )
     return get_placement_offer(placement_id)
 
 
@@ -226,13 +253,19 @@ def get_placement_offer(placement_id: int) -> Dict[str, Any]:
     eligibility_notes = []
     if offer.get("Minimum_CGPA") is not None and offer["CGPA"] < offer["Minimum_CGPA"]:
         is_eligible = False
-        eligibility_notes.append(f"CGPA ({offer['CGPA']:.2f}) is below minimum requirement ({offer['Minimum_CGPA']:.2f})")
+        eligibility_notes.append(
+            f"CGPA ({offer['CGPA']:.2f}) is below minimum requirement ({offer['Minimum_CGPA']:.2f})"
+        )
     if offer.get("Max_Backlogs") is not None and offer["Backlogs"] > offer["Max_Backlogs"]:
         is_eligible = False
-        eligibility_notes.append(f"Active backlogs ({offer['Backlogs']}) exceed allowance ({offer['Max_Backlogs']})")
+        eligibility_notes.append(
+            f"Active backlogs ({offer['Backlogs']}) exceed allowance ({offer['Max_Backlogs']})"
+        )
     if offer.get("Eligible_Branches") and offer["Branch"] not in offer["Eligible_Branches"]:
         is_eligible = False
-        eligibility_notes.append(f"Branch '{offer['Branch']}' is not in approved list ({', '.join(offer['Eligible_Branches'])})")
+        eligibility_notes.append(
+            f"Branch '{offer['Branch']}' is not in approved list ({', '.join(offer['Eligible_Branches'])})"
+        )
 
     offer["Candidate_Eligibility_Met"] = is_eligible
     offer["Eligibility_Notes"] = eligibility_notes
@@ -303,11 +336,19 @@ def list_placement_offers(
         where_clauses.append("s.Branch = %s")
         params.append(str(branch).strip())
 
-    if offer_status and str(offer_status).strip() and str(offer_status).strip().lower() not in ("all", "none"):
+    if (
+        offer_status
+        and str(offer_status).strip()
+        and str(offer_status).strip().lower() not in ("all", "none")
+    ):
         where_clauses.append("p.Offer_Status = %s")
         params.append(str(offer_status).strip())
 
-    if placement_type and str(placement_type).strip() and str(placement_type).strip().lower() not in ("all", "none"):
+    if (
+        placement_type
+        and str(placement_type).strip()
+        and str(placement_type).strip().lower() not in ("all", "none")
+    ):
         where_clauses.append("p.Placement_Type = %s")
         params.append(str(placement_type).strip())
 
@@ -348,7 +389,17 @@ def list_placement_offers(
             "EXISTS (SELECT 1 FROM PLACEMENT_SKILL ps WHERE ps.Placement_ID = p.Placement_ID AND ps.Skill LIKE %s)"
             ")"
         )
-        params.extend([search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern])
+        params.extend(
+            [
+                search_pattern,
+                search_pattern,
+                search_pattern,
+                search_pattern,
+                search_pattern,
+                search_pattern,
+                search_pattern,
+            ]
+        )
 
     where_sql = " AND ".join(where_clauses)
 
@@ -411,7 +462,11 @@ def list_placement_offers(
     for r in rows:
         r["Package"] = float(r["Package"])
         r["CGPA"] = float(r["CGPA"])
-        r["Evaluated_Skills"] = [s.strip() for s in r["Evaluated_Skills"].split(", ") if s.strip()] if r.get("Evaluated_Skills") else []
+        r["Evaluated_Skills"] = (
+            [s.strip() for s in r["Evaluated_Skills"].split(", ") if s.strip()]
+            if r.get("Evaluated_Skills")
+            else []
+        )
 
     total_pages = math.ceil(total_count / limit) if limit > 0 else 1
     current_page = (offset // limit) + 1 if limit > 0 else 1
@@ -607,22 +662,27 @@ def get_placement_analytics(
     }
 
 
-def check_candidate_eligibility_for_opportunity(student_id: int, opportunity_id: int) -> Dict[str, Any]:
+def check_candidate_eligibility_for_opportunity(
+    student_id: int, opportunity_id: int
+) -> Dict[str, Any]:
     """Evaluates whether a candidate meets the eligibility criteria of a placement opportunity."""
     student = execute_one(
         "SELECT Student_ID, Roll_No, First_Name, Last_Name, Branch, CGPA, Backlogs FROM STUDENT WHERE Student_ID = %s",
-        (student_id,)
+        (student_id,),
     )
     if not student:
         raise NotFoundError(f"Student ID {student_id} not found.")
 
-    opp = execute_one("""
+    opp = execute_one(
+        """
         SELECT o.Opportunity_ID, o.Role, o.Package_Stipend,
                e.Eligibility_ID, e.Minimum_CGPA, e.Max_Backlogs, e.Eligible_Branch, e.Other_Criteria
         FROM OPPORTUNITY o
         LEFT JOIN ELIGIBILITY e ON o.Opportunity_ID = e.Opportunity_ID
         WHERE o.Opportunity_ID = %s
-    """, (opportunity_id,))
+    """,
+        (opportunity_id,),
+    )
     if not opp:
         raise NotFoundError(f"Opportunity ID {opportunity_id} not found.")
 
@@ -632,7 +692,10 @@ def check_candidate_eligibility_for_opportunity(student_id: int, opportunity_id:
 
     eligible_branches = []
     if opp.get("Eligibility_ID"):
-        b_rows = execute_query("SELECT Branch FROM ELIGIBILITY_BRANCH WHERE Eligibility_ID = %s ORDER BY Branch", (opp["Eligibility_ID"],))
+        b_rows = execute_query(
+            "SELECT Branch FROM ELIGIBILITY_BRANCH WHERE Eligibility_ID = %s ORDER BY Branch",
+            (opp["Eligibility_ID"],),
+        )
         eligible_branches = [b["Branch"] for b in b_rows]
 
     min_cgpa = float(opp["Minimum_CGPA"]) if opp.get("Minimum_CGPA") is not None else 0.0
@@ -642,9 +705,13 @@ def check_candidate_eligibility_for_opportunity(student_id: int, opportunity_id:
     if student_cgpa < min_cgpa:
         violations.append(f"CGPA ({student_cgpa:.2f}) is below minimum required ({min_cgpa:.2f})")
     if student_backlogs > max_backlogs:
-        violations.append(f"Active backlogs ({student_backlogs}) exceed maximum allowed ({max_backlogs})")
+        violations.append(
+            f"Active backlogs ({student_backlogs}) exceed maximum allowed ({max_backlogs})"
+        )
     if eligible_branches and student_branch not in eligible_branches:
-        violations.append(f"Branch '{student_branch}' is not in approved list ({', '.join(eligible_branches)})")
+        violations.append(
+            f"Branch '{student_branch}' is not in approved list ({', '.join(eligible_branches)})"
+        )
 
     return {
         "is_eligible": len(violations) == 0,
@@ -662,13 +729,15 @@ def check_candidate_eligibility_for_opportunity(student_id: int, opportunity_id:
             "Max_Backlogs": max_backlogs,
             "Eligible_Branches": eligible_branches or [opp.get("Eligible_Branch", "All Branches")],
             "Other_Criteria": opp.get("Other_Criteria"),
-        }
+        },
     }
 
 
-def update_offer_status(placement_id: int, new_status: str, joined: Optional[str] = None) -> Dict[str, Any]:
+def update_offer_status(
+    placement_id: int, new_status: str, joined: Optional[str] = None
+) -> Dict[str, Any]:
     """Updates the status of an existing offer (Offered -> Accepted / Declined / Joined).
-    
+
     Enforces Rule 2: At most one Accepted or Joined offer per student across all applications.
     """
     offer = get_placement_offer(placement_id)
@@ -676,7 +745,9 @@ def update_offer_status(placement_id: int, new_status: str, joined: Optional[str
 
     clean_status = str(new_status).strip()
     if clean_status not in VALID_OFFER_STATUSES:
-        raise ValidationError(f"Invalid status: '{clean_status}'. Must be one of: {', '.join(VALID_OFFER_STATUSES)}")
+        raise ValidationError(
+            f"Invalid status: '{clean_status}'. Must be one of: {', '.join(VALID_OFFER_STATUSES)}"
+        )
 
     # Determine joined value
     if clean_status == "Joined":
@@ -688,14 +759,17 @@ def update_offer_status(placement_id: int, new_status: str, joined: Optional[str
 
     # Rule 2: If accepting this offer, verify student has NO OTHER accepted offer
     if clean_status in ("Accepted", "Joined"):
-        existing_accepted = execute_one("""
+        existing_accepted = execute_one(
+            """
             SELECT p.Placement_ID, p.Role, p.Offer_Status, c.Company_Name
             FROM PLACEMENT p
             JOIN COMPANY c ON p.Company_ID = c.Company_ID
             WHERE p.Student_ID = %s 
               AND p.Offer_Status IN ('Accepted', 'Joined')
               AND p.Placement_ID != %s
-        """, (student_id, placement_id))
+        """,
+            (student_id, placement_id),
+        )
 
         if existing_accepted:
             raise ConflictError(
@@ -709,7 +783,12 @@ def update_offer_status(placement_id: int, new_status: str, joined: Optional[str
     with get_cursor(commit=True) as cursor:
         cursor.execute(update_sql, (clean_status, joined, placement_id))
 
-    logger.info("Updated placement offer #%s status from '%s' to '%s'", placement_id, offer["Offer_Status"], clean_status)
+    logger.info(
+        "Updated placement offer #%s status from '%s' to '%s'",
+        placement_id,
+        offer["Offer_Status"],
+        clean_status,
+    )
     return get_placement_offer(placement_id)
 
 
@@ -718,20 +797,35 @@ def update_placement_offer(placement_id: int, data: Dict[str, Any]) -> Dict[str,
     existing = get_placement_offer(placement_id)
     validate_placement_payload(data, is_update=True)
 
-    updatable = ["Role", "Package", "Placement_Year", "Placement_Type", "Is_PPO", "Offer_Status", "Joined", "Interview_Rounds"]
+    updatable = [
+        "Role",
+        "Package",
+        "Placement_Year",
+        "Placement_Type",
+        "Is_PPO",
+        "Offer_Status",
+        "Joined",
+        "Interview_Rounds",
+    ]
     set_clauses = []
     params: List[Any] = []
 
     # Check Rule 2 if status or joined is changing to Accepted/Joined
     new_status = data.get("Offer_Status", existing["Offer_Status"])
-    if new_status in ("Accepted", "Joined") and existing["Offer_Status"] not in ("Accepted", "Joined"):
+    if new_status in ("Accepted", "Joined") and existing["Offer_Status"] not in (
+        "Accepted",
+        "Joined",
+    ):
         student_id = existing["Student_ID"]
-        existing_acc = execute_one("""
+        existing_acc = execute_one(
+            """
             SELECT p.Placement_ID, p.Role, p.Offer_Status, c.Company_Name
             FROM PLACEMENT p
             JOIN COMPANY c ON p.Company_ID = c.Company_ID
             WHERE p.Student_ID = %s AND p.Offer_Status IN ('Accepted', 'Joined') AND p.Placement_ID != %s
-        """, (student_id, placement_id))
+        """,
+            (student_id, placement_id),
+        )
         if existing_acc:
             raise ConflictError(
                 f"Cannot accept offer: Student already holds accepted offer #{existing_acc['Placement_ID']} at {existing_acc['Company_Name']}."
@@ -762,7 +856,7 @@ def update_placement_offer(placement_id: int, data: Dict[str, Any]) -> Dict[str,
             if new_skills:
                 cursor.executemany(
                     "INSERT INTO PLACEMENT_SKILL (Placement_ID, Skill) VALUES (%s, %s)",
-                    [(placement_id, s) for s in set(new_skills)]
+                    [(placement_id, s) for s in set(new_skills)],
                 )
 
     logger.info("Updated placement offer ID %s", placement_id)
@@ -771,7 +865,10 @@ def update_placement_offer(placement_id: int, data: Dict[str, Any]) -> Dict[str,
 
 def delete_placement_offer(placement_id: int) -> Dict[str, Any]:
     """Deletes a placement offer record."""
-    offer = execute_one("SELECT Placement_ID, Student_ID, Role FROM PLACEMENT WHERE Placement_ID = %s", (placement_id,))
+    offer = execute_one(
+        "SELECT Placement_ID, Student_ID, Role FROM PLACEMENT WHERE Placement_ID = %s",
+        (placement_id,),
+    )
     if not offer:
         raise NotFoundError(f"Placement offer with ID {placement_id} not found.")
 
@@ -789,6 +886,7 @@ def delete_placement_offer(placement_id: int) -> Dict[str, Any]:
 # ==============================================================================
 # Analytical Queries for Students with Several Offers
 # ==============================================================================
+
 
 def get_students_with_multiple_offers(min_offers: int = 2) -> List[Dict[str, Any]]:
     """Identifies and aggregates students who received multiple placement offers."""

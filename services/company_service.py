@@ -54,7 +54,7 @@ def get_company(company_id: int) -> Dict[str, Any]:
     """Retrieves full company detail view listing all its recruitment drives and opportunities."""
     company = execute_one(
         "SELECT Company_ID, Company_Name, Company_Type, Industry, Location, Website FROM COMPANY WHERE Company_ID = %s",
-        (company_id,)
+        (company_id,),
     )
     if not company:
         raise NotFoundError(f"Company with ID {company_id} not found.")
@@ -89,7 +89,7 @@ def get_company(company_id: int) -> Dict[str, Any]:
             if opp.get("Eligibility_ID"):
                 branches = execute_query(
                     "SELECT Branch FROM ELIGIBILITY_BRANCH WHERE Eligibility_ID = %s ORDER BY Branch",
-                    (opp["Eligibility_ID"],)
+                    (opp["Eligibility_ID"],),
                 )
                 opp["Eligible_Branches"] = [b["Branch"] for b in branches]
             else:
@@ -98,7 +98,7 @@ def get_company(company_id: int) -> Dict[str, Any]:
             # Fetch rounds
             rounds = execute_query(
                 "SELECT Round_ID, Round_Number, Round_Type, Description FROM SELECTION_PROCESS WHERE Opportunity_ID = %s ORDER BY Round_Number ASC",
-                (opp["Opportunity_ID"],)
+                (opp["Opportunity_ID"],),
             )
             opp["Selection_Rounds"] = rounds
 
@@ -109,14 +109,19 @@ def get_company(company_id: int) -> Dict[str, Any]:
     company["Total_Drives"] = len(drives)
 
     # Check Placement / Internship stats
-    history = execute_one("""
+    history = execute_one(
+        """
         SELECT 
             (SELECT COUNT(*) FROM PLACEMENT WHERE Company_ID = %s) AS total_placements,
             (SELECT COUNT(*) FROM INTERNSHIP WHERE Company_ID = %s) AS total_internships
-    """, (company_id, company_id))
+    """,
+        (company_id, company_id),
+    )
     company["Placement_Count"] = history["total_placements"]
     company["Internship_Count"] = history["total_internships"]
-    company["Is_Deletable"] = (history["total_placements"] == 0 and history["total_internships"] == 0 and len(drives) == 0)
+    company["Is_Deletable"] = (
+        history["total_placements"] == 0 and history["total_internships"] == 0 and len(drives) == 0
+    )
 
     return company
 
@@ -181,7 +186,10 @@ def update_company(company_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
         if field in data and data[field] is not None:
             val = str(data[field]).strip()
             if field == "Company_Name" and val != existing["Company_Name"]:
-                conflict = execute_one("SELECT Company_ID FROM COMPANY WHERE Company_Name = %s AND Company_ID != %s", (val, company_id))
+                conflict = execute_one(
+                    "SELECT Company_ID FROM COMPANY WHERE Company_Name = %s AND Company_ID != %s",
+                    (val, company_id),
+                )
                 if conflict:
                     raise ConflictError(f"Company name '{val}' is already in use.")
             set_clauses.append(f"{field} = %s")
@@ -199,12 +207,16 @@ def update_company(company_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
 
 def delete_company(company_id: int) -> Dict[str, Any]:
     """Safely deletes a company, checking for dependent recruitment drives or placements."""
-    company = execute_one("SELECT Company_ID, Company_Name FROM COMPANY WHERE Company_ID = %s", (company_id,))
+    company = execute_one(
+        "SELECT Company_ID, Company_Name FROM COMPANY WHERE Company_ID = %s", (company_id,)
+    )
     if not company:
         raise NotFoundError(f"Company with ID {company_id} not found.")
 
     # Check dependent drives
-    drive_count = execute_one("SELECT COUNT(*) AS total FROM RECRUITMENT_DRIVE WHERE Company_ID = %s", (company_id,))["total"]
+    drive_count = execute_one(
+        "SELECT COUNT(*) AS total FROM RECRUITMENT_DRIVE WHERE Company_ID = %s", (company_id,)
+    )["total"]
     if drive_count > 0:
         raise ProtectedDeleteError(
             f"Cannot delete company ID {company_id} ('{company['Company_Name']}'): "
@@ -212,11 +224,14 @@ def delete_company(company_id: int) -> Dict[str, Any]:
         )
 
     # Check placements or internships (FK is ON DELETE RESTRICT)
-    hist = execute_one("""
+    hist = execute_one(
+        """
         SELECT 
             (SELECT COUNT(*) FROM PLACEMENT WHERE Company_ID = %s) AS p_cnt,
             (SELECT COUNT(*) FROM INTERNSHIP WHERE Company_ID = %s) AS i_cnt
-    """, (company_id, company_id))
+    """,
+        (company_id, company_id),
+    )
     if hist["p_cnt"] > 0 or hist["i_cnt"] > 0:
         raise ProtectedDeleteError(
             f"Cannot delete company ID {company_id} ('{company['Company_Name']}'): "

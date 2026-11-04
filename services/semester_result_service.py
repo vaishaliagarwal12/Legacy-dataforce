@@ -58,14 +58,16 @@ def create_semester_result(data: Dict[str, Any]) -> Dict[str, Any]:
     credits = int(data["Total_Credits"])
 
     # Verify student exists
-    student = execute_one("SELECT Student_ID, Roll_No FROM STUDENT WHERE Student_ID = %s", (student_id,))
+    student = execute_one(
+        "SELECT Student_ID, Roll_No FROM STUDENT WHERE Student_ID = %s", (student_id,)
+    )
     if not student:
         raise NotFoundError(f"Student with ID {student_id} does not exist.")
 
     # Unique constraint check (Student_ID, Semester)
     existing = execute_one(
         "SELECT Result_ID FROM SEMESTER_RESULT WHERE Student_ID = %s AND Semester = %s",
-        (student_id, semester)
+        (student_id, semester),
     )
     if existing:
         raise ConflictError(
@@ -80,7 +82,9 @@ def create_semester_result(data: Dict[str, Any]) -> Dict[str, Any]:
         cursor.execute(insert_sql, (student_id, semester, sgpa, year, credits))
         result_id = cursor.lastrowid
 
-    logger.info("Recorded Semester %s result for student %s (SGPA: %s)", semester, student["Roll_No"], sgpa)
+    logger.info(
+        "Recorded Semester %s result for student %s (SGPA: %s)", semester, student["Roll_No"], sgpa
+    )
     return get_semester_result(result_id)
 
 
@@ -170,7 +174,10 @@ def update_semester_result(result_id: int, data: Dict[str, Any]) -> Dict[str, An
 
 def delete_semester_result(result_id: int) -> Dict[str, Any]:
     """Deletes a semester result."""
-    result = execute_one("SELECT Result_ID, Student_ID, Semester FROM SEMESTER_RESULT WHERE Result_ID = %s", (result_id,))
+    result = execute_one(
+        "SELECT Result_ID, Student_ID, Semester FROM SEMESTER_RESULT WHERE Result_ID = %s",
+        (result_id,),
+    )
     if not result:
         raise NotFoundError(f"Semester result with ID {result_id} not found.")
 

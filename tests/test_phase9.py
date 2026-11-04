@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+
 load_dotenv()
 """
 Phase 9 (Scope A) Automated Unit Test Suite.
@@ -21,7 +22,7 @@ DB_CONFIG = {
     "user": "root",
     "password": os.getenv("MYSQL_PASSWORD", ""),
     "charset": "utf8mb4",
-    "cursorclass": pymysql.cursors.DictCursor
+    "cursorclass": pymysql.cursors.DictCursor,
 }
 
 
@@ -31,7 +32,13 @@ class Phase9ScopeATestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Initialize database placement_scope_a
-        conn = pymysql.connect(host=DB_CONFIG["host"], port=DB_CONFIG["port"], user=DB_CONFIG["user"], password=DB_CONFIG["password"], charset=DB_CONFIG["charset"])
+        conn = pymysql.connect(
+            host=DB_CONFIG["host"],
+            port=DB_CONFIG["port"],
+            user=DB_CONFIG["user"],
+            password=DB_CONFIG["password"],
+            charset=DB_CONFIG["charset"],
+        )
         with conn.cursor() as cur:
             cur.execute("DROP DATABASE IF EXISTS placement_scope_a;")
             cur.execute("CREATE DATABASE placement_scope_a;")
@@ -42,8 +49,14 @@ class Phase9ScopeATestCase(unittest.TestCase):
         with open("placement_internship_db.sql", "r", encoding="utf-8") as f:
             full_sql = f.read()
 
-        setup_sql = full_sql.split("-- PART 4: QUERIES")[0].replace("placement_db", "placement_scope_a")
-        setup_conn = pymysql.connect(database="placement_scope_a", client_flag=pymysql.constants.CLIENT.MULTI_STATEMENTS, **DB_CONFIG)
+        setup_sql = full_sql.split("-- PART 4: QUERIES")[0].replace(
+            "placement_db", "placement_scope_a"
+        )
+        setup_conn = pymysql.connect(
+            database="placement_scope_a",
+            client_flag=pymysql.constants.CLIENT.MULTI_STATEMENTS,
+            **DB_CONFIG,
+        )
         with setup_conn.cursor() as cur:
             cur.execute(setup_sql)
         setup_conn.commit()
@@ -61,7 +74,15 @@ class Phase9ScopeATestCase(unittest.TestCase):
         with conn.cursor() as cur:
             cur.execute("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE';")
             tables = [r[list(r.keys())[0]].upper() for r in cur.fetchall()]
-            expected = ["STUDENT", "STUDENT_PHONE", "STUDENT_SKILL", "COMPANY", "PLACEMENT", "PLACEMENT_SKILL", "INTERNSHIP"]
+            expected = [
+                "STUDENT",
+                "STUDENT_PHONE",
+                "STUDENT_SKILL",
+                "COMPANY",
+                "PLACEMENT",
+                "PLACEMENT_SKILL",
+                "INTERNSHIP",
+            ]
             for t in expected:
                 self.assertIn(t, tables)
 
@@ -79,7 +100,9 @@ class Phase9ScopeATestCase(unittest.TestCase):
         """Item 2: Verify queries A1, A2, A5, B6, B9, B14, C12."""
         conn = self.get_conn()
         with conn.cursor() as cur:
-            cur.execute("SELECT Roll_No, CGPA FROM STUDENT WHERE Branch = 'CSE' AND Batch_Year = 2024 ORDER BY CGPA DESC;")
+            cur.execute(
+                "SELECT Roll_No, CGPA FROM STUDENT WHERE Branch = 'CSE' AND Batch_Year = 2024 ORDER BY CGPA DESC;"
+            )
             rows = cur.fetchall()
             self.assertEqual(len(rows), 2)
             self.assertEqual(rows[0]["Roll_No"], "CS2102")  # Priya (9.10)
@@ -93,13 +116,17 @@ class Phase9ScopeATestCase(unittest.TestCase):
         """Item 3: Verify D11 (LIKE '%an%') and C8 (IS NULL)."""
         conn = self.get_conn()
         with conn.cursor() as cur:
-            cur.execute("SELECT Roll_No FROM STUDENT WHERE First_Name LIKE '%an%' OR Last_Name LIKE '%an%';")
+            cur.execute(
+                "SELECT Roll_No FROM STUDENT WHERE First_Name LIKE '%an%' OR Last_Name LIKE '%an%';"
+            )
             rows = cur.fetchall()
             rolls = [r["Roll_No"] for r in rows]
             self.assertIn("CS2101", rolls)  # Aman
             self.assertIn("ME2105", rolls)  # Karan
 
-            cur.execute("SELECT Student_Name FROM V_INTERNSHIP_DETAIL WHERE Internship_Type = 'Mandatory' AND Report_Link IS NULL;")
+            cur.execute(
+                "SELECT Student_Name FROM V_INTERNSHIP_DETAIL WHERE Internship_Type = 'Mandatory' AND Report_Link IS NULL;"
+            )
             missing = cur.fetchall()
             self.assertEqual(len(missing), 1)
             self.assertEqual(missing[0]["Student_Name"], "Karan Mehta")
@@ -112,7 +139,9 @@ class Phase9ScopeATestCase(unittest.TestCase):
         """Item 4: Verify C1 (Duration_Months derived attribute) and C9 (COALESCE credits)."""
         conn = self.get_conn()
         with conn.cursor() as cur:
-            cur.execute("SELECT Duration_Months FROM V_INTERNSHIP_DETAIL WHERE Roll_No = 'CS2102' ORDER BY Internship_No;")
+            cur.execute(
+                "SELECT Duration_Months FROM V_INTERNSHIP_DETAIL WHERE Roll_No = 'CS2102' ORDER BY Internship_No;"
+            )
             rows = cur.fetchall()
             self.assertEqual(len(rows), 3)
             # Duration computed dynamically
@@ -126,7 +155,9 @@ class Phase9ScopeATestCase(unittest.TestCase):
         """Item 5: Verify B4, B10, B13, C6, C11, D2, D3."""
         conn = self.get_conn()
         with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) AS c, ROUND(AVG(Package), 2) AS avg_pkg FROM V_PLACEMENT_DETAIL WHERE Joined = 'Yes';")
+            cur.execute(
+                "SELECT COUNT(*) AS c, ROUND(AVG(Package), 2) AS avg_pkg FROM V_PLACEMENT_DETAIL WHERE Joined = 'Yes';"
+            )
             res = cur.fetchone()
             self.assertEqual(res["c"], 4)
             self.assertAlmostEqual(float(res["avg_pkg"]), 8.28, delta=0.1)
@@ -139,7 +170,9 @@ class Phase9ScopeATestCase(unittest.TestCase):
         """Item 6: Verify B3 (Branch-wise), B5 (Company-wise), B15, C7, D4, D10."""
         conn = self.get_conn()
         with conn.cursor() as cur:
-            cur.execute("SELECT Branch, COUNT(*) AS pl FROM V_PLACEMENT_DETAIL WHERE Joined = 'Yes' GROUP BY Branch;")
+            cur.execute(
+                "SELECT Branch, COUNT(*) AS pl FROM V_PLACEMENT_DETAIL WHERE Joined = 'Yes' GROUP BY Branch;"
+            )
             rows = {r["Branch"]: r["pl"] for r in cur.fetchall()}
             self.assertEqual(rows["CSE"], 2)
             self.assertEqual(rows["ECE"], 1)
@@ -154,7 +187,9 @@ class Phase9ScopeATestCase(unittest.TestCase):
         conn = self.get_conn()
         with conn.cursor() as cur:
             # Aman has 2 offers
-            cur.execute("SELECT Student_Name FROM V_PLACEMENT_DETAIL GROUP BY Student_ID, Student_Name HAVING COUNT(*) > 1;")
+            cur.execute(
+                "SELECT Student_Name FROM V_PLACEMENT_DETAIL GROUP BY Student_ID, Student_Name HAVING COUNT(*) > 1;"
+            )
             multiple = cur.fetchall()
             self.assertEqual(len(multiple), 1)
             self.assertEqual(multiple[0]["Student_Name"], "Aman Sharma")
@@ -290,14 +325,24 @@ class Phase9ScopeATestCase(unittest.TestCase):
                     VALUES ('TEST_TX_99', 'Vikram', 'Aditya', 'CSE', 2024, 8.75, 0, 'https://test.edu/resume.pdf');
                 """)
                 st_id = cur.lastrowid
-                cur.execute("INSERT INTO STUDENT_PHONE (Student_ID, Phone_No) VALUES (%s, %s);", (st_id, "9998887770"))
-                cur.execute("INSERT INTO STUDENT_SKILL (Student_ID, Skill) VALUES (%s, %s);", (st_id, "Python"))
+                cur.execute(
+                    "INSERT INTO STUDENT_PHONE (Student_ID, Phone_No) VALUES (%s, %s);",
+                    (st_id, "9998887770"),
+                )
+                cur.execute(
+                    "INSERT INTO STUDENT_SKILL (Student_ID, Skill) VALUES (%s, %s);",
+                    (st_id, "Python"),
+                )
                 conn.commit()
 
                 # Verify
-                cur.execute("SELECT COUNT(*) AS c FROM STUDENT_PHONE WHERE Student_ID = %s;", (st_id,))
+                cur.execute(
+                    "SELECT COUNT(*) AS c FROM STUDENT_PHONE WHERE Student_ID = %s;", (st_id,)
+                )
                 self.assertEqual(cur.fetchone()["c"], 1)
-                cur.execute("SELECT COUNT(*) AS c FROM STUDENT_SKILL WHERE Student_ID = %s;", (st_id,))
+                cur.execute(
+                    "SELECT COUNT(*) AS c FROM STUDENT_SKILL WHERE Student_ID = %s;", (st_id,)
+                )
                 self.assertEqual(cur.fetchone()["c"], 1)
         finally:
             conn.close()
@@ -306,7 +351,9 @@ class Phase9ScopeATestCase(unittest.TestCase):
         conn = self.get_conn()
         with conn.cursor() as cur:
             cur.execute("CREATE INDEX idx_student_branch_batch ON STUDENT (Branch, Batch_Year);")
-            cur.execute("EXPLAIN SELECT Roll_No FROM STUDENT WHERE Branch = 'CSE' AND Batch_Year = 2024;")
+            cur.execute(
+                "EXPLAIN SELECT Roll_No FROM STUDENT WHERE Branch = 'CSE' AND Batch_Year = 2024;"
+            )
             plan = cur.fetchone()
             self.assertEqual(plan["key"], "idx_student_branch_batch")
             self.assertEqual(plan["type"], "ref")

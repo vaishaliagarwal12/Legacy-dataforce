@@ -75,11 +75,14 @@ class SecurityAuditTestCase(unittest.TestCase):
     def test_company_service_rejects_unsafe_website_url(self):
         """Verify company_service rejects stored XSS in Website."""
         with self.assertRaises(ValidationError) as ctx:
-            update_company(1, {
-                "Company_Name": "Test Org",
-                "Company_Type": "Product",
-                "Website": "javascript:alert(1)",
-            })
+            update_company(
+                1,
+                {
+                    "Company_Name": "Test Org",
+                    "Company_Type": "Product",
+                    "Website": "javascript:alert(1)",
+                },
+            )
         self.assertIn("Only secure HTTP/HTTPS URLs are allowed", str(ctx.exception))
 
     def test_csrf_protection_rejects_unauthorized_post(self):
@@ -128,7 +131,9 @@ class SecurityAuditTestCase(unittest.TestCase):
         # Register a temporary test route that triggers a simulated DatabaseError
         @test_app.route("/_test_db_error")
         def trigger_db_error():
-            raise DatabaseError("SELECT * FROM secret_table WHERE password='leak'; Connection to 10.0.0.1 failed")
+            raise DatabaseError(
+                "SELECT * FROM secret_table WHERE password='leak'; Connection to 10.0.0.1 failed"
+            )
 
         response = test_client.get("/_test_db_error")
         self.assertEqual(response.status_code, 500)
@@ -138,7 +143,10 @@ class SecurityAuditTestCase(unittest.TestCase):
         self.assertNotIn("secret_table", data.get("message", ""))
         self.assertNotIn("password", data.get("message", ""))
         self.assertNotIn("10.0.0.1", data.get("message", ""))
-        self.assertEqual(data.get("message"), "A database error occurred. Internal details have been logged securely.")
+        self.assertEqual(
+            data.get("message"),
+            "A database error occurred. Internal details have been logged securely.",
+        )
 
     def test_safe_error_message_helper_conceals_db_syntax(self):
         """Verify _safe_error_message conceals raw SQL syntax and database exception details."""

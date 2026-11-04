@@ -144,26 +144,32 @@ class DashboardUpgradeTestCase(unittest.TestCase):
         """Verify Chart 5: Student curriculum degree internship compliance breakdown."""
         data = get_internship_completion_chart_data()
         self.assertFalse(data["is_empty"])
-        self.assertEqual(data["labels"], [
-            "Fully Completed (Both)",
-            "Partially Completed (1 of 2)",
-            "Pending / Incomplete",
-        ])
+        self.assertEqual(
+            data["labels"],
+            [
+                "Fully Completed (Both)",
+                "Partially Completed (1 of 2)",
+                "Pending / Incomplete",
+            ],
+        )
         self.assertEqual(data["total_students"], 30)
         self.assertEqual(data["counts"][0], 29)  # 29 fully completed
-        self.assertEqual(data["counts"][2], 1)   # 1 pending
+        self.assertEqual(data["counts"][2], 1)  # 1 pending
         self.assertEqual(data["completion_rate"], 96.7)
 
     def test_09_chart6_multiple_offers_distribution(self):
         """Verify Chart 6: Candidate multiple-offer distribution."""
         data = get_multiple_offers_chart_data()
         self.assertFalse(data["is_empty"])
-        self.assertEqual(data["labels"], [
-            "0 Offers (Unplaced)",
-            "1 Offer (Single)",
-            "2 Offers (Dual)",
-            "3+ Offers (Multiple)",
-        ])
+        self.assertEqual(
+            data["labels"],
+            [
+                "0 Offers (Unplaced)",
+                "1 Offer (Single)",
+                "2 Offers (Dual)",
+                "3+ Offers (Multiple)",
+            ],
+        )
         self.assertEqual(data["total_students"], 30)
         self.assertEqual(data["counts"], [7, 10, 11, 2])
         self.assertEqual(data["multiple_offer_students"], 13)
@@ -259,4 +265,3 @@ class DashboardUpgradeTestCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

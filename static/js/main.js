@@ -38,9 +38,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Close sidebar or modals on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeSidebar();
+        }
+    });
+
     // -------------------------------------------------------------------------
-    // 2. Auto-dismiss Flash Alerts
+    // 2. Initialize Bootstrap Toasts & Auto-dismiss Flash Alerts
     // -------------------------------------------------------------------------
+    const toastEls = document.querySelectorAll('.toast');
+    toastEls.forEach(el => {
+        try {
+            const t = bootstrap.Toast.getOrCreateInstance(el);
+            t.show();
+        } catch (err) {
+            console.error('Toast initialization error', err);
+        }
+    });
+
     const flashAlerts = document.querySelectorAll('.flash-alert');
     flashAlerts.forEach(alert => {
         setTimeout(() => {
@@ -48,6 +65,31 @@ document.addEventListener('DOMContentLoaded', () => {
             if (bsAlert) bsAlert.close();
         }, 6000);
     });
+
+    // -------------------------------------------------------------------------
+    // 2b. Live Asynchronous Database Health Verification
+    // -------------------------------------------------------------------------
+    const dbBadge = document.getElementById('dbHealthBadge');
+    if (dbBadge) {
+        fetch('/health', { headers: { 'Accept': 'application/json' }, cache: 'no-store' })
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.status === 'healthy' && data.database && data.database.connection === 'connected') {
+                    dbBadge.className = 'badge badge-status-success px-2 py-1';
+                    dbBadge.innerHTML = '<i class="bi bi-circle-fill text-success" style="font-size: 0.5rem; vertical-align: middle;"></i> MySQL Connected';
+                    dbBadge.title = `MySQL ${data.database.version || '8.0'} Active (${data.database.active_database || 'Connected'})`;
+                } else {
+                    dbBadge.className = 'badge badge-status-danger px-2 py-1';
+                    dbBadge.innerHTML = '<i class="bi bi-circle-fill text-danger" style="font-size: 0.5rem; vertical-align: middle;"></i> MySQL Disconnected';
+                    dbBadge.title = 'MySQL Service Unavailable (Port 3306)';
+                }
+            })
+            .catch(() => {
+                dbBadge.className = 'badge badge-status-danger px-2 py-1';
+                dbBadge.innerHTML = '<i class="bi bi-circle-fill text-danger" style="font-size: 0.5rem; vertical-align: middle;"></i> MySQL Disconnected';
+                dbBadge.title = 'MySQL Connection Unreachable';
+            });
+    }
 
     // -------------------------------------------------------------------------
     // 3. Universal Delete Confirmation Modal
@@ -106,9 +148,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 form.classList.add('was-validated');
             }
 
-            // If valid, disable submit button and show saving indicator
+            // If valid, disable submit button and show saving indicator for POST/destructive forms
+            const isGetMethod = form.getAttribute('method') && form.getAttribute('method').toLowerCase() === 'get';
             const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn && !submitBtn.disabled) {
+            if (submitBtn && !submitBtn.disabled && !isGetMethod) {
                 submitBtn.disabled = true;
                 const originalHtml = submitBtn.innerHTML;
                 submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Saving...';
@@ -119,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = originalHtml;
                     }
-                }, 10000);
+                }, 8000);
             }
         });
     });
@@ -291,9 +334,9 @@ window.initDashboardCharts = function(yearData, branchData, statusData, internDa
     Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
     Chart.defaults.color = "#475569";
 
-    const ACCENT_COLOR = '#2563eb';
-    const ACCENT_LIGHT = 'rgba(37, 99, 235, 0.15)';
-    const ACCENT_HOVER = '#1d4ed8';
+    const ACCENT_COLOR = '#059669';
+    const ACCENT_LIGHT = 'rgba(5, 150, 105, 0.15)';
+    const ACCENT_HOVER = '#047857';
 
     // -------------------------------------------------------------------------
     // Chart 1: Placements per Year (Bar Chart)
@@ -486,7 +529,18 @@ window.initDashboardCharts = function(yearData, branchData, statusData, internDa
 // Enterprise University Placement Dashboard (Dynamic Multi-Filter Interactive Visualizations)
 // -----------------------------------------------------------------------------
 window.initEnterpriseDashboard = function(initialPayload) {
-    if (typeof Chart === 'undefined') return;
+    if (typeof Chart === 'undefined') {
+        console.warn('Chart.js library is not available. Showing tabular fallback.');
+        document.querySelectorAll('.chart-loading-overlay').forEach(overlay => overlay.style.display = 'none');
+        document.querySelectorAll('.chart-empty-container').forEach(empty => {
+            empty.style.display = 'flex';
+            const title = empty.querySelector('.empty-state-title');
+            if (title) title.textContent = 'Chart Visualization Standby';
+            const text = empty.querySelector('.empty-state-text');
+            if (text) text.textContent = 'Chart engine is in standby. Metric details are fully available in tabular view.';
+        });
+        return;
+    }
 
     // Strict institutional rule: Absolutely NO animations
     Chart.defaults.animation = false;
@@ -495,8 +549,8 @@ window.initEnterpriseDashboard = function(initialPayload) {
     Chart.defaults.color = "#475569";
 
     const COLORS = {
-        primary: '#2563eb',
-        primaryLight: 'rgba(37, 99, 235, 0.25)',
+        primary: '#059669',
+        primaryLight: 'rgba(5, 150, 105, 0.25)',
         success: '#10b981',
         successLight: 'rgba(16, 185, 129, 0.25)',
         warning: '#f59e0b',
@@ -910,4 +964,48 @@ window.initEnterpriseDashboard = function(initialPayload) {
             applyDashboardFilters();
         });
     }
+};
+
+// -----------------------------------------------------------------------------
+// Toast Notification Utility
+// -----------------------------------------------------------------------------
+window.showToast = function(message, type = 'info', title = '') {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+
+    const toastId = 'toast-' + Date.now();
+    const bgClass = type === 'success' ? 'text-bg-success' :
+                    type === 'danger' || type === 'error' ? 'text-bg-danger' :
+                    type === 'warning' ? 'text-bg-warning' : 'text-bg-primary';
+
+    const headerHtml = title ? `
+        <div class="toast-header border-0 bg-transparent text-white">
+            <strong class="me-auto">${title}</strong>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>` : '';
+
+    const toastEl = document.createElement('div');
+    toastEl.id = toastId;
+    toastEl.className = `toast align-items-center ${bgClass} border-0 shadow-sm`;
+    toastEl.setAttribute('role', 'alert');
+    toastEl.setAttribute('aria-live', 'assertive');
+    toastEl.setAttribute('aria-atomic', 'true');
+    toastEl.setAttribute('data-bs-delay', '5000');
+
+    toastEl.innerHTML = `
+        ${headerHtml}
+        <div class="d-flex">
+            <div class="toast-body">
+                ${message}
+            </div>
+            ${!title ? '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>' : ''}
+        </div>
+    `;
+
+    container.appendChild(toastEl);
+    const bsToast = new bootstrap.Toast(toastEl);
+    bsToast.show();
+    toastEl.addEventListener('hidden.bs.toast', () => {
+        toastEl.remove();
+    });
 };

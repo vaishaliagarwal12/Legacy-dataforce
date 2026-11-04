@@ -1,5 +1,6 @@
 import io
 import csv
+import datetime
 import logging
 from typing import Optional
 from flask import (
@@ -21,15 +22,8 @@ from services import (
     ConflictError,
     ProtectedDeleteError,
     # Dashboard & Reports
-    get_dashboard_stats,
     get_yearwise_placement_chart_data,
     get_branchwise_analytics_chart_data,
-    get_package_distribution_chart_data,
-    get_placement_vs_internship_chart_data,
-    get_internship_completion_chart_data,
-    get_multiple_offers_chart_data,
-    get_offer_status_chart_data,
-    get_internship_breakdown_chart_data,
     get_dashboard_filter_options,
     get_comprehensive_dashboard_data,
     get_comprehensive_report_data,
@@ -39,14 +33,8 @@ from services import (
     create_student,
     update_student,
     delete_student,
-    list_student_phones,
     add_student_phone,
     delete_student_phone,
-    list_profiles,
-    # Academic & Courses
-    list_semester_results,
-    list_registrations,
-    # Companies & Drives
     list_companies,
     get_company,
     create_company,
@@ -78,12 +66,8 @@ from services import (
     delete_placement_offer,
     get_students_with_multiple_offers,
     get_placement_analytics,
-    check_candidate_eligibility_for_opportunity,
-    # SQL Reports & DBMS Queries
     list_saved_queries,
-    get_saved_query,
     execute_saved_query,
-    validate_custom_sql,
     execute_custom_query,
 )
 
@@ -140,7 +124,9 @@ def parse_float(val, field_name: str, min_val: float = None, max_val: float = No
     try:
         f = float(str(val).strip())
     except (ValueError, TypeError):
-        raise ValidationError(f"Invalid numeric input for '{field_name}'. Value must be a valid number.")
+        raise ValidationError(
+            f"Invalid numeric input for '{field_name}'. Value must be a valid number."
+        )
     if min_val is not None and f < min_val:
         raise ValidationError(f"{field_name} must be greater than or equal to {min_val}")
     if max_val is not None and f > max_val:
@@ -155,7 +141,9 @@ def parse_int(val, field_name: str, min_val: int = None, max_val: int = None) ->
     try:
         i = int(str(val).strip())
     except (ValueError, TypeError):
-        raise ValidationError(f"Invalid integer input for '{field_name}'. Value must be a whole number.")
+        raise ValidationError(
+            f"Invalid integer input for '{field_name}'. Value must be a whole number."
+        )
     if min_val is not None and i < min_val:
         raise ValidationError(f"{field_name} must be greater than or equal to {min_val}")
     if max_val is not None and i > max_val:
@@ -176,6 +164,7 @@ def _safe_error_message(err: Exception, default_msg: str = "A database error occ
 # ==============================================================================
 # 1. Executive Dashboard (Home)
 # ==============================================================================
+
 
 @main_bp.route("/", methods=["GET"])
 def index():
@@ -238,6 +227,7 @@ def index():
 # ==============================================================================
 # 2. Student Directory, Detail & CRUD Views
 # ==============================================================================
+
 
 @main_bp.route("/students", methods=["GET"])
 def students_list():
@@ -371,33 +361,55 @@ def students_export_csv():
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "Roll No", "First Name", "Last Name", "Full Name", "Email",
-        "Branch", "Batch Year", "Section", "CGPA", "Backlogs",
-        "Phone Numbers", "Placement Status", "Placement Offers",
-        "Placed Company", "Placed Package (LPA)", "Internships Count", "Resume Link"
-    ])
+    writer.writerow(
+        [
+            "Roll No",
+            "First Name",
+            "Last Name",
+            "Full Name",
+            "Email",
+            "Branch",
+            "Batch Year",
+            "Section",
+            "CGPA",
+            "Backlogs",
+            "Phone Numbers",
+            "Placement Status",
+            "Placement Offers",
+            "Placed Company",
+            "Placed Package (LPA)",
+            "Internships Count",
+            "Resume Link",
+        ]
+    )
     for s in students:
-        phones = ", ".join(s.get("Phone_Numbers", [])) if isinstance(s.get("Phone_Numbers"), list) else str(s.get("Phone_Numbers") or "")
-        writer.writerow([
-            s.get("Roll_No"),
-            s.get("First_Name"),
-            s.get("Last_Name") or "",
-            s.get("Full_Name") or f"{s.get('First_Name')} {s.get('Last_Name') or ''}".strip(),
-            s.get("Email"),
-            s.get("Branch"),
-            s.get("Batch_Year"),
-            s.get("Section") or "A",
-            s.get("CGPA"),
-            s.get("Backlogs", 0),
-            phones,
-            s.get("Placement_Status") or ("Placed" if s.get("Accepted_Offers", 0) > 0 else "Unplaced"),
-            s.get("Placement_Offers", 0),
-            s.get("Placed_Company") or "",
-            s.get("Placed_Package") or "",
-            s.get("Internships", 0),
-            s.get("Resume_Link") or "",
-        ])
+        phones = (
+            ", ".join(s.get("Phone_Numbers", []))
+            if isinstance(s.get("Phone_Numbers"), list)
+            else str(s.get("Phone_Numbers") or "")
+        )
+        writer.writerow(
+            [
+                s.get("Roll_No"),
+                s.get("First_Name"),
+                s.get("Last_Name") or "",
+                s.get("Full_Name") or f"{s.get('First_Name')} {s.get('Last_Name') or ''}".strip(),
+                s.get("Email"),
+                s.get("Branch"),
+                s.get("Batch_Year"),
+                s.get("Section") or "A",
+                s.get("CGPA"),
+                s.get("Backlogs", 0),
+                phones,
+                s.get("Placement_Status")
+                or ("Placed" if s.get("Accepted_Offers", 0) > 0 else "Unplaced"),
+                s.get("Placement_Offers", 0),
+                s.get("Placed_Company") or "",
+                s.get("Placed_Package") or "",
+                s.get("Internships", 0),
+                s.get("Resume_Link") or "",
+            ]
+        )
 
     csv_data = output.getvalue()
     return Response(
@@ -410,14 +422,20 @@ def students_export_csv():
 @main_bp.route("/students/new", methods=["GET", "POST"])
 def student_create():
     """Handles adding a new student to the institution directory."""
+    filter_opts = get_dashboard_filter_options()
+    branches = filter_opts.get("branches", [])
+    current_year = datetime.date.today().year
+
     if request.method == "POST":
         try:
             roll_no = request.form.get("Roll_No", "").strip().upper()
             first_name = request.form.get("First_Name", "").strip()
             cgpa = parse_float(request.form.get("CGPA"), "CGPA", 0.0, 10.0)
             backlogs = parse_int(request.form.get("Backlogs", 0), "Backlogs", 0)
-            batch_year = parse_int(request.form.get("Batch_Year", 2024), "Batch Year", 2000, 2100)
-            raw_branch = request.form.get("Branch", "")
+            batch_year = parse_int(
+                request.form.get("Batch_Year", current_year), "Batch Year", 2000, 2100
+            )
+            raw_branch = request.form.get("Branch", "").strip()
             branch = normalize_branch(raw_branch)
 
             if not branch:
@@ -436,14 +454,31 @@ def student_create():
                 "Resume_Link": request.form.get("Resume_Link", "").strip() or None,
             }
             res = create_student(payload)
-            flash(f"Student {payload['First_Name']} {payload['Last_Name'] or ''} ({payload['Roll_No']}) registered successfully!", "success")
+            flash(
+                f"Student {payload['First_Name']} {payload['Last_Name'] or ''} ({payload['Roll_No']}) registered successfully!",
+                "success",
+            )
             return redirect(f"/students/{res['Student_ID']}")
         except (ValidationError, ConflictError, DatabaseError, ServiceError) as err:
             err_msg = _safe_error_message(err)
             flash(f"Registration Error: {err_msg}", "danger")
-            return render_template("students/form.html", active_page="students", mode="create", student=request.form)
+            return render_template(
+                "students/form.html",
+                active_page="students",
+                mode="create",
+                student=request.form,
+                branches=branches,
+                default_batch_year=current_year,
+            )
 
-    return render_template("students/form.html", active_page="students", mode="create", student=None)
+    return render_template(
+        "students/form.html",
+        active_page="students",
+        mode="create",
+        student=None,
+        branches=branches,
+        default_batch_year=current_year,
+    )
 
 
 @main_bp.route("/students/<int:student_id>", methods=["GET"])
@@ -494,11 +529,17 @@ def student_edit(student_id: int):
         flash(f"Student with ID {student_id} not found.", "warning")
         return redirect("/students")
 
+    filter_opts = get_dashboard_filter_options()
+    branches = filter_opts.get("branches", [])
+    current_year = datetime.date.today().year
+
     if request.method == "POST":
         try:
             cgpa = parse_float(request.form.get("CGPA", student["CGPA"]), "CGPA", 0.0, 10.0)
             backlogs = parse_int(request.form.get("Backlogs", student["Backlogs"]), "Backlogs", 0)
-            batch_year = parse_int(request.form.get("Batch_Year", student["Batch_Year"]), "Batch Year", 2000, 2100)
+            batch_year = parse_int(
+                request.form.get("Batch_Year", student["Batch_Year"]), "Batch Year", 2000, 2100
+            )
             branch = normalize_branch(request.form.get("Branch", student["Branch"]))
 
             if not branch:
@@ -523,9 +564,23 @@ def student_edit(student_id: int):
             flash(f"Update Error: {err_msg}", "danger")
             merged_student = dict(student)
             merged_student.update(request.form)
-            return render_template("students/form.html", active_page="students", mode="edit", student=merged_student)
+            return render_template(
+                "students/form.html",
+                active_page="students",
+                mode="edit",
+                student=merged_student,
+                branches=branches,
+                default_batch_year=current_year,
+            )
 
-    return render_template("students/form.html", active_page="students", mode="edit", student=student)
+    return render_template(
+        "students/form.html",
+        active_page="students",
+        mode="edit",
+        student=student,
+        branches=branches,
+        default_batch_year=current_year,
+    )
 
 
 @main_bp.route("/students/<int:student_id>/delete", methods=["POST"])
@@ -571,6 +626,7 @@ def student_phone_delete(student_id: int, phone_no: str):
 # 3. Corporate Partners & Recruitment Drives Views
 # ==============================================================================
 
+
 @main_bp.route("/companies", methods=["GET"])
 def companies_list():
     """Displays searchable and filterable company partners."""
@@ -606,9 +662,13 @@ def company_create():
         except (ValidationError, ConflictError, DatabaseError, ServiceError) as err:
             err_msg = _safe_error_message(err)
             flash(f"Company Registration Error: {err_msg}", "danger")
-            return render_template("companies/form.html", active_page="companies", mode="create", company=request.form)
+            return render_template(
+                "companies/form.html", active_page="companies", mode="create", company=request.form
+            )
 
-    return render_template("companies/form.html", active_page="companies", mode="create", company=None)
+    return render_template(
+        "companies/form.html", active_page="companies", mode="create", company=None
+    )
 
 
 @main_bp.route("/companies/<int:company_id>", methods=["GET"])
@@ -627,7 +687,9 @@ def company_detail(company_id: int):
         drive_opportunities[d["Drive_ID"]] = full_drive.get("Opportunities", [])
 
     placements_res = list_placement_offers(company_id=company_id)
-    placements = placements_res.get("results", []) if isinstance(placements_res, dict) else placements_res
+    placements = (
+        placements_res.get("results", []) if isinstance(placements_res, dict) else placements_res
+    )
 
     return render_template(
         "companies/detail.html",
@@ -665,9 +727,13 @@ def company_edit(company_id: int):
             flash(f"Update Error: {err_msg}", "danger")
             merged = dict(company)
             merged.update(request.form)
-            return render_template("companies/form.html", active_page="companies", mode="edit", company=merged)
+            return render_template(
+                "companies/form.html", active_page="companies", mode="edit", company=merged
+            )
 
-    return render_template("companies/form.html", active_page="companies", mode="edit", company=company)
+    return render_template(
+        "companies/form.html", active_page="companies", mode="edit", company=company
+    )
 
 
 @main_bp.route("/companies/<int:company_id>/delete", methods=["POST"])
@@ -688,11 +754,20 @@ def company_delete(company_id: int):
 # 4. Internships (Mandatory vs Additional & Prerequisite SGPA) Views
 # ==============================================================================
 
+
 @main_bp.route("/internships", methods=["GET"])
 def internships_list():
     """Displays internships with comprehensive dashboard, filtering, search, and compliance audit tabs."""
     active_tab = request.args.get("type", "All").strip()
-    if active_tab not in ("All", "Mandatory", "Additional", "Pending", "Missing", "Compliance", "Analytics"):
+    if active_tab not in (
+        "All",
+        "Mandatory",
+        "Additional",
+        "Pending",
+        "Missing",
+        "Compliance",
+        "Analytics",
+    ):
         active_tab = "All"
 
     search = request.args.get("q", "").strip() or None
@@ -711,7 +786,9 @@ def internships_list():
     branch_stats = get_branch_internship_statistics()
     batch_reports = get_batch_compliance_reports()
     pending_reports = get_pending_internship_reports()
-    missing_students = get_students_missing_mandatory_internships(branch=branch, batch_year=batch_year)
+    missing_students = get_students_missing_mandatory_internships(
+        branch=branch, batch_year=batch_year
+    )
 
     # Filtered lists
     all_internships = list_internships(
@@ -725,7 +802,9 @@ def internships_list():
         sort_dir=sort_dir,
     )
     mandatory_internships = get_mandatory_internships_with_prerequisite_sgpa()
-    additional_internships = [i for i in all_internships if i.get("Internship_Type") == "Additional"]
+    additional_internships = [
+        i for i in all_internships if i.get("Internship_Type") == "Additional"
+    ]
 
     companies = list_companies()
 
@@ -780,40 +859,66 @@ def internships_export_csv():
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "Internship ID", "Roll No", "Student Name", "Branch", "Batch Year", "CGPA",
-        "Company Name", "Designated Role", "Category", "Sequence No",
-        "Requirement Linked", "Prerequisite Sem SGPA", "Start Date", "End Date",
-        "Duration Weeks", "Duration Days", "Monthly Stipend (INR)", "Credits",
-        "Report Semester", "Report Grade", "Operational Status",
-        "Report Link", "Certificate Link"
-    ])
+    writer.writerow(
+        [
+            "Internship ID",
+            "Roll No",
+            "Student Name",
+            "Branch",
+            "Batch Year",
+            "CGPA",
+            "Company Name",
+            "Designated Role",
+            "Category",
+            "Sequence No",
+            "Requirement Linked",
+            "Prerequisite Sem SGPA",
+            "Start Date",
+            "End Date",
+            "Duration Weeks",
+            "Duration Days",
+            "Monthly Stipend (INR)",
+            "Credits",
+            "Report Semester",
+            "Report Grade",
+            "Operational Status",
+            "Report Link",
+            "Certificate Link",
+        ]
+    )
     for r in internships:
-        writer.writerow([
-            r.get("Internship_ID"),
-            r.get("Roll_No"),
-            r.get("Student_Name"),
-            r.get("Branch"),
-            r.get("Batch_Year"),
-            r.get("CGPA"),
-            r.get("Company_Name"),
-            r.get("Role") or "",
-            r.get("Internship_Type"),
-            r.get("Internship_No"),
-            r.get("Prescribed_Period") or ("None (Additional)" if r.get("Internship_Type") == "Additional" else ""),
-            f"{r.get('Prerequisite_Semester_SGPA'):.2f}" if r.get("Prerequisite_Semester_SGPA") is not None else "N/A",
-            r.get("Start_Date"),
-            r.get("End_Date"),
-            r.get("Duration_Weeks"),
-            r.get("Duration_Days"),
-            f"{r.get('Stipend', 0):.2f}",
-            r.get("Credits") or 0,
-            r.get("Report_Semester") or "",
-            r.get("Report_Grade") or "Pending",
-            r.get("Status"),
-            r.get("Report_Link") or "",
-            r.get("Certificate_Link") or "",
-        ])
+        writer.writerow(
+            [
+                r.get("Internship_ID"),
+                r.get("Roll_No"),
+                r.get("Student_Name"),
+                r.get("Branch"),
+                r.get("Batch_Year"),
+                r.get("CGPA"),
+                r.get("Company_Name"),
+                r.get("Role") or "",
+                r.get("Internship_Type"),
+                r.get("Internship_No"),
+                r.get("Prescribed_Period")
+                or ("None (Additional)" if r.get("Internship_Type") == "Additional" else ""),
+                (
+                    f"{r.get('Prerequisite_Semester_SGPA'):.2f}"
+                    if r.get("Prerequisite_Semester_SGPA") is not None
+                    else "N/A"
+                ),
+                r.get("Start_Date"),
+                r.get("End_Date"),
+                r.get("Duration_Weeks"),
+                r.get("Duration_Days"),
+                f"{r.get('Stipend', 0):.2f}",
+                r.get("Credits") or 0,
+                r.get("Report_Semester") or "",
+                r.get("Report_Grade") or "Pending",
+                r.get("Status"),
+                r.get("Report_Link") or "",
+                r.get("Certificate_Link") or "",
+            ]
+        )
 
     csv_data = output.getvalue()
     return Response(
@@ -832,7 +937,9 @@ def internship_detail(internship_id: int):
         flash(f"Internship with ID {internship_id} not found.", "warning")
         return redirect("/internships")
 
-    eligibility = check_internship_eligibility(internship["Student_ID"], internship["Internship_No"])
+    eligibility = check_internship_eligibility(
+        internship["Student_ID"], internship["Internship_No"]
+    )
     return render_template(
         "internships/detail.html",
         active_page="internships",
@@ -858,7 +965,11 @@ def internship_edit(internship_id: int):
                 "Start_Date": request.form.get("Start_Date", "").strip(),
                 "End_Date": request.form.get("End_Date", "").strip(),
                 "Credits": parse_int(request.form.get("Credits", 4), "Credits", 0),
-                "Report_Semester": parse_int(request.form.get("Report_Semester"), "Report Semester") if request.form.get("Report_Semester") else None,
+                "Report_Semester": (
+                    parse_int(request.form.get("Report_Semester"), "Report Semester")
+                    if request.form.get("Report_Semester")
+                    else None
+                ),
                 "Report_Grade": request.form.get("Report_Grade", "").strip() or None,
                 "Report_Link": request.form.get("Report_Link", "").strip() or None,
                 "Certificate_Link": request.form.get("Certificate_Link", "").strip() or None,
@@ -887,13 +998,23 @@ def internship_create():
         try:
             itype = request.form.get("Internship_Type", "Mandatory").strip()
             req_id_raw = request.form.get("Requirement_ID")
-            req_id = parse_int(req_id_raw, "Requirement ID") if (itype == "Mandatory" and req_id_raw) else None
+            req_id = (
+                parse_int(req_id_raw, "Requirement ID")
+                if (itype == "Mandatory" and req_id_raw)
+                else None
+            )
             internship_no = parse_int(request.form.get("Internship_No", 1), "Internship No", 1)
 
             stipend_val = parse_float(request.form.get("Stipend", 0.0), "Stipend", 0.0)
-            credits_val = parse_int(request.form.get("Credits", 4 if itype == "Mandatory" else 0), "Credits", 0)
+            credits_val = parse_int(
+                request.form.get("Credits", 4 if itype == "Mandatory" else 0), "Credits", 0
+            )
             report_sem_raw = request.form.get("Report_Semester")
-            report_sem = parse_int(report_sem_raw, "Report Semester") if report_sem_raw else (5 if internship_no == 1 else 7 if internship_no == 2 else None)
+            report_sem = (
+                parse_int(report_sem_raw, "Report Semester")
+                if report_sem_raw
+                else (5 if internship_no == 1 else 7 if internship_no == 2 else None)
+            )
 
             payload = {
                 "Student_ID": parse_int(request.form.get("Student_ID"), "Student"),
@@ -912,7 +1033,9 @@ def internship_create():
                 "Certificate_Link": request.form.get("Certificate_Link", "").strip() or None,
             }
             res = create_internship(payload)
-            flash(f"Recorded {itype} Internship #{payload['Internship_No']} successfully!", "success")
+            flash(
+                f"Recorded {itype} Internship #{payload['Internship_No']} successfully!", "success"
+            )
             return redirect(f"/internships/{res['Internship_ID']}")
         except (ValidationError, ConflictError, DatabaseError, ServiceError) as err:
             err_msg = _safe_error_message(err)
@@ -952,18 +1075,19 @@ def internship_delete(internship_id: int):
 # 5. Placements & Offer Management Views
 # ==============================================================================
 
+
 @main_bp.route("/placements", methods=["GET"])
 def placements_list():
     """Displays placement directory with advanced search, multi-filters, dynamic sorting, server-side pagination, KPI cards, and star performers view."""
     view_type = request.args.get("view", "all").strip().lower()
-    show_multi = (view_type == "multiple")
-    show_dashboard = (view_type == "dashboard")
+    show_multi = view_type == "multiple"
+    show_dashboard = view_type == "dashboard"
 
     # 1. Extract Filter Parameters
     search = request.args.get("search", "").strip() or None
     raw_branch = request.args.get("branch", "").strip() or None
     branch = normalize_branch(raw_branch)
-    
+
     raw_batch = request.args.get("batch_year")
     batch_year = None
     if raw_batch and str(raw_batch).strip().lower() not in ("all", "none"):
@@ -1049,7 +1173,9 @@ def placements_list():
 
     # 6. Modal / Form Auxiliary Data
     students_res = list_students(limit=100)
-    all_students = students_res.get("results", []) if isinstance(students_res, dict) else students_res
+    all_students = (
+        students_res.get("results", []) if isinstance(students_res, dict) else students_res
+    )
     all_companies = list_companies()
     all_opportunities = list_opportunities(opportunity_type="Placement")
 
@@ -1100,12 +1226,16 @@ def placements_export_csv():
     search = request.args.get("search", "").strip() or None
     raw_branch = request.args.get("branch", "").strip() or None
     branch = normalize_branch(raw_branch)
-    
+
     raw_batch = request.args.get("batch_year")
     batch_year = int(raw_batch) if raw_batch and str(raw_batch).isdigit() else None
 
     raw_placement_year = request.args.get("placement_year")
-    placement_year = int(raw_placement_year) if raw_placement_year and str(raw_placement_year).isdigit() else None
+    placement_year = (
+        int(raw_placement_year)
+        if raw_placement_year and str(raw_placement_year).isdigit()
+        else None
+    )
 
     raw_company_id = request.args.get("company_id")
     company_id = int(raw_company_id) if raw_company_id and str(raw_company_id).isdigit() else None
@@ -1146,34 +1276,56 @@ def placements_export_csv():
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "Placement ID", "Roll No", "Student Name", "Branch", "Batch Year", "CGPA",
-        "Company Name", "Company Type", "Designated Role", "Package (LPA)",
-        "Placement Year", "Placement Type", "Is PPO", "Offer Status", "Joined",
-        "Interview Rounds", "Evaluated Skills"
-    ])
+    writer.writerow(
+        [
+            "Placement ID",
+            "Roll No",
+            "Student Name",
+            "Branch",
+            "Batch Year",
+            "CGPA",
+            "Company Name",
+            "Company Type",
+            "Designated Role",
+            "Package (LPA)",
+            "Placement Year",
+            "Placement Type",
+            "Is PPO",
+            "Offer Status",
+            "Joined",
+            "Interview Rounds",
+            "Evaluated Skills",
+        ]
+    )
 
     for o in offers:
-        skills_str = ", ".join(o.get("Evaluated_Skills", [])) if isinstance(o.get("Evaluated_Skills"), list) else str(o.get("Evaluated_Skills") or "")
-        writer.writerow([
-            o.get("Placement_ID"),
-            o.get("Roll_No"),
-            o.get("Student_Name") or f"{o.get('First_Name')} {o.get('Last_Name') or ''}".strip(),
-            o.get("Branch"),
-            o.get("Batch_Year"),
-            o.get("CGPA"),
-            o.get("Company_Name"),
-            o.get("Company_Type") or "",
-            o.get("Role"),
-            o.get("Package"),
-            o.get("Placement_Year"),
-            o.get("Placement_Type"),
-            o.get("Is_PPO"),
-            o.get("Offer_Status"),
-            o.get("Joined"),
-            o.get("Interview_Rounds", 1),
-            skills_str,
-        ])
+        skills_str = (
+            ", ".join(o.get("Evaluated_Skills", []))
+            if isinstance(o.get("Evaluated_Skills"), list)
+            else str(o.get("Evaluated_Skills") or "")
+        )
+        writer.writerow(
+            [
+                o.get("Placement_ID"),
+                o.get("Roll_No"),
+                o.get("Student_Name")
+                or f"{o.get('First_Name')} {o.get('Last_Name') or ''}".strip(),
+                o.get("Branch"),
+                o.get("Batch_Year"),
+                o.get("CGPA"),
+                o.get("Company_Name"),
+                o.get("Company_Type") or "",
+                o.get("Role"),
+                o.get("Package"),
+                o.get("Placement_Year"),
+                o.get("Placement_Type"),
+                o.get("Is_PPO"),
+                o.get("Offer_Status"),
+                o.get("Joined"),
+                o.get("Interview_Rounds", 1),
+                skills_str,
+            ]
+        )
 
     csv_data = output.getvalue()
     return Response(
@@ -1212,17 +1364,23 @@ def placement_edit(placement_id: int):
         try:
             package = parse_float(request.form.get("Package", 0.0), "Package", min_val=0.01)
             raw_skills = request.form.get("Skills", "").strip()
-            skills_list = [s.strip() for s in raw_skills.split(",") if s.strip()] if raw_skills else []
+            skills_list = (
+                [s.strip() for s in raw_skills.split(",") if s.strip()] if raw_skills else []
+            )
 
             payload = {
                 "Role": request.form.get("Role", "").strip(),
                 "Package": package,
-                "Placement_Year": parse_int(request.form.get("Placement_Year", 2024), "Placement Year", 2000, 2100),
+                "Placement_Year": parse_int(
+                    request.form.get("Placement_Year", 2024), "Placement Year", 2000, 2100
+                ),
                 "Placement_Type": request.form.get("Placement_Type", "On-campus").strip(),
                 "Offer_Status": request.form.get("Offer_Status", "Offered").strip(),
                 "Is_PPO": request.form.get("Is_PPO", "No").strip(),
                 "Joined": request.form.get("Joined", "No").strip(),
-                "Interview_Rounds": parse_int(request.form.get("Interview_Rounds", 1), "Interview Rounds", min_val=0),
+                "Interview_Rounds": parse_int(
+                    request.form.get("Interview_Rounds", 1), "Interview Rounds", min_val=0
+                ),
                 "Skills": skills_list,
             }
 
@@ -1253,7 +1411,9 @@ def placement_create():
             company_id = parse_int(request.form.get("Company_ID"), "Company")
 
             raw_skills = request.form.get("Skills", "").strip()
-            skills_list = [s.strip() for s in raw_skills.split(",") if s.strip()] if raw_skills else []
+            skills_list = (
+                [s.strip() for s in raw_skills.split(",") if s.strip()] if raw_skills else []
+            )
 
             payload = {
                 "Student_ID": student_id,
@@ -1261,15 +1421,22 @@ def placement_create():
                 "Opportunity_ID": opp_id,
                 "Role": request.form.get("Role", "").strip(),
                 "Package": package,
-                "Placement_Year": parse_int(request.form.get("Placement_Year", 2024), "Placement Year", 2000, 2100),
+                "Placement_Year": parse_int(
+                    request.form.get("Placement_Year", 2024), "Placement Year", 2000, 2100
+                ),
                 "Placement_Type": request.form.get("Placement_Type", "On-campus").strip(),
                 "Offer_Status": request.form.get("Offer_Status", "Offered").strip(),
                 "Is_PPO": request.form.get("Is_PPO", "No").strip(),
-                "Interview_Rounds": parse_int(request.form.get("Interview_Rounds", 1), "Interview Rounds", min_val=0),
+                "Interview_Rounds": parse_int(
+                    request.form.get("Interview_Rounds", 1), "Interview Rounds", min_val=0
+                ),
                 "Skills": skills_list,
             }
             res = create_placement_offer(payload)
-            flash(f"Issued Placement Offer #{res['Placement_ID']} ({payload['Role']} - {payload['Package']} LPA) successfully!", "success")
+            flash(
+                f"Issued Placement Offer #{res['Placement_ID']} ({payload['Role']} - {payload['Package']} LPA) successfully!",
+                "success",
+            )
             return redirect(f"/placements/{res['Placement_ID']}")
         except (ValidationError, ConflictError, DatabaseError, ServiceError) as err:
             err_msg = _safe_error_message(err)
@@ -1278,7 +1445,9 @@ def placement_create():
 
     # GET request: render standalone form
     students_res = list_students(limit=100)
-    all_students = students_res.get("results", []) if isinstance(students_res, dict) else students_res
+    all_students = (
+        students_res.get("results", []) if isinstance(students_res, dict) else students_res
+    )
     all_companies = list_companies()
     all_opportunities = list_opportunities(opportunity_type="Placement")
 
@@ -1299,7 +1468,10 @@ def placement_status_update(placement_id: int):
     new_status = request.form.get("status", "").strip()
     try:
         update_offer_status(placement_id, new_status)
-        flash(f"Placement Offer #{placement_id} status updated to '{new_status}' successfully!", "success")
+        flash(
+            f"Placement Offer #{placement_id} status updated to '{new_status}' successfully!",
+            "success",
+        )
     except ConflictError as err:
         flash(f"Status Transition Blocked: {err.message}", "danger")
     except (ValidationError, NotFoundError, DatabaseError, ServiceError) as err:
@@ -1328,6 +1500,7 @@ def placement_delete(placement_id: int):
 # ==============================================================================
 # 6. Reports & Multi-Filter Export Views
 # ==============================================================================
+
 
 @main_bp.route("/reports", methods=["GET"])
 def reports_view():
@@ -1379,38 +1552,42 @@ def reports_export_csv():
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "Roll No",
-        "Student Name",
-        "Email",
-        "Branch",
-        "Batch Year",
-        "CGPA",
-        "Total Placement Offers",
-        "Placed Company",
-        "Placed Package (LPA)",
-        "Final Status",
-        "Mandatory Internship 1 (Sem 3)",
-        "Mandatory Internship 2 (Sem 5)",
-        "Additional Internships Count",
-    ])
+    writer.writerow(
+        [
+            "Roll No",
+            "Student Name",
+            "Email",
+            "Branch",
+            "Batch Year",
+            "CGPA",
+            "Total Placement Offers",
+            "Placed Company",
+            "Placed Package (LPA)",
+            "Final Status",
+            "Mandatory Internship 1 (Sem 3)",
+            "Mandatory Internship 2 (Sem 5)",
+            "Additional Internships Count",
+        ]
+    )
 
     for r in rows:
-        writer.writerow([
-            r["Roll_No"],
-            r["Full_Name"],
-            r["Email"],
-            r["Branch"],
-            r["Batch_Year"],
-            f"{r['CGPA']:.2f}",
-            r["Total_Offers"],
-            r["Placed_Company"] or "Unplaced",
-            f"{r['Placed_Package']:.2f}" if r["Placed_Package"] else "N/A",
-            r["Final_Status"] or "N/A",
-            "Completed" if r["Has_Mandatory_1"] > 0 else "Missing",
-            "Completed" if r["Has_Mandatory_2"] > 0 else "Missing",
-            r["Additional_Internship_Count"],
-        ])
+        writer.writerow(
+            [
+                r["Roll_No"],
+                r["Full_Name"],
+                r["Email"],
+                r["Branch"],
+                r["Batch_Year"],
+                f"{r['CGPA']:.2f}",
+                r["Total_Offers"],
+                r["Placed_Company"] or "Unplaced",
+                f"{r['Placed_Package']:.2f}" if r["Placed_Package"] else "N/A",
+                r["Final_Status"] or "N/A",
+                "Completed" if r["Has_Mandatory_1"] > 0 else "Missing",
+                "Completed" if r["Has_Mandatory_2"] > 0 else "Missing",
+                r["Additional_Internship_Count"],
+            ]
+        )
 
     csv_data = output.getvalue()
     output.close()
@@ -1422,9 +1599,167 @@ def reports_export_csv():
     )
 
 
+@main_bp.route("/reports/export-pdf", methods=["GET"])
+def reports_export_pdf():
+    """Generates and streams an executive PDF report of the filtered cohort."""
+    raw_branch = request.args.get("branch", "").strip() or None
+    branch = normalize_branch(raw_branch)
+
+    filters = {
+        "branch": branch,
+        "placement_status": request.args.get("placement_status", "").strip() or None,
+        "internship_status": request.args.get("internship_status", "").strip() or None,
+        "min_cgpa": request.args.get("min_cgpa", "").strip() or None,
+        "min_salary": request.args.get("min_salary", "").strip() or None,
+    }
+
+    report_data = get_comprehensive_report_data(filters)
+    rows = report_data.get("rows", [])
+
+    try:
+        from reportlab.lib.pagesizes import letter, landscape
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buf,
+            pagesize=landscape(letter),
+            leftMargin=28,
+            rightMargin=28,
+            topMargin=28,
+            bottomMargin=28,
+        )
+        styles = getSampleStyleSheet()
+        elements = []
+
+        title_style = ParagraphStyle(
+            "TitleStyle",
+            parent=styles["Heading1"],
+            fontSize=15,
+            leading=18,
+            textColor=colors.HexColor("#065f46"),
+        )
+        meta_style = ParagraphStyle(
+            "MetaStyle",
+            parent=styles["Normal"],
+            fontSize=8.5,
+            leading=11,
+            textColor=colors.HexColor("#64748b"),
+        )
+        cell_style = ParagraphStyle(
+            "CellStyle",
+            parent=styles["Normal"],
+            fontSize=7.5,
+            leading=9.5,
+            textColor=colors.HexColor("#1e293b"),
+        )
+        header_style = ParagraphStyle(
+            "HStyle",
+            parent=styles["Normal"],
+            fontSize=8,
+            leading=10,
+            textColor=colors.white,
+            fontName="Helvetica-Bold",
+        )
+
+        elements.append(
+            Paragraph(
+                "<b>LEGACY DATAFORCE</b> &bull; Executive Placement & Internship Report",
+                title_style,
+            )
+        )
+        elements.append(
+            Paragraph(
+                f'<b>Filter:</b> Branch: {branch or "All"} | <b>Total Records:</b> {len(rows)} | <b>Status:</b> Official University Accreditation Snapshot',
+                meta_style,
+            )
+        )
+        elements.append(Spacer(1, 10))
+
+        columns = [
+            "Roll No",
+            "Student Name",
+            "Branch",
+            "CGPA",
+            "Offers",
+            "Company",
+            "Package (LPA)",
+            "Final Status",
+            "Internship 1",
+            "Internship 2",
+        ]
+        table_data = [[Paragraph(c, header_style) for c in columns]]
+
+        for r in rows[:150]:
+            table_data.append(
+                [
+                    Paragraph(str(r.get("Roll_No", "-")), cell_style),
+                    Paragraph(str(r.get("Full_Name", "-")), cell_style),
+                    Paragraph(str(r.get("Branch", "-")), cell_style),
+                    Paragraph(f"{float(r.get('CGPA', 0)):.2f}", cell_style),
+                    Paragraph(str(r.get("Total_Offers", 0)), cell_style),
+                    Paragraph(str(r.get("Placed_Company") or "Unplaced"), cell_style),
+                    Paragraph(
+                        (
+                            f"{float(r.get('Placed_Package', 0)):.2f}"
+                            if r.get("Placed_Package")
+                            else "N/A"
+                        ),
+                        cell_style,
+                    ),
+                    Paragraph(str(r.get("Final_Status") or "N/A"), cell_style),
+                    Paragraph(
+                        "Completed" if r.get("Has_Mandatory_1", 0) > 0 else "Missing", cell_style
+                    ),
+                    Paragraph(
+                        "Completed" if r.get("Has_Mandatory_2", 0) > 0 else "Missing", cell_style
+                    ),
+                ]
+            )
+
+        t = Table(table_data, repeatRows=1)
+        t.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#065f46")),
+                    ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+                    (
+                        "ROWBACKGROUNDS",
+                        (0, 1),
+                        (-1, -1),
+                        [colors.white, colors.HexColor("#f8fafc")],
+                    ),
+                ]
+            )
+        )
+        elements.append(t)
+        doc.build(elements)
+        pdf_bytes = buf.getvalue()
+        buf.close()
+
+        return Response(
+            pdf_bytes,
+            mimetype="application/pdf",
+            headers={"Content-Disposition": "attachment; filename=placement_executive_report.pdf"},
+        )
+    except Exception as exc:
+        logger.error("Failed to generate PDF report: %s", exc)
+        flash("PDF Report Generation Failed.", "danger")
+        return redirect("/reports")
+
+
 # ==============================================================================
 # 7. Analytics JSON Endpoints (Supporting Live Chart Queries)
 # ==============================================================================
+
 
 @main_bp.route("/api/analytics/dashboard", methods=["GET"])
 def api_dashboard_stats():
@@ -1491,6 +1826,7 @@ def api_chart_branchwise():
 # 8. SQL Reports & Interactive DBMS Console (Saved & Custom Queries)
 # ==============================================================================
 
+
 @main_bp.route("/sql-reports", methods=["GET"])
 def sql_reports_view():
     """Displays the two-part SQL Reports page:
@@ -1522,10 +1858,26 @@ def api_run_saved_query():
         return jsonify({"status": "error", "message": err.message}), 400
     except DatabaseError as err:
         logger.error("Database error executing saved query %s: %s", query_id, err)
-        return jsonify({"status": "error", "message": "Database query failed. Internal details have been logged."}), 400
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Database query failed. Internal details have been logged.",
+                }
+            ),
+            400,
+        )
     except Exception as exc:
         logger.error("Unexpected error executing saved query %s: %s", query_id, exc)
-        return jsonify({"status": "error", "message": "An internal server error occurred while executing the query."}), 500
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "An internal server error occurred while executing the query.",
+                }
+            ),
+            500,
+        )
 
 
 @main_bp.route("/sql-reports/export-saved", methods=["GET"])
@@ -1572,38 +1924,63 @@ def api_run_custom_query():
     raw_sql = data.get("sql", "").strip()
 
     if not raw_sql:
-        return jsonify({
-            "status": "error",
-            "message": "SQL statement is empty. Please enter a valid SELECT statement.",
-            "data": None,
-        }), 400
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "SQL statement is empty. Please enter a valid SELECT statement.",
+                    "data": None,
+                }
+            ),
+            400,
+        )
 
     try:
         res = execute_custom_query(raw_sql)
         if res.get("status") == "error":
-            return jsonify({
-                "status": "error",
-                "message": res.get("error"),
-                "data": res,
-            }), 200
-        return jsonify({
-            "status": "success",
-            "message": "Query executed successfully.",
-            "data": res,
-        }), 200
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": res.get("error"),
+                        "data": res,
+                    }
+                ),
+                200,
+            )
+        return (
+            jsonify(
+                {
+                    "status": "success",
+                    "message": "Query executed successfully.",
+                    "data": res,
+                }
+            ),
+            200,
+        )
     except ValidationError as ve:
-        return jsonify({
-            "status": "error",
-            "message": ve.message,
-            "data": None,
-        }), 400
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": ve.message,
+                    "data": None,
+                }
+            ),
+            400,
+        )
     except Exception as exc:
         logger.error("Unhandled error running custom query: %s", exc)
-        return jsonify({
-            "status": "error",
-            "message": "An internal server error occurred while executing the query.",
-            "data": None,
-        }), 500
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "An internal server error occurred while executing the query.",
+                    "data": None,
+                }
+            ),
+            500,
+        )
 
 
 @main_bp.route("/sql-reports/export-custom", methods=["POST"])

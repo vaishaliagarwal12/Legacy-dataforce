@@ -37,7 +37,9 @@ class TestDatabaseRules(unittest.TestCase):
                    VALUES ('TEST_CGPA_HIGH', 'Test', 'User', 'CSE', 2024, 10.50, 0, 'test_high@univ.edu')"""
             )
         self.assertTrue(
-            "Check constraint" in str(ctx.exception) or "CONSTRAINT" in str(ctx.exception) or "10.50" in str(ctx.exception)
+            "Check constraint" in str(ctx.exception)
+            or "CONSTRAINT" in str(ctx.exception)
+            or "10.50" in str(ctx.exception)
         )
 
         # Test CGPA < 0.00
@@ -46,7 +48,9 @@ class TestDatabaseRules(unittest.TestCase):
                 """INSERT INTO STUDENT (Roll_No, First_Name, Last_Name, Branch, Batch_Year, CGPA, Backlogs, Email)
                    VALUES ('TEST_CGPA_LOW', 'Test', 'User', 'CSE', 2024, -1.00, 0, 'test_low@univ.edu')"""
             )
-        self.assertTrue("Check constraint" in str(ctx2.exception) or "CONSTRAINT" in str(ctx2.exception))
+        self.assertTrue(
+            "Check constraint" in str(ctx2.exception) or "CONSTRAINT" in str(ctx2.exception)
+        )
 
     def test_02_check_constraint_student_backlogs_non_negative(self):
         """Database Rule: STUDENT.Backlogs must be >= 0."""
@@ -55,7 +59,9 @@ class TestDatabaseRules(unittest.TestCase):
                 """INSERT INTO STUDENT (Roll_No, First_Name, Last_Name, Branch, Batch_Year, CGPA, Backlogs, Email)
                    VALUES ('TEST_BL_NEG', 'Test', 'User', 'CSE', 2024, 8.00, -2, 'test_bl_neg@univ.edu')"""
             )
-        self.assertTrue("Check constraint" in str(ctx.exception) or "CONSTRAINT" in str(ctx.exception))
+        self.assertTrue(
+            "Check constraint" in str(ctx.exception) or "CONSTRAINT" in str(ctx.exception)
+        )
 
     def test_03_check_constraint_course_semester_and_credits(self):
         """Database Rule: COURSE.Semester must be 1-8 and Credits > 0."""
@@ -80,7 +86,9 @@ class TestDatabaseRules(unittest.TestCase):
                                            Start_Date, End_Date, Stipend)
                    VALUES (1, 1, 99, 'Additional', 'Backend Intern', '2024-07-01', '2024-05-01', 25000)"""
             )
-        self.assertTrue("chk_internship_dates" in str(ctx.exception) or "Check constraint" in str(ctx.exception))
+        self.assertTrue(
+            "chk_internship_dates" in str(ctx.exception) or "Check constraint" in str(ctx.exception)
+        )
 
     def test_05_check_constraint_enum_course_type(self):
         """Database Rule: COURSE.Course_Type must be in ('Core', 'Elective', 'Lab', 'Seminar')."""
@@ -100,10 +108,8 @@ class TestDatabaseRules(unittest.TestCase):
             )
         # Company Company_Name cannot be NULL
         with self.assertRaises(DatabaseError):
-            execute_mutation(
-                """INSERT INTO COMPANY (Company_Name, Company_Type, Industry)
-                   VALUES (NULL, 'Product', 'Software')"""
-            )
+            execute_mutation("""INSERT INTO COMPANY (Company_Name, Company_Type, Industry)
+                   VALUES (NULL, 'Product', 'Software')""")
 
     # =========================================================================
     # PART 2: UNIQUENESS & CANDIDATE KEYS
@@ -133,10 +139,8 @@ class TestDatabaseRules(unittest.TestCase):
         """Database Rule: COMPANY.Company_Name is unique."""
         # 'Google India' already exists
         with self.assertRaises(DatabaseError) as ctx:
-            execute_mutation(
-                """INSERT INTO COMPANY (Company_Name, Company_Type, Industry)
-                   VALUES ('Google India', 'Product', 'Tech')"""
-            )
+            execute_mutation("""INSERT INTO COMPANY (Company_Name, Company_Type, Industry)
+                   VALUES ('Google India', 'Product', 'Tech')""")
         self.assertIn("Duplicate entry", str(ctx.exception))
 
     def test_10_composite_unique_course_dept_semester(self):
@@ -181,9 +185,7 @@ class TestDatabaseRules(unittest.TestCase):
 
         # 2. STUDENT_SKILL (Student_ID, Skill)
         with self.assertRaises(DatabaseError) as ctx_skill:
-            execute_mutation(
-                """INSERT INTO STUDENT_SKILL (Student_ID, Skill) VALUES (1, 'Java')"""
-            )
+            execute_mutation("""INSERT INTO STUDENT_SKILL (Student_ID, Skill) VALUES (1, 'Java')""")
         self.assertIn("Duplicate entry", str(ctx_skill.exception))
 
         # 3. STUDENT_COURSE (Student_ID, Course_ID)
@@ -196,12 +198,12 @@ class TestDatabaseRules(unittest.TestCase):
         try:
             execute_mutation(
                 "INSERT INTO STUDENT_COURSE (Student_ID, Course_ID, Enrollment_Year, Grade) VALUES (%s, 1, 2021, 'A')",
-                (temp_stu_id,)
+                (temp_stu_id,),
             )
             with self.assertRaises(DatabaseError) as ctx_course:
                 execute_mutation(
                     "INSERT INTO STUDENT_COURSE (Student_ID, Course_ID, Enrollment_Year, Grade) VALUES (%s, 1, 2021, 'A')",
-                    (temp_stu_id,)
+                    (temp_stu_id,),
                 )
             self.assertIn("Duplicate entry", str(ctx_course.exception))
         finally:
@@ -221,44 +223,75 @@ class TestDatabaseRules(unittest.TestCase):
         test_student_id = res_stu["last_insert_id"]
 
         # 2. Attach phone, skill, profile, semester result, and a placement offer
-        execute_mutation("INSERT INTO STUDENT_PHONE (Student_ID, Phone_No) VALUES (%s, '+91-9999900001')", (test_student_id,))
-        execute_mutation("INSERT INTO STUDENT_SKILL (Student_ID, Skill) VALUES (%s, 'Rust')", (test_student_id,))
+        execute_mutation(
+            "INSERT INTO STUDENT_PHONE (Student_ID, Phone_No) VALUES (%s, '+91-9999900001')",
+            (test_student_id,),
+        )
+        execute_mutation(
+            "INSERT INTO STUDENT_SKILL (Student_ID, Skill) VALUES (%s, 'Rust')", (test_student_id,)
+        )
         execute_mutation(
             """INSERT INTO STUDENT_PROFILE (Student_ID, Profile_Type, Title, Year)
                VALUES (%s, 'Project', 'Cascade Research', 2023)""",
-            (test_student_id,)
+            (test_student_id,),
         )
         execute_mutation(
             """INSERT INTO SEMESTER_RESULT (Student_ID, Semester, SGPA, Year, Total_Credits)
                VALUES (%s, 1, 8.80, 2021, 24)""",
-            (test_student_id,)
+            (test_student_id,),
         )
         res_offer = execute_mutation(
             """INSERT INTO PLACEMENT (Student_ID, Company_ID, Role, Package, Placement_Year, Offer_Status)
                VALUES (%s, 1, 'Systems Developer', 18.00, 2024, 'Offered')""",
-            (test_student_id,)
+            (test_student_id,),
         )
         offer_id = res_offer["last_insert_id"]
-        execute_mutation("INSERT INTO PLACEMENT_SKILL (Placement_ID, Skill) VALUES (%s, 'Rust')", (offer_id,))
+        execute_mutation(
+            "INSERT INTO PLACEMENT_SKILL (Placement_ID, Skill) VALUES (%s, 'Rust')", (offer_id,)
+        )
 
         # Verify all children exist
-        self.assertIsNotNone(execute_one("SELECT * FROM STUDENT_PHONE WHERE Student_ID = %s", (test_student_id,)))
-        self.assertIsNotNone(execute_one("SELECT * FROM STUDENT_SKILL WHERE Student_ID = %s", (test_student_id,)))
-        self.assertIsNotNone(execute_one("SELECT * FROM STUDENT_PROFILE WHERE Student_ID = %s", (test_student_id,)))
-        self.assertIsNotNone(execute_one("SELECT * FROM SEMESTER_RESULT WHERE Student_ID = %s", (test_student_id,)))
-        self.assertIsNotNone(execute_one("SELECT * FROM PLACEMENT WHERE Placement_ID = %s", (offer_id,)))
-        self.assertIsNotNone(execute_one("SELECT * FROM PLACEMENT_SKILL WHERE Placement_ID = %s", (offer_id,)))
+        self.assertIsNotNone(
+            execute_one("SELECT * FROM STUDENT_PHONE WHERE Student_ID = %s", (test_student_id,))
+        )
+        self.assertIsNotNone(
+            execute_one("SELECT * FROM STUDENT_SKILL WHERE Student_ID = %s", (test_student_id,))
+        )
+        self.assertIsNotNone(
+            execute_one("SELECT * FROM STUDENT_PROFILE WHERE Student_ID = %s", (test_student_id,))
+        )
+        self.assertIsNotNone(
+            execute_one("SELECT * FROM SEMESTER_RESULT WHERE Student_ID = %s", (test_student_id,))
+        )
+        self.assertIsNotNone(
+            execute_one("SELECT * FROM PLACEMENT WHERE Placement_ID = %s", (offer_id,))
+        )
+        self.assertIsNotNone(
+            execute_one("SELECT * FROM PLACEMENT_SKILL WHERE Placement_ID = %s", (offer_id,))
+        )
 
         # 3. DELETE the Student
         execute_mutation("DELETE FROM STUDENT WHERE Student_ID = %s", (test_student_id,))
 
         # 4. Verify ON DELETE CASCADE has purged all child records completely
-        self.assertIsNone(execute_one("SELECT * FROM STUDENT_PHONE WHERE Student_ID = %s", (test_student_id,)))
-        self.assertIsNone(execute_one("SELECT * FROM STUDENT_SKILL WHERE Student_ID = %s", (test_student_id,)))
-        self.assertIsNone(execute_one("SELECT * FROM STUDENT_PROFILE WHERE Student_ID = %s", (test_student_id,)))
-        self.assertIsNone(execute_one("SELECT * FROM SEMESTER_RESULT WHERE Student_ID = %s", (test_student_id,)))
-        self.assertIsNone(execute_one("SELECT * FROM PLACEMENT WHERE Placement_ID = %s", (offer_id,)))
-        self.assertIsNone(execute_one("SELECT * FROM PLACEMENT_SKILL WHERE Placement_ID = %s", (offer_id,)))
+        self.assertIsNone(
+            execute_one("SELECT * FROM STUDENT_PHONE WHERE Student_ID = %s", (test_student_id,))
+        )
+        self.assertIsNone(
+            execute_one("SELECT * FROM STUDENT_SKILL WHERE Student_ID = %s", (test_student_id,))
+        )
+        self.assertIsNone(
+            execute_one("SELECT * FROM STUDENT_PROFILE WHERE Student_ID = %s", (test_student_id,))
+        )
+        self.assertIsNone(
+            execute_one("SELECT * FROM SEMESTER_RESULT WHERE Student_ID = %s", (test_student_id,))
+        )
+        self.assertIsNone(
+            execute_one("SELECT * FROM PLACEMENT WHERE Placement_ID = %s", (offer_id,))
+        )
+        self.assertIsNone(
+            execute_one("SELECT * FROM PLACEMENT_SKILL WHERE Placement_ID = %s", (offer_id,))
+        )
 
     def test_15_cascade_delete_course_purges_enrollments(self):
         """Database Rule: Deleting a COURSE cascades to STUDENT_COURSE."""
@@ -272,13 +305,17 @@ class TestDatabaseRules(unittest.TestCase):
         # Enroll Student 2
         execute_mutation(
             "INSERT INTO STUDENT_COURSE (Student_ID, Course_ID, Enrollment_Year, Grade) VALUES (2, %s, 2023, 'A')",
-            (course_id,)
+            (course_id,),
         )
-        self.assertIsNotNone(execute_one("SELECT * FROM STUDENT_COURSE WHERE Course_ID = %s", (course_id,)))
+        self.assertIsNotNone(
+            execute_one("SELECT * FROM STUDENT_COURSE WHERE Course_ID = %s", (course_id,))
+        )
 
         # Delete course
         execute_mutation("DELETE FROM COURSE WHERE Course_ID = %s", (course_id,))
-        self.assertIsNone(execute_one("SELECT * FROM STUDENT_COURSE WHERE Course_ID = %s", (course_id,)))
+        self.assertIsNone(
+            execute_one("SELECT * FROM STUDENT_COURSE WHERE Course_ID = %s", (course_id,))
+        )
 
     def test_16_cascade_delete_opportunity_purges_eligibility_and_rounds(self):
         """Database Rule: Deleting an OPPORTUNITY cascades to ELIGIBILITY and SELECTION_PROCESS."""
@@ -290,17 +327,31 @@ class TestDatabaseRules(unittest.TestCase):
         opp_id = res_opp["last_insert_id"]
 
         # Insert eligibility and selection process round
-        execute_mutation("INSERT INTO ELIGIBILITY (Opportunity_ID, Minimum_CGPA, Eligible_Branch) VALUES (%s, 7.50, 'CSE')", (opp_id,))
-        execute_mutation("INSERT INTO SELECTION_PROCESS (Opportunity_ID, Round_Number, Round_Type) VALUES (%s, 1, 'Technical Interview')", (opp_id,))
+        execute_mutation(
+            "INSERT INTO ELIGIBILITY (Opportunity_ID, Minimum_CGPA, Eligible_Branch) VALUES (%s, 7.50, 'CSE')",
+            (opp_id,),
+        )
+        execute_mutation(
+            "INSERT INTO SELECTION_PROCESS (Opportunity_ID, Round_Number, Round_Type) VALUES (%s, 1, 'Technical Interview')",
+            (opp_id,),
+        )
 
-        self.assertIsNotNone(execute_one("SELECT * FROM ELIGIBILITY WHERE Opportunity_ID = %s", (opp_id,)))
-        self.assertIsNotNone(execute_one("SELECT * FROM SELECTION_PROCESS WHERE Opportunity_ID = %s", (opp_id,)))
+        self.assertIsNotNone(
+            execute_one("SELECT * FROM ELIGIBILITY WHERE Opportunity_ID = %s", (opp_id,))
+        )
+        self.assertIsNotNone(
+            execute_one("SELECT * FROM SELECTION_PROCESS WHERE Opportunity_ID = %s", (opp_id,))
+        )
 
         # Delete opportunity
         execute_mutation("DELETE FROM OPPORTUNITY WHERE Opportunity_ID = %s", (opp_id,))
 
-        self.assertIsNone(execute_one("SELECT * FROM ELIGIBILITY WHERE Opportunity_ID = %s", (opp_id,)))
-        self.assertIsNone(execute_one("SELECT * FROM SELECTION_PROCESS WHERE Opportunity_ID = %s", (opp_id,)))
+        self.assertIsNone(
+            execute_one("SELECT * FROM ELIGIBILITY WHERE Opportunity_ID = %s", (opp_id,))
+        )
+        self.assertIsNone(
+            execute_one("SELECT * FROM SELECTION_PROCESS WHERE Opportunity_ID = %s", (opp_id,))
+        )
 
     def test_17_restrict_delete_company_with_active_relationships(self):
         """Database Rule: ON DELETE RESTRICT prevents deleting a company with recruitment drives or offers."""
@@ -322,7 +373,7 @@ class TestDatabaseRules(unittest.TestCase):
         res_offer = execute_mutation(
             """INSERT INTO PLACEMENT (Student_ID, Company_ID, Opportunity_ID, Role, Package, Placement_Year, Offer_Status)
                VALUES (2, 1, %s, 'SetNull Role', 16.00, 2024, 'Offered')""",
-            (opp_id,)
+            (opp_id,),
         )
         offer_id = res_offer["last_insert_id"]
 
@@ -330,7 +381,10 @@ class TestDatabaseRules(unittest.TestCase):
         execute_mutation("DELETE FROM OPPORTUNITY WHERE Opportunity_ID = %s", (opp_id,))
 
         # Verify placement offer record still exists, and its Opportunity_ID was set to NULL
-        offer = execute_one("SELECT Placement_ID, Opportunity_ID FROM PLACEMENT WHERE Placement_ID = %s", (offer_id,))
+        offer = execute_one(
+            "SELECT Placement_ID, Opportunity_ID FROM PLACEMENT WHERE Placement_ID = %s",
+            (offer_id,),
+        )
         self.assertIsNotNone(offer)
         self.assertIsNone(offer["Opportunity_ID"])
 
@@ -351,23 +405,27 @@ class TestDatabaseRules(unittest.TestCase):
         stu_id = res_stu["last_insert_id"]
         try:
             # Issue Offer A
-            offer_a = create_placement_offer({
-                "Student_ID": stu_id,
-                "Company_ID": 3,
-                "Role": "Robotics Engineer",
-                "Package": 12.00,
-                "Placement_Year": 2024,
-                "Offer_Status": "Offered"
-            })
+            offer_a = create_placement_offer(
+                {
+                    "Student_ID": stu_id,
+                    "Company_ID": 3,
+                    "Role": "Robotics Engineer",
+                    "Package": 12.00,
+                    "Placement_Year": 2024,
+                    "Offer_Status": "Offered",
+                }
+            )
             # Issue Offer B
-            offer_b = create_placement_offer({
-                "Student_ID": stu_id,
-                "Company_ID": 4,
-                "Role": "Systems Analyst",
-                "Package": 14.00,
-                "Placement_Year": 2024,
-                "Offer_Status": "Offered"
-            })
+            offer_b = create_placement_offer(
+                {
+                    "Student_ID": stu_id,
+                    "Company_ID": 4,
+                    "Role": "Systems Analyst",
+                    "Package": 14.00,
+                    "Placement_Year": 2024,
+                    "Offer_Status": "Offered",
+                }
+            )
 
             self.assertIsNotNone(offer_a)
             self.assertIsNotNone(offer_b)
@@ -385,22 +443,26 @@ class TestDatabaseRules(unittest.TestCase):
         stu_id = res_stu["last_insert_id"]
         try:
             # Create Offer 1 & Offer 2 in 'Offered' status
-            offer_1 = create_placement_offer({
-                "Student_ID": stu_id,
-                "Company_ID": 3,
-                "Role": "Hardware Specialist",
-                "Package": 11.50,
-                "Placement_Year": 2024,
-                "Offer_Status": "Offered"
-            })
-            offer_2 = create_placement_offer({
-                "Student_ID": stu_id,
-                "Company_ID": 4,
-                "Role": "Industrial Consultant",
-                "Package": 13.00,
-                "Placement_Year": 2024,
-                "Offer_Status": "Offered"
-            })
+            offer_1 = create_placement_offer(
+                {
+                    "Student_ID": stu_id,
+                    "Company_ID": 3,
+                    "Role": "Hardware Specialist",
+                    "Package": 11.50,
+                    "Placement_Year": 2024,
+                    "Offer_Status": "Offered",
+                }
+            )
+            offer_2 = create_placement_offer(
+                {
+                    "Student_ID": stu_id,
+                    "Company_ID": 4,
+                    "Role": "Industrial Consultant",
+                    "Package": 13.00,
+                    "Placement_Year": 2024,
+                    "Offer_Status": "Offered",
+                }
+            )
             o1_id = offer_1["Placement_ID"]
             o2_id = offer_2["Placement_ID"]
 
@@ -437,26 +499,30 @@ class TestDatabaseRules(unittest.TestCase):
         )
         stu_id = res_stu["last_insert_id"]
         try:
-            offer_acc = create_placement_offer({
-                "Student_ID": stu_id,
-                "Company_ID": 2,
-                "Role": "Direct Accepted Offer",
-                "Package": 15.00,
-                "Placement_Year": 2024,
-                "Offer_Status": "Accepted"
-            })
+            offer_acc = create_placement_offer(
+                {
+                    "Student_ID": stu_id,
+                    "Company_ID": 2,
+                    "Role": "Direct Accepted Offer",
+                    "Package": 15.00,
+                    "Placement_Year": 2024,
+                    "Offer_Status": "Accepted",
+                }
+            )
             self.assertEqual(offer_acc["Offer_Status"], "Accepted")
 
             # Try to insert another offer with Offer_Status='Accepted'
             with self.assertRaises(ConflictError) as ctx:
-                create_placement_offer({
-                    "Student_ID": stu_id,
-                    "Company_ID": 5,
-                    "Role": "Second Accepted Offer",
-                    "Package": 18.00,
-                    "Placement_Year": 2024,
-                    "Offer_Status": "Accepted"
-                })
+                create_placement_offer(
+                    {
+                        "Student_ID": stu_id,
+                        "Company_ID": 5,
+                        "Role": "Second Accepted Offer",
+                        "Package": 18.00,
+                        "Placement_Year": 2024,
+                        "Offer_Status": "Accepted",
+                    }
+                )
             self.assertIn("already holds an accepted offer", str(ctx.exception))
         finally:
             execute_mutation("DELETE FROM STUDENT WHERE Student_ID = %s", (stu_id,))
@@ -464,9 +530,13 @@ class TestDatabaseRules(unittest.TestCase):
     def test_22_duplicate_offer_for_same_opportunity_rejected(self):
         """Rule: Duplicate offer for the exact same Opportunity to the same student is rejected."""
         # Find placement opportunity
-        opp = execute_one("SELECT Opportunity_ID, Drive_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Placement' LIMIT 1")
-        drive = execute_one("SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (opp["Drive_ID"],))
-        
+        opp = execute_one(
+            "SELECT Opportunity_ID, Drive_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Placement' LIMIT 1"
+        )
+        drive = execute_one(
+            "SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (opp["Drive_ID"],)
+        )
+
         res_stu = execute_mutation(
             """INSERT INTO STUDENT (Roll_No, First_Name, Branch, Batch_Year, CGPA, Email)
                VALUES ('P10_OFFER_STU_22', 'DupOpp', 'CSE', 2024, 8.40, 'rule22@univ.edu')"""
@@ -474,36 +544,45 @@ class TestDatabaseRules(unittest.TestCase):
         stu_id = res_stu["last_insert_id"]
         try:
             # First offer succeeds
-            off1 = create_placement_offer({
-                "Student_ID": stu_id,
-                "Company_ID": drive["Company_ID"],
-                "Opportunity_ID": opp["Opportunity_ID"],
-                "Role": "Test Engineer",
-                "Package": 10.00,
-                "Placement_Year": 2024,
-                "Offer_Status": "Offered"
-            })
-
-            # Second offer for the identical opportunity must raise ConflictError
-            with self.assertRaises(ConflictError) as ctx:
-                create_placement_offer({
+            off1 = create_placement_offer(
+                {
                     "Student_ID": stu_id,
                     "Company_ID": drive["Company_ID"],
                     "Opportunity_ID": opp["Opportunity_ID"],
-                    "Role": "Test Engineer 2",
-                    "Package": 11.00,
+                    "Role": "Test Engineer",
+                    "Package": 10.00,
                     "Placement_Year": 2024,
-                    "Offer_Status": "Offered"
-                })
+                    "Offer_Status": "Offered",
+                }
+            )
+
+            # Second offer for the identical opportunity must raise ConflictError
+            with self.assertRaises(ConflictError) as ctx:
+                create_placement_offer(
+                    {
+                        "Student_ID": stu_id,
+                        "Company_ID": drive["Company_ID"],
+                        "Opportunity_ID": opp["Opportunity_ID"],
+                        "Role": "Test Engineer 2",
+                        "Package": 11.00,
+                        "Placement_Year": 2024,
+                        "Offer_Status": "Offered",
+                    }
+                )
             self.assertIn("Duplicate offer rejected", str(ctx.exception))
         finally:
             execute_mutation("DELETE FROM STUDENT WHERE Student_ID = %s", (stu_id,))
 
     def test_23_block_placement_offer_for_internship_opportunity(self):
         """Rule: Placement offers CANNOT be created for an opportunity of type 'Internship'."""
-        intern_opp = execute_one("SELECT Opportunity_ID, Drive_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Internship' LIMIT 1")
-        drive = execute_one("SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (intern_opp["Drive_ID"],))
-        
+        intern_opp = execute_one(
+            "SELECT Opportunity_ID, Drive_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Internship' LIMIT 1"
+        )
+        drive = execute_one(
+            "SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s",
+            (intern_opp["Drive_ID"],),
+        )
+
         res_stu = execute_mutation(
             """INSERT INTO STUDENT (Roll_No, First_Name, Branch, Batch_Year, CGPA, Email)
                VALUES ('P10_OFFER_STU_23', 'InternOpp', 'ME', 2024, 7.80, 'rule23@univ.edu')"""
@@ -511,15 +590,17 @@ class TestDatabaseRules(unittest.TestCase):
         stu_id = res_stu["last_insert_id"]
         try:
             with self.assertRaises(ValidationError) as ctx:
-                create_placement_offer({
-                    "Student_ID": stu_id,
-                    "Company_ID": drive["Company_ID"],
-                    "Opportunity_ID": intern_opp["Opportunity_ID"],
-                    "Role": "Intern as Placement Role",
-                    "Package": 12.00,
-                    "Placement_Year": 2024,
-                    "Offer_Status": "Offered"
-                })
+                create_placement_offer(
+                    {
+                        "Student_ID": stu_id,
+                        "Company_ID": drive["Company_ID"],
+                        "Opportunity_ID": intern_opp["Opportunity_ID"],
+                        "Role": "Intern as Placement Role",
+                        "Package": 12.00,
+                        "Placement_Year": 2024,
+                        "Offer_Status": "Offered",
+                    }
+                )
             self.assertIn("is of type 'Internship'", str(ctx.exception))
         finally:
             execute_mutation("DELETE FROM STUDENT WHERE Student_ID = %s", (stu_id,))

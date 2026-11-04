@@ -34,15 +34,23 @@ class InternshipUpgradeTestCase(unittest.TestCase):
 
         # Clean up any leftover test student from previous aborted runs
         with get_cursor(commit=True) as cur:
-            cur.execute("DELETE FROM INTERNSHIP WHERE Student_ID IN (SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST_INT_STUDENT')")
-            cur.execute("DELETE FROM SEMESTER_RESULT WHERE Student_ID IN (SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST_INT_STUDENT')")
+            cur.execute(
+                "DELETE FROM INTERNSHIP WHERE Student_ID IN (SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST_INT_STUDENT')"
+            )
+            cur.execute(
+                "DELETE FROM SEMESTER_RESULT WHERE Student_ID IN (SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST_INT_STUDENT')"
+            )
             cur.execute("DELETE FROM STUDENT WHERE Roll_No = 'TEST_INT_STUDENT'")
 
     @classmethod
     def tearDownClass(cls):
         with get_cursor(commit=True) as cur:
-            cur.execute("DELETE FROM INTERNSHIP WHERE Student_ID IN (SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST_INT_STUDENT')")
-            cur.execute("DELETE FROM SEMESTER_RESULT WHERE Student_ID IN (SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST_INT_STUDENT')")
+            cur.execute(
+                "DELETE FROM INTERNSHIP WHERE Student_ID IN (SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST_INT_STUDENT')"
+            )
+            cur.execute(
+                "DELETE FROM SEMESTER_RESULT WHERE Student_ID IN (SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST_INT_STUDENT')"
+            )
             cur.execute("DELETE FROM STUDENT WHERE Roll_No = 'TEST_INT_STUDENT'")
 
     def _create_test_student(self):
@@ -156,7 +164,9 @@ class InternshipUpgradeTestCase(unittest.TestCase):
         self.assertIn("weeks", dur["duration_str"])
 
         # Completed status
-        status_completed = determine_internship_status("2022-06-01", "2022-07-31", "https://rep.pdf", "A", "https://cert.pdf")
+        status_completed = determine_internship_status(
+            "2022-06-01", "2022-07-31", "https://rep.pdf", "A", "https://cert.pdf"
+        )
         self.assertEqual(status_completed, "Completed")
 
         # Pending Report status
@@ -193,10 +203,13 @@ class InternshipUpgradeTestCase(unittest.TestCase):
         try:
             # Record Sem 3 result with SGPA 8.40 for test student
             with get_cursor(commit=True) as cur:
-                cur.execute("""
+                cur.execute(
+                    """
                     INSERT INTO SEMESTER_RESULT (Student_ID, Semester, SGPA, Year, Total_Credits)
                     VALUES (%s, 3, 8.40, 2021, 24)
-                """, (student_id,))
+                """,
+                    (student_id,),
+                )
 
             res_i1 = check_internship_eligibility(student_id, 1, min_sgpa=6.00)
             self.assertTrue(res_i1["is_eligible"])
@@ -207,10 +220,13 @@ class InternshipUpgradeTestCase(unittest.TestCase):
 
             # Also record Sem 5 result with SGPA 8.60 for test student -> Eligible for I2
             with get_cursor(commit=True) as cur:
-                cur.execute("""
+                cur.execute(
+                    """
                     INSERT INTO SEMESTER_RESULT (Student_ID, Semester, SGPA, Year, Total_Credits)
                     VALUES (%s, 5, 8.60, 2022, 24)
-                """, (student_id,))
+                """,
+                    (student_id,),
+                )
 
             res_i2 = check_internship_eligibility(student_id, 2, min_sgpa=6.00)
             self.assertTrue(res_i2["is_eligible"])
@@ -229,10 +245,13 @@ class InternshipUpgradeTestCase(unittest.TestCase):
         try:
             # Update Sem 3 result to SGPA 5.40 (< 6.00)
             with get_cursor(commit=True) as cur:
-                cur.execute("""
+                cur.execute(
+                    """
                     INSERT INTO SEMESTER_RESULT (Student_ID, Semester, SGPA, Year, Total_Credits)
                     VALUES (%s, 3, 5.40, 2021, 24)
-                """, (student_id,))
+                """,
+                    (student_id,),
+                )
 
             res_low = check_internship_eligibility(student_id, 1, min_sgpa=6.00)
             self.assertFalse(res_low["is_eligible"])
@@ -283,17 +302,19 @@ class InternshipUpgradeTestCase(unittest.TestCase):
         try:
             # Create an internship with missing report for test student
             comp = execute_one("SELECT Company_ID FROM COMPANY LIMIT 1")
-            test_intern = create_internship({
-                "Student_ID": student_id,
-                "Company_ID": comp["Company_ID"],
-                "Internship_No": 3,
-                "Internship_Type": "Additional",
-                "Role": "Summer Research Trainee",
-                "Start_Date": "2023-06-01",
-                "End_Date": "2023-07-31",
-                "Report_Link": None,
-                "Report_Grade": None,
-            })
+            test_intern = create_internship(
+                {
+                    "Student_ID": student_id,
+                    "Company_ID": comp["Company_ID"],
+                    "Internship_No": 3,
+                    "Internship_Type": "Additional",
+                    "Role": "Summer Research Trainee",
+                    "Start_Date": "2023-06-01",
+                    "End_Date": "2023-07-31",
+                    "Report_Link": None,
+                    "Report_Grade": None,
+                }
+            )
             intern_id = test_intern["Internship_ID"]
 
             pending_list = get_pending_internship_reports()
@@ -361,10 +382,22 @@ class InternshipUpgradeTestCase(unittest.TestCase):
 
         header = rows[0]
         expected_cols = [
-            "Internship ID", "Roll No", "Student Name", "Branch", "Batch Year",
-            "Company Name", "Designated Role", "Category", "Sequence No",
-            "Prerequisite Sem SGPA", "Duration Weeks", "Monthly Stipend (INR)", "Credits",
-            "Report Semester", "Report Grade", "Operational Status"
+            "Internship ID",
+            "Roll No",
+            "Student Name",
+            "Branch",
+            "Batch Year",
+            "Company Name",
+            "Designated Role",
+            "Category",
+            "Sequence No",
+            "Prerequisite Sem SGPA",
+            "Duration Weeks",
+            "Monthly Stipend (INR)",
+            "Credits",
+            "Report Semester",
+            "Report Grade",
+            "Operational Status",
         ]
         for col in expected_cols:
             self.assertIn(col, header)

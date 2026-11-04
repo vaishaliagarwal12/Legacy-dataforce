@@ -47,17 +47,21 @@ class Phase8FrontendTestCase(unittest.TestCase):
 
         # POST form
         unique_roll = "P8_TEST_99"
-        res_post = self.client.post("/students/new", data={
-            "Roll_No": unique_roll,
-            "First_Name": "Phase8",
-            "Last_Name": "Tester",
-            "Email": "p8.tester@university.edu",
-            "Branch": "Information Tech",
-            "Batch_Year": "2024",
-            "Section": "A",
-            "CGPA": "8.75",
-            "Backlogs": "0",
-        }, follow_redirects=True)
+        res_post = self.client.post(
+            "/students/new",
+            data={
+                "Roll_No": unique_roll,
+                "First_Name": "Phase8",
+                "Last_Name": "Tester",
+                "Email": "p8.tester@university.edu",
+                "Branch": "Information Tech",
+                "Batch_Year": "2024",
+                "Section": "A",
+                "CGPA": "8.75",
+                "Backlogs": "0",
+            },
+            follow_redirects=True,
+        )
         self.assertEqual(res_post.status_code, 200)
         html = res_post.get_data(as_text=True)
         self.assertIn(unique_roll, html)
@@ -153,7 +157,10 @@ class Phase8FrontendTestCase(unittest.TestCase):
         res_csv = self.client.get("/reports/export?branch=Computer+Science")
         self.assertEqual(res_csv.status_code, 200)
         self.assertEqual(res_csv.mimetype, "text/csv")
-        self.assertIn("attachment; filename=placement_internship_report.csv", res_csv.headers.get("Content-Disposition", ""))
+        self.assertIn(
+            "attachment; filename=placement_internship_report.csv",
+            res_csv.headers.get("Content-Disposition", ""),
+        )
         csv_text = res_csv.get_data(as_text=True)
         self.assertIn("Roll No,Student Name,Email,Branch", csv_text)
 
@@ -173,6 +180,7 @@ class Phase8FrontendTestCase(unittest.TestCase):
     def tearDownClass(cls):
         """Clean up test student created in test_03."""
         from db.connection import get_cursor
+
         with get_cursor(commit=True) as cursor:
             cursor.execute("DELETE FROM STUDENT WHERE Roll_No = 'P8_TEST_99'")
 

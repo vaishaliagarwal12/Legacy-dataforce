@@ -3,11 +3,11 @@ import time
 import decimal
 import datetime
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 import pymysql
 from pymysql.cursors import DictCursor
 
-from db.connection import get_cursor, get_readonly_connection, DatabaseError
+from db.connection import get_cursor, get_readonly_connection
 from services.exceptions import ValidationError, ServiceError
 
 logger = logging.getLogger(__name__)
@@ -42,8 +42,20 @@ FROM STUDENT
 WHERE Branch = %s AND Batch_Year = %s
 ORDER BY CGPA DESC;""",
         "params": [
-            {"name": "branch", "label": "Branch Code", "type": "select", "options": ["CSE", "ECE", "ME", "IT"], "default": "CSE"},
-            {"name": "batch_year", "label": "Batch Year", "type": "number", "default": 2024, "placeholder": "e.g. 2024"},
+            {
+                "name": "branch",
+                "label": "Branch Code",
+                "type": "select",
+                "options": ["CSE", "ECE", "ME", "IT"],
+                "default": "CSE",
+            },
+            {
+                "name": "batch_year",
+                "label": "Batch Year",
+                "type": "number",
+                "default": 2024,
+                "placeholder": "e.g. 2024",
+            },
         ],
     },
     {
@@ -60,7 +72,13 @@ ORDER BY CGPA DESC;""",
 FROM STUDENT s
 WHERE s.Roll_No = %s;""",
         "params": [
-            {"name": "roll_no", "label": "Roll Number", "type": "text", "default": "CS201802", "placeholder": "e.g. CS201802"},
+            {
+                "name": "roll_no",
+                "label": "Roll Number",
+                "type": "text",
+                "default": "CS201802",
+                "placeholder": "e.g. CS201802",
+            },
         ],
     },
     {
@@ -74,7 +92,13 @@ JOIN STUDENT_SKILL sk ON sk.Student_ID = s.Student_ID
 WHERE sk.Skill = %s
 ORDER BY s.CGPA DESC;""",
         "params": [
-            {"name": "skill", "label": "Skill Name", "type": "text", "default": "Python", "placeholder": "e.g. Python, SQL, Java"},
+            {
+                "name": "skill",
+                "label": "Skill Name",
+                "type": "text",
+                "default": "Python",
+                "placeholder": "e.g. Python, SQL, Java",
+            },
         ],
     },
     {
@@ -87,7 +111,14 @@ FROM STUDENT
 WHERE CGPA >= %s AND Backlogs = 0
 ORDER BY CGPA DESC;""",
         "params": [
-            {"name": "min_cgpa", "label": "Minimum CGPA", "type": "number", "step": "0.1", "default": 8.0, "placeholder": "e.g. 8.0"},
+            {
+                "name": "min_cgpa",
+                "label": "Minimum CGPA",
+                "type": "number",
+                "step": "0.1",
+                "default": 8.0,
+                "placeholder": "e.g. 8.0",
+            },
         ],
     },
     {
@@ -129,10 +160,15 @@ LEFT JOIN COMPANY   c ON c.Company_ID = p.Company_ID
 WHERE s.First_Name LIKE %s OR s.Last_Name LIKE %s
 ORDER BY s.Student_ID;""",
         "params": [
-            {"name": "search_name", "label": "Name Keyword", "type": "text", "default": "Aarav", "placeholder": "e.g. Aarav, Sharma, Neha"},
+            {
+                "name": "search_name",
+                "label": "Name Keyword",
+                "type": "text",
+                "default": "Aarav",
+                "placeholder": "e.g. Aarav, Sharma, Neha",
+            },
         ],
     },
-
     # -------------------------------------------------------------------------
     # 2. PLACEMENTS
     # -------------------------------------------------------------------------
@@ -157,7 +193,13 @@ FROM V_PLACEMENT_DETAIL
 WHERE Company_Name = %s
 ORDER BY Placement_Year, Package DESC;""",
         "params": [
-            {"name": "company_name", "label": "Company Name", "type": "text", "default": "Infosys Technologies", "placeholder": "e.g. Infosys Technologies, Apex Cloud Innovations, Google India"},
+            {
+                "name": "company_name",
+                "label": "Company Name",
+                "type": "text",
+                "default": "Infosys Technologies",
+                "placeholder": "e.g. Infosys Technologies, Apex Cloud Innovations, Google India",
+            },
         ],
     },
     {
@@ -287,10 +329,16 @@ FROM V_PLACEMENT_DETAIL
 WHERE Package >= %s AND Joined = 'Yes'
 ORDER BY Package DESC;""",
         "params": [
-            {"name": "min_package", "label": "Minimum Package (LPA)", "type": "number", "step": "0.5", "default": 10.0, "placeholder": "e.g. 10.0"},
+            {
+                "name": "min_package",
+                "label": "Minimum Package (LPA)",
+                "type": "number",
+                "step": "0.5",
+                "default": 10.0,
+                "placeholder": "e.g. 10.0",
+            },
         ],
     },
-
     # -------------------------------------------------------------------------
     # 3. INTERNSHIPS
     # -------------------------------------------------------------------------
@@ -306,7 +354,13 @@ FROM V_INTERNSHIP_DETAIL
 WHERE Roll_No = %s
 ORDER BY Internship_No;""",
         "params": [
-            {"name": "roll_no", "label": "Roll Number", "type": "text", "default": "CS201802", "placeholder": "e.g. CS201802"},
+            {
+                "name": "roll_no",
+                "label": "Roll Number",
+                "type": "text",
+                "default": "CS201802",
+                "placeholder": "e.g. CS201802",
+            },
         ],
     },
     {
@@ -319,7 +373,13 @@ FROM V_INTERNSHIP_DETAIL
 WHERE Company_Name = %s
 ORDER BY Start_Date;""",
         "params": [
-            {"name": "company_name", "label": "Company Name", "type": "text", "default": "Infosys Technologies", "placeholder": "e.g. Infosys Technologies, Apex Cloud Innovations, Google India"},
+            {
+                "name": "company_name",
+                "label": "Company Name",
+                "type": "text",
+                "default": "Infosys Technologies",
+                "placeholder": "e.g. Infosys Technologies, Apex Cloud Innovations, Google India",
+            },
         ],
     },
     {
@@ -374,11 +434,22 @@ FROM V_INTERNSHIP_DETAIL
 WHERE Start_Date >= %s AND End_Date <= %s
 ORDER BY Start_Date;""",
         "params": [
-            {"name": "start_date", "label": "Start Date", "type": "text", "default": "2023-01-01", "placeholder": "YYYY-MM-DD"},
-            {"name": "end_date", "label": "End Date", "type": "text", "default": "2024-12-31", "placeholder": "YYYY-MM-DD"},
+            {
+                "name": "start_date",
+                "label": "Start Date",
+                "type": "text",
+                "default": "2023-01-01",
+                "placeholder": "YYYY-MM-DD",
+            },
+            {
+                "name": "end_date",
+                "label": "End Date",
+                "type": "text",
+                "default": "2024-12-31",
+                "placeholder": "YYYY-MM-DD",
+            },
         ],
     },
-
     # -------------------------------------------------------------------------
     # 4. COMBINED
     # -------------------------------------------------------------------------
@@ -442,7 +513,13 @@ JOIN COMPANY c   ON c.Company_ID  = p.Company_ID
 WHERE c.Company_Name = %s
 ORDER BY ps.Skill;""",
         "params": [
-            {"name": "company_name", "label": "Company Name", "type": "text", "default": "Infosys Technologies", "placeholder": "e.g. Infosys Technologies, Apex Cloud Innovations, Google India"},
+            {
+                "name": "company_name",
+                "label": "Company Name",
+                "type": "text",
+                "default": "Infosys Technologies",
+                "placeholder": "e.g. Infosys Technologies, Apex Cloud Innovations, Google India",
+            },
         ],
     },
     {
@@ -472,7 +549,13 @@ FROM V_PLACEMENT_DETAIL
 WHERE Company_Name = %s
 ORDER BY Record_Type, Student_Name;""",
         "params": [
-            {"name": "company_name", "label": "Company Name", "type": "text", "default": "Infosys Technologies", "placeholder": "e.g. Infosys Technologies, Apex Cloud Innovations, Google India"},
+            {
+                "name": "company_name",
+                "label": "Company Name",
+                "type": "text",
+                "default": "Infosys Technologies",
+                "placeholder": "e.g. Infosys Technologies, Apex Cloud Innovations, Google India",
+            },
         ],
     },
     {
@@ -498,7 +581,7 @@ ORDER BY s.Batch_Year, s.Branch, s.Roll_No;""",
         "title": "ADD-3A. Skill Profile Comparison: Placed vs Non-Placed Cohorts",
         "group": "Combined",
         "dbms_concept": "Multi-way outer join with conditional aggregation comparing total acquired skills, mean skill density, and unique skills acquired across cohorts.",
-        "sql": """SELECT 
+        "sql": """SELECT
     CASE WHEN p.Joined = 'Yes' THEN 'Placed Students' ELSE 'Non-Placed Students' END AS Placement_Status,
     COUNT(DISTINCT s.Student_ID) AS Total_Students,
     COUNT(sk.Skill) AS Total_Skills_Reported,
@@ -508,6 +591,403 @@ FROM STUDENT s
 LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID AND p.Joined = 'Yes'
 LEFT JOIN STUDENT_SKILL sk ON s.Student_ID = sk.Student_ID
 GROUP BY CASE WHEN p.Joined = 'Yes' THEN 'Placed Students' ELSE 'Non-Placed Students' END;""",
+        "params": [],
+    },
+    # -------------------------------------------------------------------------
+    # 5. ADVANCED ANALYTICS & EXECUTIVE REPORTS (MySQL 8.0 CTE & Window Functions)
+    # -------------------------------------------------------------------------
+    {
+        "id": "report_branch_placement_stats",
+        "title": "E1. Branch-Wise Placement Statistics & Median Compensation",
+        "group": "Executive Reports",
+        "dbms_concept": "Multi-stage CTEs computing department headcounts, conditional aggregation for placement yields, and ROW_NUMBER() window partitioning to calculate the exact Median Package per branch alongside DENSE_RANK() performance rankings.",
+        "sql": """WITH BranchTotals AS (
+    SELECT
+        s.Branch,
+        COUNT(DISTINCT s.Student_ID) AS Total_Students,
+        COUNT(DISTINCT CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN s.Student_ID END) AS Placed_Students,
+        COUNT(p.Placement_ID) AS Total_Offers,
+        ROUND(AVG(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package END), 2) AS Avg_Package,
+        MAX(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package END) AS Highest_Package,
+        MIN(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package END) AS Lowest_Package
+    FROM STUDENT s
+    LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID
+    GROUP BY s.Branch
+),
+BranchMedians AS (
+    SELECT
+        Branch,
+        ROUND(AVG(Package), 2) AS Median_Package
+    FROM (
+        SELECT
+            s.Branch,
+            p.Package,
+            ROW_NUMBER() OVER (PARTITION BY s.Branch ORDER BY p.Package ASC) AS row_num,
+            COUNT(*) OVER (PARTITION BY s.Branch) AS total_count
+        FROM PLACEMENT p
+        JOIN STUDENT s ON p.Student_ID = s.Student_ID
+        WHERE (p.Joined = 'Yes' OR p.Offer_Status = 'Joined')
+    ) ranked
+    WHERE row_num IN (FLOOR((total_count + 1) / 2), CEIL((total_count + 1) / 2))
+    GROUP BY Branch
+)
+SELECT
+    b.Branch,
+    b.Total_Students,
+    b.Placed_Students,
+    (b.Total_Students - b.Placed_Students) AS Unplaced_Students,
+    ROUND(COALESCE(100.0 * b.Placed_Students / NULLIF(b.Total_Students, 0), 0), 1) AS Placement_Rate,
+    b.Total_Offers,
+    COALESCE(b.Avg_Package, 0.00) AS Avg_Package,
+    COALESCE(m.Median_Package, 0.00) AS Median_Package,
+    COALESCE(b.Highest_Package, 0.00) AS Highest_Package,
+    COALESCE(b.Lowest_Package, 0.00) AS Lowest_Package,
+    DENSE_RANK() OVER (ORDER BY ROUND(COALESCE(100.0 * b.Placed_Students / NULLIF(b.Total_Students, 0), 0), 1) DESC, b.Avg_Package DESC) AS Performance_Rank
+FROM BranchTotals b
+LEFT JOIN BranchMedians m ON b.Branch = m.Branch
+ORDER BY b.Branch ASC;""",
+        "params": [],
+    },
+    {
+        "id": "report_year_placement_stats",
+        "title": "E2. Year-Wise Placement Statistics & YoY Growth Trends",
+        "group": "Executive Reports",
+        "dbms_concept": "Temporal cohort aggregation combined with the LAG() analytic window function to compute year-over-year compensation escalation and growth rates across academic recruitment cycles.",
+        "sql": """WITH YearlyPlacements AS (
+    SELECT
+        p.Placement_Year,
+        COUNT(p.Placement_ID) AS Total_Offers,
+        COUNT(DISTINCT p.Student_ID) AS Total_Candidates_Offered,
+        COUNT(DISTINCT CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Student_ID END) AS Placed_Count,
+        ROUND(AVG(p.Package), 2) AS Avg_Offered_Package,
+        ROUND(AVG(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package END), 2) AS Avg_Accepted_Package,
+        MAX(p.Package) AS Highest_Package,
+        MIN(p.Package) AS Lowest_Package,
+        ROUND(SUM(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package ELSE 0 END), 2) AS Total_Accepted_Volume
+    FROM PLACEMENT p
+    JOIN STUDENT s ON p.Student_ID = s.Student_ID
+    GROUP BY p.Placement_Year
+),
+YearlyWithGrowth AS (
+    SELECT
+        y.*,
+        LAG(y.Avg_Accepted_Package) OVER (ORDER BY y.Placement_Year ASC) AS Prev_Year_Avg,
+        LAG(y.Placed_Count) OVER (ORDER BY y.Placement_Year ASC) AS Prev_Year_Placed
+    FROM YearlyPlacements y
+)
+SELECT
+    Placement_Year,
+    Total_Offers,
+    Total_Candidates_Offered,
+    Placed_Count,
+    Avg_Accepted_Package AS Avg_Package,
+    Highest_Package,
+    Lowest_Package,
+    Total_Accepted_Volume,
+    ROUND(COALESCE(Avg_Accepted_Package - Prev_Year_Avg, 0), 2) AS YoY_Package_Change,
+    ROUND(COALESCE(100.0 * (Avg_Accepted_Package - Prev_Year_Avg) / NULLIF(Prev_Year_Avg, 0), 0), 1) AS YoY_Growth_Percent,
+    DENSE_RANK() OVER (ORDER BY Placed_Count DESC, Avg_Accepted_Package DESC) AS Volume_Rank
+FROM YearlyWithGrowth
+ORDER BY Placement_Year DESC;""",
+        "params": [],
+    },
+    {
+        "id": "report_package_statistics",
+        "title": "E3. Average, Median, and Highest Package Reports",
+        "group": "Executive Reports",
+        "dbms_concept": "Advanced statistical reduction computing Mean, exact Median via ROW_NUMBER() partitioning, Population Standard Deviation (STDDEV_POP), and discrete Rank distributions across departments and individual offers.",
+        "sql": """WITH RankedByBranch AS (
+    SELECT
+        s.Branch,
+        p.Package,
+        ROW_NUMBER() OVER (PARTITION BY s.Branch ORDER BY p.Package ASC) AS row_num,
+        COUNT(*) OVER (PARTITION BY s.Branch) AS total_count
+    FROM PLACEMENT p
+    JOIN STUDENT s ON p.Student_ID = s.Student_ID
+    WHERE (p.Joined = 'Yes' OR p.Offer_Status = 'Joined')
+),
+BranchMedians AS (
+    SELECT
+        Branch,
+        ROUND(AVG(Package), 2) AS Median_Package
+    FROM RankedByBranch
+    WHERE row_num IN (FLOOR((total_count + 1) / 2), CEIL((total_count + 1) / 2))
+    GROUP BY Branch
+),
+BranchStats AS (
+    SELECT
+        s.Branch,
+        COUNT(p.Placement_ID) AS Placed_Count,
+        ROUND(AVG(p.Package), 2) AS Mean_Package,
+        MAX(p.Package) AS Highest_Package,
+        MIN(p.Package) AS Lowest_Package,
+        ROUND(STDDEV_POP(p.Package), 2) AS Std_Dev
+    FROM PLACEMENT p
+    JOIN STUDENT s ON p.Student_ID = s.Student_ID
+    WHERE (p.Joined = 'Yes' OR p.Offer_Status = 'Joined')
+    GROUP BY s.Branch
+)
+SELECT
+    bs.Branch,
+    bs.Placed_Count,
+    bs.Mean_Package,
+    COALESCE(bm.Median_Package, bs.Mean_Package) AS Median_Package,
+    bs.Highest_Package,
+    bs.Lowest_Package,
+    COALESCE(bs.Std_Dev, 0.00) AS Std_Dev,
+    DENSE_RANK() OVER (ORDER BY bs.Mean_Package DESC) AS Branch_Rank
+FROM BranchStats bs
+LEFT JOIN BranchMedians bm ON bs.Branch = bm.Branch
+ORDER BY Branch_Rank ASC;""",
+        "params": [],
+    },
+    {
+        "id": "report_company_hiring_stats",
+        "title": "E4. Company-Wise Hiring Ratios & Yield Metrics",
+        "group": "Executive Reports",
+        "dbms_concept": "Multi-table relational aggregation traversing corporate recruiters, computing offer acceptance yield percentages, and applying DENSE_RANK() to classify top hiring partners.",
+        "sql": """WITH CompanyHiring AS (
+    SELECT
+        c.Company_ID,
+        c.Company_Name,
+        c.Company_Type,
+        c.Industry,
+        c.Location,
+        COUNT(p.Placement_ID) AS Total_Offers_Extended,
+        COUNT(DISTINCT p.Student_ID) AS Distinct_Candidates_Offered,
+        COUNT(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN 1 END) AS Accepted_Offers,
+        ROUND(AVG(p.Package), 2) AS Avg_Offered_Package,
+        ROUND(AVG(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package END), 2) AS Avg_Accepted_Package,
+        MAX(p.Package) AS Highest_Package,
+        MIN(p.Package) AS Lowest_Package,
+        ROUND(SUM(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package ELSE 0 END), 2) AS Total_Compensation_Committed
+    FROM COMPANY c
+    LEFT JOIN PLACEMENT p ON c.Company_ID = p.Company_ID
+    GROUP BY c.Company_ID, c.Company_Name, c.Company_Type, c.Industry, c.Location
+)
+SELECT
+    Company_ID,
+    Company_Name,
+    Company_Type,
+    Industry,
+    Location,
+    Total_Offers_Extended,
+    Distinct_Candidates_Offered,
+    Accepted_Offers,
+    ROUND(COALESCE(100.0 * Accepted_Offers / NULLIF(Total_Offers_Extended, 0), 0), 1) AS Acceptance_Rate_Percent,
+    COALESCE(Avg_Offered_Package, 0.00) AS Avg_Offered_Package,
+    COALESCE(Avg_Accepted_Package, 0.00) AS Avg_Accepted_Package,
+    COALESCE(Highest_Package, 0.00) AS Highest_Package,
+    COALESCE(Lowest_Package, 0.00) AS Lowest_Package,
+    Total_Compensation_Committed,
+    DENSE_RANK() OVER (ORDER BY Accepted_Offers DESC, Avg_Accepted_Package DESC) AS Hiring_Rank
+FROM CompanyHiring
+WHERE Total_Offers_Extended > 0
+ORDER BY Accepted_Offers DESC, Total_Offers_Extended DESC;""",
+        "params": [],
+    },
+    {
+        "id": "report_multiple_offers_analysis",
+        "title": "E5. Multiple Placement Offer Analysis & Package Spread",
+        "group": "Executive Reports",
+        "dbms_concept": "Post-aggregation cardinality filtering (HAVING COUNT(*) > 1) computing the financial spread between highest and lowest offers, aggregating offer catalogs via GROUP_CONCAT, and sorting by DENSE_RANK().",
+        "sql": """WITH MultiOfferStudents AS (
+    SELECT
+        s.Student_ID,
+        s.Roll_No,
+        CONCAT(s.First_Name, ' ', COALESCE(s.Last_Name, '')) AS Student_Name,
+        s.Branch,
+        s.Batch_Year,
+        s.CGPA,
+        COUNT(p.Placement_ID) AS Total_Offers,
+        MAX(p.Package) AS Highest_Offer,
+        MIN(p.Package) AS Lowest_Offer,
+        ROUND(MAX(p.Package) - MIN(p.Package), 2) AS Package_Spread,
+        MAX(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN c.Company_Name END) AS Joined_Company,
+        MAX(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package END) AS Joined_Package,
+        GROUP_CONCAT(CONCAT(c.Company_Name, ' (', p.Package, ' LPA - ', p.Offer_Status, ')') ORDER BY p.Package DESC SEPARATOR ' | ') AS All_Offers
+    FROM STUDENT s
+    JOIN PLACEMENT p ON s.Student_ID = p.Student_ID
+    JOIN COMPANY c ON p.Company_ID = c.Company_ID
+    GROUP BY s.Student_ID, s.Roll_No, s.First_Name, s.Last_Name, s.Branch, s.Batch_Year, s.CGPA
+    HAVING COUNT(p.Placement_ID) > 1
+)
+SELECT
+    m.*,
+    DENSE_RANK() OVER (ORDER BY m.Total_Offers DESC, m.Highest_Offer DESC) AS Offer_Rank
+FROM MultiOfferStudents m
+ORDER BY m.Total_Offers DESC, m.Highest_Offer DESC;""",
+        "params": [],
+    },
+    {
+        "id": "report_internship_compliance",
+        "title": "E6. Degree Internship Policy Compliance & Audits",
+        "group": "Executive Reports",
+        "dbms_concept": "Multi-condition aggregation auditing degree fulfillment of Mandatory Internship 1 and Mandatory Internship 2, tracking additional industry attachments and average compensation.",
+        "sql": """WITH StudentInternshipSummary AS (
+    SELECT
+        s.Student_ID,
+        s.Roll_No,
+        CONCAT(s.First_Name, ' ', COALESCE(s.Last_Name, '')) AS Student_Name,
+        s.Branch,
+        s.Batch_Year,
+        s.CGPA,
+        COUNT(DISTINCT CASE WHEN i.Internship_No = 1 AND i.Internship_Type = 'Mandatory' THEN i.Internship_ID END) AS Has_I1,
+        COUNT(DISTINCT CASE WHEN i.Internship_No = 2 AND i.Internship_Type = 'Mandatory' THEN i.Internship_ID END) AS Has_I2,
+        COUNT(DISTINCT CASE WHEN i.Internship_Type = 'Additional' THEN i.Internship_ID END) AS Additional_Count,
+        ROUND(AVG(i.Stipend), 2) AS Avg_Stipend
+    FROM STUDENT s
+    LEFT JOIN INTERNSHIP i ON s.Student_ID = i.Student_ID
+    GROUP BY s.Student_ID, s.Roll_No, s.First_Name, s.Last_Name, s.Branch, s.Batch_Year, s.CGPA
+)
+SELECT
+    Branch,
+    COUNT(*) AS Total_Students,
+    SUM(Has_I1) AS I1_Completed,
+    SUM(Has_I2) AS I2_Completed,
+    SUM(CASE WHEN Has_I1 > 0 AND Has_I2 > 0 THEN 1 ELSE 0 END) AS Fully_Compliant,
+    SUM(CASE WHEN Has_I1 = 0 OR Has_I2 = 0 THEN 1 ELSE 0 END) AS Non_Compliant,
+    SUM(Additional_Count) AS Total_Additional,
+    ROUND(100.0 * SUM(CASE WHEN Has_I1 > 0 AND Has_I2 > 0 THEN 1 ELSE 0 END) / COUNT(*), 1) AS Compliance_Rate,
+    ROUND(COALESCE(AVG(Avg_Stipend), 0), 2) AS Avg_Stipend,
+    DENSE_RANK() OVER (ORDER BY ROUND(100.0 * SUM(CASE WHEN Has_I1 > 0 AND Has_I2 > 0 THEN 1 ELSE 0 END) / COUNT(*), 1) DESC) AS Compliance_Rank
+FROM StudentInternshipSummary
+GROUP BY Branch
+ORDER BY Branch ASC;""",
+        "params": [],
+    },
+    {
+        "id": "report_unplaced_students",
+        "title": "E7. Unplaced Student Roster & Outreach Priority Ranking",
+        "group": "Executive Reports",
+        "dbms_concept": "Outer anti-join identifying unplaced candidates, evaluating institutional eligibility via conditional expression, and utilizing ROW_NUMBER() window partitioning by branch to prioritize outreach by CGPA.",
+        "sql": """WITH UnplacedStudents AS (
+    SELECT
+        s.Student_ID,
+        s.Roll_No,
+        CONCAT(s.First_Name, ' ', COALESCE(s.Last_Name, '')) AS Student_Name,
+        s.Branch,
+        s.Batch_Year,
+        s.CGPA,
+        s.Backlogs,
+        s.Email,
+        CASE WHEN s.Backlogs = 0 AND s.CGPA >= 6.00 THEN 'Eligible' ELSE 'Ineligible' END AS Placement_Eligibility,
+        (SELECT COUNT(*) FROM PLACEMENT p WHERE p.Student_ID = s.Student_ID) AS Total_Offers_Received,
+        (SELECT GROUP_CONCAT(ph.Phone_No SEPARATOR ', ') FROM STUDENT_PHONE ph WHERE ph.Student_ID = s.Student_ID) AS Contact_Phones,
+        ROW_NUMBER() OVER (PARTITION BY s.Branch ORDER BY s.CGPA DESC) AS Branch_Priority_Rank,
+        DENSE_RANK() OVER (ORDER BY s.CGPA DESC) AS Overall_CGPA_Rank
+    FROM STUDENT s
+    LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID AND (p.Joined = 'Yes' OR p.Offer_Status = 'Joined')
+    WHERE p.Placement_ID IS NULL
+)
+SELECT * FROM UnplacedStudents ORDER BY Branch, Branch_Priority_Rank;""",
+        "params": [],
+    },
+    {
+        "id": "report_cgpa_vs_placement",
+        "title": "E8. CGPA Tiers vs Placement Conversion & Compensation",
+        "group": "Executive Reports",
+        "dbms_concept": "Categorical tiering via CASE WHEN evaluating academic performance bands, calculating group placement conversion rates, and correlating academic excellence with starting compensation packages.",
+        "sql": """WITH StudentBands AS (
+    SELECT
+        s.Student_ID,
+        s.CGPA,
+        CASE
+            WHEN s.CGPA >= 9.0 THEN '1. 9.0 & Above (Elite)'
+            WHEN s.CGPA >= 8.0 THEN '2. 8.0 - 8.99 (High Distinction)'
+            WHEN s.CGPA >= 7.0 THEN '3. 7.0 - 7.99 (First Class)'
+            WHEN s.CGPA >= 6.0 THEN '4. 6.0 - 6.99 (Eligible / Pass)'
+            ELSE '5. Below 6.0 (Under Cutoff)'
+        END AS CGPA_Band,
+        CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN 1 ELSE 0 END AS Is_Placed,
+        CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package END AS Placed_Package,
+        p.Placement_ID
+    FROM STUDENT s
+    LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID
+)
+SELECT
+    CGPA_Band,
+    COUNT(DISTINCT Student_ID) AS Total_Students,
+    COUNT(DISTINCT CASE WHEN Is_Placed = 1 THEN Student_ID END) AS Placed_Students,
+    ROUND(100.0 * COUNT(DISTINCT CASE WHEN Is_Placed = 1 THEN Student_ID END) / COUNT(DISTINCT Student_ID), 1) AS Placement_Rate,
+    COUNT(Placement_ID) AS Total_Offers,
+    ROUND(COALESCE(AVG(Placed_Package), 0), 2) AS Avg_Package,
+    COALESCE(MAX(Placed_Package), 0.00) AS Highest_Package,
+    COALESCE(MIN(Placed_Package), 0.00) AS Lowest_Package
+FROM StudentBands
+GROUP BY CGPA_Band
+ORDER BY CGPA_Band ASC;""",
+        "params": [],
+    },
+    {
+        "id": "report_drive_performance",
+        "title": "E9. Recruitment Drive Conversion & Hiring Yield",
+        "group": "Executive Reports",
+        "dbms_concept": "Four-table equi-join traversing RECRUITMENT_DRIVE, COMPANY, OPPORTUNITY, and PLACEMENT computing selection yield and classifying performance via DENSE_RANK().",
+        "sql": """WITH DriveStats AS (
+    SELECT
+        rd.Drive_ID,
+        c.Company_Name,
+        c.Company_Type,
+        rd.Drive_Year,
+        rd.Drive_Type,
+        rd.Season,
+        rd.Drive_Date,
+        COUNT(DISTINCT o.Opportunity_ID) AS Total_Opportunities,
+        COUNT(p.Placement_ID) AS Total_Offers_Extended,
+        COUNT(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN 1 END) AS Accepted_Hires,
+        ROUND(AVG(p.Package), 2) AS Avg_Package_Offered,
+        ROUND(AVG(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package END), 2) AS Avg_Accepted_Package,
+        MAX(p.Package) AS Highest_Package
+    FROM RECRUITMENT_DRIVE rd
+    JOIN COMPANY c ON rd.Company_ID = c.Company_ID
+    LEFT JOIN OPPORTUNITY o ON rd.Drive_ID = o.Drive_ID
+    LEFT JOIN PLACEMENT p ON o.Opportunity_ID = p.Opportunity_ID
+    GROUP BY rd.Drive_ID, c.Company_Name, c.Company_Type, rd.Drive_Year, rd.Drive_Type, rd.Season, rd.Drive_Date
+)
+SELECT
+    d.*,
+    ROUND(COALESCE(100.0 * Accepted_Hires / NULLIF(Total_Offers_Extended, 0), 0), 1) AS Acceptance_Rate,
+    DENSE_RANK() OVER (ORDER BY Total_Offers_Extended DESC, Accepted_Hires DESC) AS Drive_Rank
+FROM DriveStats d
+ORDER BY Drive_Year DESC, Total_Offers_Extended DESC;""",
+        "params": [],
+    },
+    {
+        "id": "report_semester_performance",
+        "title": "E10. Semester Academic Progression & SGPA Trend Analysis",
+        "group": "Executive Reports",
+        "dbms_concept": "Academic result evaluation computing Pass and Distinction rates, tracking student cohort trajectory via LAG() window functions across curriculum semesters, and ranking branches within each semester.",
+        "sql": """WITH SemStats AS (
+    SELECT
+        sr.Semester,
+        s.Branch,
+        COUNT(sr.Result_ID) AS Total_Students_Evaluated,
+        ROUND(AVG(sr.SGPA), 2) AS Avg_SGPA,
+        MAX(sr.SGPA) AS Highest_SGPA,
+        MIN(sr.SGPA) AS Lowest_SGPA,
+        COUNT(CASE WHEN sr.SGPA >= 6.0 THEN 1 END) AS Pass_Count,
+        COUNT(CASE WHEN sr.SGPA >= 8.0 THEN 1 END) AS Distinction_Count,
+        ROUND(100.0 * COUNT(CASE WHEN sr.SGPA >= 6.0 THEN 1 END) / COUNT(sr.Result_ID), 1) AS Pass_Rate,
+        ROUND(100.0 * COUNT(CASE WHEN sr.SGPA >= 8.0 THEN 1 END) / COUNT(sr.Result_ID), 1) AS Distinction_Rate
+    FROM SEMESTER_RESULT sr
+    JOIN STUDENT s ON sr.Student_ID = s.Student_ID
+    GROUP BY sr.Semester, s.Branch
+)
+SELECT
+    Semester,
+    Branch,
+    Total_Students_Evaluated,
+    Avg_SGPA,
+    Highest_SGPA,
+    Lowest_SGPA,
+    Pass_Rate,
+    Distinction_Rate,
+    LAG(Avg_SGPA) OVER (PARTITION BY Branch ORDER BY Semester ASC) AS Prev_Sem_Avg,
+    ROUND(COALESCE(Avg_SGPA - LAG(Avg_SGPA) OVER (PARTITION BY Branch ORDER BY Semester ASC), 0), 2) AS SGPA_Progression,
+    DENSE_RANK() OVER (PARTITION BY Semester ORDER BY Avg_SGPA DESC) AS Sem_Branch_Rank
+FROM SemStats
+ORDER BY Semester ASC, Sem_Branch_Rank ASC;""",
         "params": [],
     },
 ]
@@ -534,9 +1014,11 @@ def _serialize_value(val: Any) -> Any:
     return val
 
 
-def execute_saved_query(query_id: str, param_values: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def execute_saved_query(
+    query_id: str, param_values: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
     """Executes a saved query using strict parameterization with %s placeholders.
-    
+
     Never concatenates user input into the SQL string.
     """
     query_meta = get_saved_query(query_id)
@@ -549,7 +1031,7 @@ def execute_saved_query(query_id: str, param_values: Optional[Dict[str, Any]] = 
 
     # Extract and type-cast parameters in strict order
     args_list: List[Any] = []
-    
+
     # Special case: D7 polymorphic query uses company_name twice in UNION ALL
     if query_id == "combined_company_polymorphic":
         default_co = param_meta_list[0]["default"] if param_meta_list else "Infosys Technologies"
@@ -564,7 +1046,7 @@ def execute_saved_query(query_id: str, param_values: Optional[Dict[str, Any]] = 
             raw = param_values.get(pm["name"], pm.get("default"))
             if raw is None or str(raw).strip() == "":
                 raw = pm.get("default")
-            
+
             p_type = pm.get("type", "text")
             if p_type == "number":
                 step = pm.get("step")
@@ -582,12 +1064,9 @@ def execute_saved_query(query_id: str, param_values: Optional[Dict[str, Any]] = 
             cursor.execute(sql, tuple(args_list))
             raw_rows = cursor.fetchall()
             elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
-            
+
             columns = [col[0] for col in cursor.description] if cursor.description else []
-            rows = [
-                {k: _serialize_value(v) for k, v in row.items()}
-                for row in raw_rows[:500]
-            ]
+            rows = [{k: _serialize_value(v) for k, v in row.items()} for row in raw_rows[:500]]
 
             return {
                 "id": query_id,
@@ -602,7 +1081,9 @@ def execute_saved_query(query_id: str, param_values: Optional[Dict[str, Any]] = 
                 "execution_time_ms": elapsed_ms,
             }
         except pymysql.MySQLError as err:
-            logger.error("Saved query failed: %s | Query ID: %s | Args: %s", err, query_id, args_list)
+            logger.error(
+                "Saved query failed: %s | Query ID: %s | Args: %s", err, query_id, args_list
+            )
             raise ServiceError(f"Database query execution failed: {err}") from err
 
 
@@ -621,7 +1102,7 @@ FORBIDDEN_KEYWORDS_PATTERN = re.compile(
 
 def validate_custom_sql(raw_sql: str) -> str:
     """Validates user-submitted SQL against strict security rules on the server.
-    
+
     Safety rules enforced:
     1. Query cannot be empty.
     2. Prohibits comment syntax (-- , /* */, #) to prevent statement hiding.
@@ -629,7 +1110,7 @@ def validate_custom_sql(raw_sql: str) -> str:
     4. Must start with SELECT.
     5. Rejects INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, and administrative keywords.
     6. Automatically caps / sets row limit to 500.
-    
+
     Returns the sanitized SQL ready for execution.
     Raises ValidationError if any rule is violated.
     """
@@ -640,11 +1121,17 @@ def validate_custom_sql(raw_sql: str) -> str:
 
     # Rule 1: Reject comments hiding other statements
     if "--" in sql:
-        raise ValidationError("SQL line comments ('--') are prohibited to prevent statement hiding. Please remove all comments.")
+        raise ValidationError(
+            "SQL line comments ('--') are prohibited to prevent statement hiding. Please remove all comments."
+        )
     if "/*" in sql or "*/" in sql:
-        raise ValidationError("SQL block comments ('/* ... */') are prohibited to prevent statement hiding. Please remove all comments.")
+        raise ValidationError(
+            "SQL block comments ('/* ... */') are prohibited to prevent statement hiding. Please remove all comments."
+        )
     if "#" in sql:
-        raise ValidationError("SQL hash comments ('#') are prohibited to prevent statement hiding. Please remove all comments.")
+        raise ValidationError(
+            "SQL hash comments ('#') are prohibited to prevent statement hiding. Please remove all comments."
+        )
 
     # Rule 2: Ensure exactly one statement (reject multiple statements / stacked queries)
     # Strip a single optional trailing semicolon
@@ -652,7 +1139,9 @@ def validate_custom_sql(raw_sql: str) -> str:
         sql = sql[:-1].strip()
 
     if ";" in sql:
-        raise ValidationError("Multiple statements are strictly forbidden. Only exactly one SQL query can be executed.")
+        raise ValidationError(
+            "Multiple statements are strictly forbidden. Only exactly one SQL query can be executed."
+        )
 
     # Rule 3: Allow only statements that start with SELECT
     first_token_match = re.match(r"^\s*([A-Za-z]+)", sql)
@@ -661,13 +1150,17 @@ def validate_custom_sql(raw_sql: str) -> str:
 
     first_word = first_token_match.group(1).upper()
     if first_word != "SELECT":
-        raise ValidationError(f"Forbidden operation: '{first_word}'. Only queries starting with SELECT are permitted in the SQL Console.")
+        raise ValidationError(
+            f"Forbidden operation: '{first_word}'. Only queries starting with SELECT are permitted in the SQL Console."
+        )
 
     # Rule 4: Reject forbidden keywords anywhere in the statement
     forbidden_match = FORBIDDEN_KEYWORDS_PATTERN.search(sql)
     if forbidden_match:
         matched_op = forbidden_match.group(1).upper()
-        raise ValidationError(f"Forbidden operation detected: '{matched_op}'. Data definition, modification, and execution commands are blocked.")
+        raise ValidationError(
+            f"Forbidden operation detected: '{matched_op}'. Data definition, modification, and execution commands are blocked."
+        )
 
     # Rule 5: Enforce max 500 rows limit
     limit_match = re.search(r"\bLIMIT\s+(\d+)\b", sql, re.IGNORECASE)
@@ -675,7 +1168,7 @@ def validate_custom_sql(raw_sql: str) -> str:
         specified_limit = int(limit_match.group(1))
         if specified_limit > 500:
             # Clamp limit down to 500
-            sql = sql[:limit_match.start()] + "LIMIT 500" + sql[limit_match.end():]
+            sql = sql[: limit_match.start()] + "LIMIT 500" + sql[limit_match.end() :]
     else:
         # Append LIMIT 500 safely
         sql = f"{sql} LIMIT 500"
@@ -685,7 +1178,7 @@ def validate_custom_sql(raw_sql: str) -> str:
 
 def execute_custom_query(raw_sql: str) -> Dict[str, Any]:
     """Executes an ad-hoc SQL query submitted by the user under strict isolation:
-    
+
     1. Validates SQL through `validate_custom_sql`.
     2. Authenticates as the dedicated MySQL user `placement_readonly` (SELECT privilege only).
     3. Enforces session statement timeout `max_execution_time = 3000` (3 seconds).
@@ -697,7 +1190,7 @@ def execute_custom_query(raw_sql: str) -> Dict[str, Any]:
     validated_sql = validate_custom_sql(raw_sql)
 
     start_time = time.perf_counter()
-    
+
     # Step 2: Use dedicated read-only MySQL connection
     try:
         with get_readonly_connection() as connection:
@@ -715,10 +1208,7 @@ def execute_custom_query(raw_sql: str) -> Dict[str, Any]:
                 elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
                 columns = [col[0] for col in cursor.description] if cursor.description else []
-                rows = [
-                    {k: _serialize_value(v) for k, v in row.items()}
-                    for row in raw_rows
-                ]
+                rows = [{k: _serialize_value(v) for k, v in row.items()} for row in raw_rows]
 
                 return {
                     "status": "success",
@@ -736,13 +1226,13 @@ def execute_custom_query(raw_sql: str) -> Dict[str, Any]:
         elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
         errno = op_err.args[0] if op_err.args else 0
         err_msg = op_err.args[1] if len(op_err.args) > 1 else str(op_err)
-        
+
         # MySQL error code 3024 / 1317 is statement execution time exceeded
         if errno in (3024, 1317) or "execution time exceeded" in err_msg.lower():
             readable_msg = "Query execution timed out: maximum execution time limit of 3,000 ms (3 seconds) was exceeded."
         else:
             readable_msg = f"Operational Error ({errno}): {err_msg}"
-            
+
         logger.warning("Custom query operational error: %s", readable_msg)
         return {
             "status": "error",
@@ -758,13 +1248,13 @@ def execute_custom_query(raw_sql: str) -> Dict[str, Any]:
         elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
         errno = prog_err.args[0] if prog_err.args else 0
         err_msg = prog_err.args[1] if len(prog_err.args) > 1 else str(prog_err)
-        
+
         # MySQL error code 1142 is permission denied
         if errno == 1142 or "command denied" in err_msg.lower():
-            readable_msg = f"Security Violation: Command denied for read-only user 'placement_readonly'. Write or administrative operations are prohibited."
+            readable_msg = "Security Violation: Command denied for read-only user 'placement_readonly'. Write or administrative operations are prohibited."
         else:
             readable_msg = f"SQL Syntax / Database Error ({errno}): {err_msg}"
-            
+
         logger.warning("Custom query programming error: %s", readable_msg)
         return {
             "status": "error",

@@ -10,13 +10,14 @@ logger = logging.getLogger(__name__)
 
 class DatabaseError(Exception):
     """Custom exception wrapper for application-level database failures."""
+
     pass
 
 
 @contextmanager
 def get_connection():
     """Context manager for opening and safely releasing a MySQL database connection.
-    
+
     Ensures that the connection is closed even if an exception occurs during execution.
     """
     connection = None
@@ -27,7 +28,9 @@ def get_connection():
         )
         yield connection
     except pymysql.MySQLError as err:
-        logger.error("MySQL connection error: %s (Error code: %s)", err, getattr(err, "args", [""])[0])
+        logger.error(
+            "MySQL connection error: %s (Error code: %s)", err, getattr(err, "args", [""])[0]
+        )
         raise DatabaseError(f"Database connection failed: {err}") from err
     finally:
         if connection and connection.open:
@@ -37,7 +40,7 @@ def get_connection():
 @contextmanager
 def get_readonly_connection():
     """Context manager providing a MySQL connection authenticated as the read-only user.
-    
+
     Guarantees that write operations are rejected by MySQL server permissions.
     """
     connection = None
@@ -58,7 +61,7 @@ def get_readonly_connection():
 @contextmanager
 def get_cursor(commit: bool = False):
     """Context manager providing a DictCursor inside an active connection.
-    
+
     Args:
         commit: If True, commits the transaction on clean block exit;
                 rolls back the transaction if an unhandled exception occurs.
@@ -83,7 +86,7 @@ def get_cursor(commit: bool = False):
 
 def execute_query(query: str, params: Optional[Tuple[Any, ...]] = None) -> List[Dict[str, Any]]:
     """Executes a parameterized read query and returns all matching rows as a list of dictionaries.
-    
+
     Args:
         query: SQL SELECT query with `%s` parameter placeholders.
         params: Tuple or list of parameter values to be safely bound.
@@ -99,7 +102,7 @@ def execute_query(query: str, params: Optional[Tuple[Any, ...]] = None) -> List[
 
 def execute_one(query: str, params: Optional[Tuple[Any, ...]] = None) -> Optional[Dict[str, Any]]:
     """Executes a parameterized read query and returns the first row or None.
-    
+
     Args:
         query: SQL SELECT query with `%s` parameter placeholders.
         params: Tuple or list of parameter values.
@@ -115,11 +118,11 @@ def execute_one(query: str, params: Optional[Tuple[Any, ...]] = None) -> Optiona
 
 def execute_mutation(query: str, params: Optional[Tuple[Any, ...]] = None) -> Dict[str, Any]:
     """Executes an INSERT, UPDATE, or DELETE statement inside an auto-committed transaction.
-    
+
     Args:
         query: SQL statement with `%s` parameter placeholders.
         params: Tuple or list of parameter values.
-        
+
     Returns:
         Dict with 'affected_rows' and 'last_insert_id'.
     """
@@ -138,7 +141,7 @@ def execute_mutation(query: str, params: Optional[Tuple[Any, ...]] = None) -> Di
 
 def ping_db() -> Dict[str, Any]:
     """Executes a ping check against MySQL and returns connection metadata.
-    
+
     Runs parameterized `SELECT VERSION() AS version, DATABASE() AS current_db, NOW() AS server_time`.
     """
     sql = "SELECT VERSION() AS mysql_version, DATABASE() AS database_name, NOW() AS server_time, 1 AS ping_status;"

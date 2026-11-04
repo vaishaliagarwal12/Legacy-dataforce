@@ -105,7 +105,9 @@ class StudentUpgradeTestCase(unittest.TestCase):
 
         # Unplaced
         res_unplaced = list_students(placement_status="Unplaced")
-        unplaced_records = res_unplaced["results"] if isinstance(res_unplaced, dict) else res_unplaced
+        unplaced_records = (
+            res_unplaced["results"] if isinstance(res_unplaced, dict) else res_unplaced
+        )
         for s in unplaced_records:
             self.assertEqual(s["Placement_Offers"], 0)
 
@@ -234,8 +236,17 @@ class StudentUpgradeTestCase(unittest.TestCase):
 
         header = rows[0]
         expected_cols = [
-            "Roll No", "First Name", "Last Name", "Branch", "Batch Year",
-            "CGPA", "Backlogs", "Email", "Placement Status", "Placement Offers", "Internships Count"
+            "Roll No",
+            "First Name",
+            "Last Name",
+            "Branch",
+            "Batch Year",
+            "CGPA",
+            "Backlogs",
+            "Email",
+            "Placement Status",
+            "Placement Offers",
+            "Internships Count",
         ]
         for col in expected_cols:
             self.assertIn(col, header)
@@ -257,65 +268,75 @@ class StudentUpgradeTestCase(unittest.TestCase):
         """Verifies attempting to create a student with existing Roll_No raises ConflictError."""
         existing = execute_one("SELECT Roll_No FROM STUDENT LIMIT 1")
         with self.assertRaises(ConflictError) as ctx:
-            create_student({
-                "Roll_No": existing["Roll_No"],
-                "First_Name": "Duplicate",
-                "Branch": "CSE",
-                "Batch_Year": 2025,
-                "CGPA": 8.0,
-                "Email": "unique_email_999@test.edu"
-            })
+            create_student(
+                {
+                    "Roll_No": existing["Roll_No"],
+                    "First_Name": "Duplicate",
+                    "Branch": "CSE",
+                    "Batch_Year": 2025,
+                    "CGPA": 8.0,
+                    "Email": "unique_email_999@test.edu",
+                }
+            )
         self.assertIn("already exists", str(ctx.exception))
 
     def test_11_duplicate_email_conflict(self):
         """Verifies attempting to create a student with existing Email raises ConflictError."""
         existing = execute_one("SELECT Email FROM STUDENT LIMIT 1")
         with self.assertRaises(ConflictError) as ctx:
-            create_student({
-                "Roll_No": "UNIQUE_ROLL_999",
-                "First_Name": "Duplicate",
-                "Branch": "CSE",
-                "Batch_Year": 2025,
-                "CGPA": 8.0,
-                "Email": existing["Email"]
-            })
+            create_student(
+                {
+                    "Roll_No": "UNIQUE_ROLL_999",
+                    "First_Name": "Duplicate",
+                    "Branch": "CSE",
+                    "Batch_Year": 2025,
+                    "CGPA": 8.0,
+                    "Email": existing["Email"],
+                }
+            )
         self.assertIn("already exists", str(ctx.exception))
 
     def test_12_validation_bounds_and_types(self):
         """Verifies that invalid CGPA, negative backlogs, or malformed email raise ValidationError."""
         # Negative CGPA
         with self.assertRaises(ValidationError):
-            create_student({
-                "Roll_No": "VAL_TEST_1",
-                "First_Name": "Val",
-                "Branch": "CSE",
-                "Batch_Year": 2025,
-                "CGPA": -1.0,
-                "Email": "val1@test.edu"
-            })
+            create_student(
+                {
+                    "Roll_No": "VAL_TEST_1",
+                    "First_Name": "Val",
+                    "Branch": "CSE",
+                    "Batch_Year": 2025,
+                    "CGPA": -1.0,
+                    "Email": "val1@test.edu",
+                }
+            )
 
         # CGPA > 10.0
         with self.assertRaises(ValidationError):
-            create_student({
-                "Roll_No": "VAL_TEST_2",
-                "First_Name": "Val",
-                "Branch": "CSE",
-                "Batch_Year": 2025,
-                "CGPA": 11.5,
-                "Email": "val2@test.edu"
-            })
+            create_student(
+                {
+                    "Roll_No": "VAL_TEST_2",
+                    "First_Name": "Val",
+                    "Branch": "CSE",
+                    "Batch_Year": 2025,
+                    "CGPA": 11.5,
+                    "Email": "val2@test.edu",
+                }
+            )
 
         # Negative Backlogs
         with self.assertRaises(ValidationError):
-            create_student({
-                "Roll_No": "VAL_TEST_3",
-                "First_Name": "Val",
-                "Branch": "CSE",
-                "Batch_Year": 2025,
-                "CGPA": 8.0,
-                "Backlogs": -2,
-                "Email": "val3@test.edu"
-            })
+            create_student(
+                {
+                    "Roll_No": "VAL_TEST_3",
+                    "First_Name": "Val",
+                    "Branch": "CSE",
+                    "Batch_Year": 2025,
+                    "CGPA": 8.0,
+                    "Backlogs": -2,
+                    "Email": "val3@test.edu",
+                }
+            )
 
     # -------------------------------------------------------------------------
     # 7. CONFIRMATION & SAFE DELETION
@@ -338,19 +359,21 @@ class StudentUpgradeTestCase(unittest.TestCase):
         # Clean up if leftover from previous run
         execute_one("DELETE FROM STUDENT WHERE Roll_No = %s", (roll,))
 
-        created = create_student({
-            "Roll_No": roll,
-            "First_Name": "Aadi",
-            "Last_Name": "Verma",
-            "Branch": "CSE",
-            "Batch_Year": 2026,
-            "Section": "A",
-            "CGPA": 9.10,
-            "Backlogs": 0,
-            "Email": email,
-            "Phone_Numbers": ["+91 9111122222", "+91 9333344444"],
-            "Skills": ["Python", "Docker", "FastAPI"]
-        })
+        created = create_student(
+            {
+                "Roll_No": roll,
+                "First_Name": "Aadi",
+                "Last_Name": "Verma",
+                "Branch": "CSE",
+                "Batch_Year": 2026,
+                "Section": "A",
+                "CGPA": 9.10,
+                "Backlogs": 0,
+                "Email": email,
+                "Phone_Numbers": ["+91 9111122222", "+91 9333344444"],
+                "Skills": ["Python", "Docker", "FastAPI"],
+            }
+        )
 
         st_id = created["Student_ID"]
         self.assertIsNotNone(st_id)
@@ -358,18 +381,21 @@ class StudentUpgradeTestCase(unittest.TestCase):
         self.assertEqual(len(created["Skills"]), 3)
 
         # Verify DB records
-        phone_rows = execute_query("SELECT Phone_No FROM STUDENT_PHONE WHERE Student_ID = %s", (st_id,))
+        phone_rows = execute_query(
+            "SELECT Phone_No FROM STUDENT_PHONE WHERE Student_ID = %s", (st_id,)
+        )
         self.assertEqual(len(phone_rows), 2)
 
-        skill_rows = execute_query("SELECT Skill FROM STUDENT_SKILL WHERE Student_ID = %s", (st_id,))
+        skill_rows = execute_query(
+            "SELECT Skill FROM STUDENT_SKILL WHERE Student_ID = %s", (st_id,)
+        )
         self.assertEqual(len(skill_rows), 3)
 
         # Update student atomically
-        updated = update_student(st_id, {
-            "CGPA": 9.35,
-            "Phone_Numbers": ["+91 9888877777"],
-            "Skills": ["Python", "Kubernetes"]
-        })
+        updated = update_student(
+            st_id,
+            {"CGPA": 9.35, "Phone_Numbers": ["+91 9888877777"], "Skills": ["Python", "Kubernetes"]},
+        )
         self.assertEqual(updated["CGPA"], 9.35)
         self.assertEqual(updated["Phone_Numbers"], ["+91 9888877777"])
         self.assertEqual(updated["Skills"], ["Kubernetes", "Python"])
@@ -380,8 +406,12 @@ class StudentUpgradeTestCase(unittest.TestCase):
 
         # Verify cascade/cleanup
         self.assertIsNone(execute_one("SELECT * FROM STUDENT WHERE Student_ID = %s", (st_id,)))
-        self.assertEqual(len(execute_query("SELECT * FROM STUDENT_PHONE WHERE Student_ID = %s", (st_id,))), 0)
-        self.assertEqual(len(execute_query("SELECT * FROM STUDENT_SKILL WHERE Student_ID = %s", (st_id,))), 0)
+        self.assertEqual(
+            len(execute_query("SELECT * FROM STUDENT_PHONE WHERE Student_ID = %s", (st_id,))), 0
+        )
+        self.assertEqual(
+            len(execute_query("SELECT * FROM STUDENT_SKILL WHERE Student_ID = %s", (st_id,))), 0
+        )
 
 
 if __name__ == "__main__":

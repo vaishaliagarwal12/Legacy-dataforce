@@ -11,7 +11,14 @@ VALID_COURSE_TYPES = ("Core", "Elective", "Lab", "Seminar")
 def validate_course_payload(data: Dict[str, Any], is_update: bool = False) -> None:
     """Validates course fields and enum bounds."""
     if not is_update:
-        required = ["University_ID", "Course_Name", "Department", "Semester", "Credits", "Course_Type"]
+        required = [
+            "University_ID",
+            "Course_Name",
+            "Department",
+            "Semester",
+            "Credits",
+            "Course_Type",
+        ]
         for field in required:
             if field not in data or data[field] is None or str(data[field]).strip() == "":
                 raise ValidationError(f"Missing required field: '{field}'")
@@ -57,10 +64,12 @@ def create_course(data: Dict[str, Any]) -> Dict[str, Any]:
     # Unique constraint check
     dup_check = execute_one(
         "SELECT Course_ID FROM COURSE WHERE University_ID = %s AND Course_Name = %s AND Semester = %s",
-        (uni_id, name, sem)
+        (uni_id, name, sem),
     )
     if dup_check:
-        raise ConflictError(f"Course '{name}' in Semester {sem} already exists for this university.")
+        raise ConflictError(
+            f"Course '{name}' in Semester {sem} already exists for this university."
+        )
 
     insert_sql = """
         INSERT INTO COURSE (University_ID, Course_Name, Department, Semester, Credits, Course_Type)
@@ -179,14 +188,15 @@ def update_course(course_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
 
 def delete_course(course_id: int) -> Dict[str, Any]:
     """Safely deletes a course, blocking if student registrations depend on it."""
-    course = execute_one("SELECT Course_ID, Course_Name FROM COURSE WHERE Course_ID = %s", (course_id,))
+    course = execute_one(
+        "SELECT Course_ID, Course_Name FROM COURSE WHERE Course_ID = %s", (course_id,)
+    )
     if not course:
         raise NotFoundError(f"Course with ID {course_id} not found.")
 
     # Safe delete check: Verify no enrolled students
     reg_count = execute_one(
-        "SELECT COUNT(*) AS total FROM STUDENT_COURSE WHERE Course_ID = %s",
-        (course_id,)
+        "SELECT COUNT(*) AS total FROM STUDENT_COURSE WHERE Course_ID = %s", (course_id,)
     )["total"]
 
     if reg_count > 0:

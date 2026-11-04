@@ -14,11 +14,16 @@ def api_create_opportunity():
     """Creates an opportunity along with eligibility criteria and multiple branches inside a transaction."""
     payload = request.get_json() or {}
     opportunity = create_opportunity(payload)
-    return jsonify({
-        "status": "success",
-        "message": "Opportunity created successfully with eligibility and branches",
-        "data": opportunity
-    }), 201
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "message": "Opportunity created successfully with eligibility and branches",
+                "data": opportunity,
+            }
+        ),
+        201,
+    )
 
 
 @opportunity_bp.route("", methods=["GET"])
@@ -37,21 +42,14 @@ def api_list_opportunities():
         branch=branch,
         search=search,
     )
-    return jsonify({
-        "status": "success",
-        "total": len(opportunities),
-        "data": opportunities
-    }), 200
+    return jsonify({"status": "success", "total": len(opportunities), "data": opportunities}), 200
 
 
 @opportunity_bp.route("/<int:opportunity_id>", methods=["GET"])
 def api_get_opportunity(opportunity_id: int):
     """Retrieves opportunity details with eligibility, multiple branches, and selection rounds."""
     opportunity = get_opportunity(opportunity_id)
-    return jsonify({
-        "status": "success",
-        "data": opportunity
-    }), 200
+    return jsonify({"status": "success", "data": opportunity}), 200
 
 
 @opportunity_bp.route("/<int:opportunity_id>", methods=["PUT"])
@@ -59,19 +57,29 @@ def api_update_opportunity(opportunity_id: int):
     """Updates opportunity, eligibility criteria, and eligible branches atomically in a transaction."""
     payload = request.get_json() or {}
     opportunity = update_opportunity(opportunity_id, payload)
-    return jsonify({
-        "status": "success",
-        "message": "Opportunity and eligibility updated successfully",
-        "data": opportunity
-    }), 200
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "message": "Opportunity and eligibility updated successfully",
+                "data": opportunity,
+            }
+        ),
+        200,
+    )
 
 
 @opportunity_bp.route("/<int:opportunity_id>", methods=["DELETE"])
 def api_delete_opportunity(opportunity_id: int):
     """Safely deletes an opportunity; blocks if bound to student placement/internship records."""
     result = delete_opportunity(opportunity_id)
-    return jsonify({
-        "status": "success",
-        "message": result["message"],
-        "deleted_opportunity_id": result["deleted_opportunity_id"]
-    }), 200
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "message": result["message"],
+                "deleted_opportunity_id": result["deleted_opportunity_id"],
+            }
+        ),
+        200,
+    )
