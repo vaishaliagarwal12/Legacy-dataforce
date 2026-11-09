@@ -148,7 +148,7 @@
                             <div class="input-group">
                                 <span class="input-group-text">&#8377;</span>
                                 <input type="number" class="form-control" id="Stipend" name="Stipend" 
-                                       step="500" min="0" value="{% if internship %}{{ internship.Stipend or 0.0 }}{% else %}15000{% endif %}">
+                                       step="500" min="0" value="{% if internship %}{{ internship.Stipend if internship.Stipend is not none else 0.0 }}{% else %}0{% endif %}" placeholder="e.g. 15000">
                             </div>
                             <div class="form-text small text-muted">Enter 0 for unpaid or research engagements.</div>
                         </div>

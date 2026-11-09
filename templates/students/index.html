@@ -16,7 +16,8 @@
     <div class="d-flex flex-wrap gap-2">
         <!-- CSV Export Button with active filter query parameters -->
         <a href="/students/export-csv?search={{ active_filters.search }}&branch={{ active_filters.branch }}&batch_year={{ active_filters.batch_year }}&min_cgpa={{ active_filters.min_cgpa }}&max_cgpa={{ active_filters.max_cgpa }}&placement_status={{ active_filters.placement_status }}&sort_by={{ active_filters.sort_by }}&sort_dir={{ active_filters.sort_dir }}" 
-           class="btn btn-outline-secondary btn-sm"
+           class="btn btn-outline-secondary btn-sm export-download-btn"
+           data-export-btn
            title="Export filtered student records to CSV">
             <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export CSV
         </a>
@@ -44,7 +45,7 @@
             <!-- Branch Filter -->
             <div class="col-6 col-md-2">
                 <label class="form-label small fw-semibold text-secondary mb-1">Branch</label>
-                {% set branch_labels = {'CSE': 'Computer Science (CSE)', 'ECE': 'Electronics & Comm (ECE)', 'ME': 'Mechanical (ME)', 'IT': 'Information Tech (IT)', 'Civil': 'Civil Engineering', 'Electrical': 'Electrical Engineering'} %}
+                {% set branch_labels = (filter_options.branch_labels if filter_options and filter_options.branch_labels else {}) %}
                 <select name="branch" class="form-select form-select-sm" aria-label="Filter by Branch">
                     <option value="">All Branches</option>
                     {% for b in filter_options.branches %}

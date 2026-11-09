@@ -2,7 +2,7 @@ import io
 import csv
 import datetime
 import logging
-from typing import Optional
+from typing import Optional, List
 from flask import (
     render_template,
     request,
@@ -11,7 +11,9 @@ from flask import (
     flash,
     jsonify,
     Response,
+    current_app,
 )
+from config import Config
 from db.connection import DatabaseError
 from . import main_bp
 from services import (
@@ -21,6 +23,7 @@ from services import (
     NotFoundError,
     ConflictError,
     ProtectedDeleteError,
+    validate_pagination_params,
     # Dashboard & Reports
     get_yearwise_placement_chart_data,
     get_branchwise_analytics_chart_data,
@@ -30,6 +33,7 @@ from services import (
     # Students & Profiles
     list_students,
     get_student,
+    get_student_selector_options,
     create_student,
     update_student,
     delete_student,
@@ -69,52 +73,101 @@ from services import (
     list_saved_queries,
     execute_saved_query,
     execute_custom_query,
+    get_sql_report_limits,
 )
 
 logger = logging.getLogger(__name__)
 
-BRANCH_MAP = {
-    "computer science": "CSE",
-    "cse": "CSE",
-    "electronics & comm": "ECE",
-    "electronics & communication": "ECE",
-    "electronics": "ECE",
-    "ece": "ECE",
-    "mechanical": "ME",
-    "mechanical engineering": "ME",
-    "me": "ME",
-    "information tech": "IT",
-    "information technology": "IT",
-    "it": "IT",
-    "civil": "Civil",
-    "electrical": "Electrical",
-}
 
-COMPANY_TYPE_MAP = {
-    "tier-1": "Product",
-    "tier-2": "Service",
-    "tier-3": "Startup",
-    "product": "Product",
-    "service": "Service",
-    "startup": "Startup",
-    "other": "Other",
-}
+def get_canonical_branches() -> List[str]:
+    """Retrieves canonical academic branch codes directly from the database."""
+    try:
+        filter_opts = get_dashboard_filter_options()
+        return filter_opts.get("branches", [])
+    except Exception as exc:
+        logger.warning("Could not retrieve canonical branches from database: %s", exc)
+        return []
 
 
 def normalize_branch(val: Optional[str]) -> Optional[str]:
-    """Normalizes department names or abbreviations to canonical database codes."""
+    """Validates and normalizes submitted branch values against canonical database branches.
+
+    Obtains canonical branches from the database. If the database has branches, validates
+    against them (case-insensitively, or resolving common departmental aliases to canonical codes
+    present in the database). If the database branch list is empty (e.g. fresh DB), preserves
+    the submitted value gracefully. Returns None if invalid or empty.
+    """
     if not val:
         return None
-    val_clean = val.strip()
-    return BRANCH_MAP.get(val_clean.lower(), val_clean)
+    val_clean = str(val).strip()
+    if not val_clean or val_clean.lower() in ("all", "none"):
+        return None
+
+    canonical_branches = get_canonical_branches()
+    if not canonical_branches:
+        # Gracefully handle an empty branch list
+        return val_clean
+
+    # 1. Exact match against database branches
+    for b in canonical_branches:
+        if val_clean == b:
+            return b
+
+    # 2. Case-insensitive match against database branches
+    for b in canonical_branches:
+        if val_clean.lower() == b.lower():
+            return b
+
+    # 3. Match against common department naming variations, resolving strictly to a canonical
+    # branch present in the database
+    department_synonyms = {
+        "computer science": "CSE",
+        "cse": "CSE",
+        "electronics & comm": "ECE",
+        "electronics & communication": "ECE",
+        "electronics": "ECE",
+        "ece": "ECE",
+        "mechanical": "ME",
+        "mechanical engineering": "ME",
+        "me": "ME",
+        "information tech": "IT",
+        "information technology": "IT",
+        "it": "IT",
+        "civil": "Civil",
+        "civil engineering": "Civil",
+        "electrical": "Electrical",
+        "electrical engineering": "Electrical",
+    }
+    candidate_code = department_synonyms.get(val_clean.lower())
+    if candidate_code:
+        for b in canonical_branches:
+            if candidate_code.lower() == b.lower():
+                return b
+
+    # Submitted value is not present in the database
+    return None
 
 
 def normalize_company_type(val: Optional[str]) -> Optional[str]:
-    """Normalizes company category filters."""
+    """Validates and normalizes company category values against canonical schema ENUM types."""
     if not val:
         return None
-    val_clean = val.strip().lower()
-    return COMPANY_TYPE_MAP.get(val_clean, val.strip())
+    val_clean = str(val).strip()
+    if not val_clean or val_clean.lower() in ("all", "none"):
+        return None
+
+    # Canonical schema ENUM types: ('Product', 'Service', 'Startup', 'Other')
+    valid_types = ("Product", "Service", "Startup", "Other")
+    for ctype in valid_types:
+        if val_clean.lower() == ctype.lower():
+            return ctype
+
+    # Legacy tier translation fallback for backward compatibility
+    legacy_tier_map = {"tier-1": "Product", "tier-2": "Service", "tier-3": "Startup"}
+    if val_clean.lower() in legacy_tier_map:
+        return legacy_tier_map[val_clean.lower()]
+
+    return None
 
 
 def parse_float(val, field_name: str, min_val: float = None, max_val: float = None) -> float:
@@ -263,10 +316,13 @@ def students_list():
     sort_by = request.args.get("sort_by", "roll_no").strip()
     sort_dir = request.args.get("sort_dir", "asc").strip().lower()
 
-    page = request.args.get("page", default=1, type=int)
-    per_page = request.args.get("per_page", default=10, type=int)
-    if per_page not in (10, 25, 50, 100):
-        per_page = 10
+    page, per_page = validate_pagination_params(
+        page=request.args.get("page"),
+        per_page=request.args.get("per_page"),
+        default_page=1,
+        default_per_page=getattr(Config, "DEFAULT_PAGE_SIZE", 10),
+        allowed_per_page=(10, 25, 50, 100),
+    )
 
     res = list_students(
         search=search,
@@ -345,6 +401,9 @@ def students_export_csv():
     sort_by = request.args.get("sort_by", "roll_no").strip()
     sort_dir = request.args.get("sort_dir", "asc").strip().lower()
 
+    export_limit = current_app.config.get(
+        "EXPORT_ROW_LIMIT", getattr(Config, "EXPORT_ROW_LIMIT", 10000)
+    )
     res = list_students(
         search=search,
         branch=branch,
@@ -354,10 +413,12 @@ def students_export_csv():
         placement_status=placement_status,
         sort_by=sort_by,
         sort_dir=sort_dir,
-        limit=10000,
+        limit=export_limit,
         offset=0,
     )
     students = res.get("results", [])
+    total_count = res.get("total", len(students))
+    is_truncated = total_count > len(students)
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -412,10 +473,22 @@ def students_export_csv():
         )
 
     csv_data = output.getvalue()
+    headers = {
+        "Content-Disposition": "attachment; filename=students_directory.csv",
+        "X-Export-Total-Count": str(total_count),
+        "X-Export-Count": str(len(students)),
+        "X-Export-Limit": str(export_limit),
+        "X-Export-Limited": "true" if is_truncated else "false",
+        "X-Export-Status": "limited" if is_truncated else ("empty" if not students else "complete"),
+    }
+    if is_truncated:
+        headers["X-Export-Warning"] = (
+            f"Export capped at {export_limit} records of {total_count} matching."
+        )
     return Response(
         csv_data,
         mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=students_directory.csv"},
+        headers=headers,
     )
 
 
@@ -631,7 +704,12 @@ def student_phone_delete(student_id: int, phone_no: str):
 def companies_list():
     """Displays searchable and filterable company partners."""
     search = request.args.get("search", "").strip() or None
-    raw_type = request.args.get("type", "").strip() or request.args.get("tier", "").strip() or None
+    raw_type = (
+        request.args.get("type", "").strip()
+        or request.args.get("category", "").strip()
+        or request.args.get("tier", "").strip()
+        or None
+    )
     company_type = normalize_company_type(raw_type)
 
     companies = list_companies(search=search, company_type=company_type)
@@ -640,6 +718,7 @@ def companies_list():
         active_page="companies",
         companies=companies,
         search_query=search,
+        selected_type=company_type or raw_type,
         selected_tier=company_type or raw_type,
     )
 
@@ -649,9 +728,11 @@ def company_create():
     """Registers a new corporate partner."""
     if request.method == "POST":
         try:
+            raw_ctype = request.form.get("Company_Type") or request.form.get("Tier") or "Product"
+            company_type = normalize_company_type(raw_ctype) or "Product"
             payload = {
                 "Company_Name": request.form.get("Company_Name", "").strip(),
-                "Company_Type": request.form.get("Company_Type", "Product").strip(),
+                "Company_Type": company_type,
                 "Industry": request.form.get("Industry", "").strip(),
                 "Location": request.form.get("Location", "").strip() or None,
                 "Website": request.form.get("Website", "").strip() or None,
@@ -712,9 +793,16 @@ def company_edit(company_id: int):
 
     if request.method == "POST":
         try:
+            raw_ctype = (
+                request.form.get("Company_Type")
+                or request.form.get("Tier")
+                or company.get("Company_Type")
+                or "Other"
+            )
+            company_type = normalize_company_type(raw_ctype) or company.get("Company_Type", "Other")
             payload = {
                 "Company_Name": request.form.get("Company_Name", "").strip(),
-                "Company_Type": request.form.get("Company_Type", company["Company_Type"]).strip(),
+                "Company_Type": company_type,
                 "Industry": request.form.get("Industry", "").strip(),
                 "Location": request.form.get("Location", "").strip() or None,
                 "Website": request.form.get("Website", "").strip() or None,
@@ -807,6 +895,7 @@ def internships_list():
     ]
 
     companies = list_companies()
+    filter_options = get_dashboard_filter_options()
 
     return render_template(
         "internships/index.html",
@@ -821,6 +910,7 @@ def internships_list():
         batch_reports=batch_reports,
         analytics=analytics,
         companies=companies,
+        filter_options=filter_options,
         search_query=search,
         selected_branch=branch or raw_branch,
         selected_batch=batch_year,
@@ -845,6 +935,9 @@ def internships_export_csv():
     status = request.args.get("status")
     report_grade = request.args.get("report_grade")
 
+    export_limit = current_app.config.get(
+        "EXPORT_ROW_LIMIT", getattr(Config, "EXPORT_ROW_LIMIT", 10000)
+    )
     internships = list_internships(
         search=search,
         branch=branch,
@@ -853,9 +946,10 @@ def internships_export_csv():
         internship_type=itype,
         status=status,
         report_grade=report_grade,
-        limit=10000,
+        limit=export_limit,
         offset=0,
     )
+    is_truncated = len(internships) >= export_limit
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -921,10 +1015,21 @@ def internships_export_csv():
         )
 
     csv_data = output.getvalue()
+    headers = {
+        "Content-Disposition": "attachment; filename=internships_registry.csv",
+        "X-Export-Count": str(len(internships)),
+        "X-Export-Limit": str(export_limit),
+        "X-Export-Limited": "true" if is_truncated else "false",
+        "X-Export-Status": "limited"
+        if is_truncated
+        else ("empty" if not internships else "complete"),
+    }
+    if is_truncated:
+        headers["X-Export-Warning"] = f"Export capped at {export_limit} records."
     return Response(
         csv_data,
         mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=internships_registry.csv"},
+        headers=headers,
     )
 
 
@@ -1041,8 +1146,7 @@ def internship_create():
             err_msg = _safe_error_message(err)
             flash(f"Internship Creation Rejected: {err_msg}", "danger")
 
-    students_res = list_students(limit=100)
-    students = students_res.get("results", []) if isinstance(students_res, dict) else students_res
+    students = get_student_selector_options()
     companies = list_companies()
     requirements = list_requirements()
     preselected_student_id = request.args.get("student_id")
@@ -1138,8 +1242,13 @@ def placements_list():
     # 2. Sorting & Pagination Parameters
     sort_by = request.args.get("sort_by", "package").strip().lower()
     sort_dir = request.args.get("sort_dir", "desc").strip().lower()
-    page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 15, type=int)
+    page, per_page = validate_pagination_params(
+        page=request.args.get("page"),
+        per_page=request.args.get("per_page"),
+        default_page=1,
+        default_per_page=15,
+        max_per_page=getattr(Config, "MAX_PAGE_SIZE", 100),
+    )
 
     # 3. Query Placement Offers
     offers_res = list_placement_offers(
@@ -1172,10 +1281,7 @@ def placements_list():
     multi_offer_students = get_students_with_multiple_offers(min_offers=2)
 
     # 6. Modal / Form Auxiliary Data
-    students_res = list_students(limit=100)
-    all_students = (
-        students_res.get("results", []) if isinstance(students_res, dict) else students_res
-    )
+    all_students = get_student_selector_options()
     all_companies = list_companies()
     all_opportunities = list_opportunities(opportunity_type="Placement")
 
@@ -1199,6 +1305,8 @@ def placements_list():
         "view": view_type,
     }
 
+    current_year = datetime.date.today().year
+
     return render_template(
         "placements/index.html",
         active_page="placements",
@@ -1213,6 +1321,7 @@ def placements_list():
         all_opportunities=all_opportunities,
         filter_options=filter_opts,
         active_filters=active_filters,
+        default_placement_year=current_year,
         # Backward compatibility bindings
         search_query=search,
         selected_status=status,
@@ -1256,6 +1365,9 @@ def placements_export_csv():
     sort_by = request.args.get("sort_by", "package").strip().lower()
     sort_dir = request.args.get("sort_dir", "desc").strip().lower()
 
+    export_limit = current_app.config.get(
+        "EXPORT_ROW_LIMIT", getattr(Config, "EXPORT_ROW_LIMIT", 10000)
+    )
     res = list_placement_offers(
         search=search,
         branch=branch,
@@ -1269,10 +1381,12 @@ def placements_export_csv():
         max_package=max_package,
         sort_by=sort_by,
         sort_dir=sort_dir,
-        limit=10000,
+        limit=export_limit,
         offset=0,
     )
     offers = res.get("results", [])
+    total_count = res.get("total", len(offers))
+    is_truncated = total_count > len(offers)
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -1328,10 +1442,22 @@ def placements_export_csv():
         )
 
     csv_data = output.getvalue()
+    headers = {
+        "Content-Disposition": "attachment; filename=placement_offers_directory.csv",
+        "X-Export-Total-Count": str(total_count),
+        "X-Export-Count": str(len(offers)),
+        "X-Export-Limit": str(export_limit),
+        "X-Export-Limited": "true" if is_truncated else "false",
+        "X-Export-Status": "limited" if is_truncated else ("empty" if not offers else "complete"),
+    }
+    if is_truncated:
+        headers["X-Export-Warning"] = (
+            f"Export capped at {export_limit} records of {total_count} matching."
+        )
     return Response(
         csv_data,
         mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=placement_offers_directory.csv"},
+        headers=headers,
     )
 
 
@@ -1360,6 +1486,8 @@ def placement_edit(placement_id: int):
         flash(f"Placement Offer #{placement_id} not found.", "warning")
         return redirect("/placements")
 
+    fallback_year = offer.get("Placement_Year") or datetime.date.today().year
+
     if request.method == "POST":
         try:
             package = parse_float(request.form.get("Package", 0.0), "Package", min_val=0.01)
@@ -1372,7 +1500,7 @@ def placement_edit(placement_id: int):
                 "Role": request.form.get("Role", "").strip(),
                 "Package": package,
                 "Placement_Year": parse_int(
-                    request.form.get("Placement_Year", 2024), "Placement Year", 2000, 2100
+                    request.form.get("Placement_Year", fallback_year), "Placement Year", 2000, 2100
                 ),
                 "Placement_Type": request.form.get("Placement_Type", "On-campus").strip(),
                 "Offer_Status": request.form.get("Offer_Status", "Offered").strip(),
@@ -1396,12 +1524,15 @@ def placement_edit(placement_id: int):
         active_page="placements",
         mode="edit",
         offer=offer,
+        default_placement_year=fallback_year,
     )
 
 
 @main_bp.route("/placements/new", methods=["GET", "POST"])
 def placement_create():
     """Handles issuing a placement offer enforcing no duplicates, opportunity type, and single-accepted offer rules."""
+    current_year = datetime.date.today().year
+
     if request.method == "POST":
         try:
             opp_id_raw = request.form.get("Opportunity_ID")
@@ -1422,7 +1553,7 @@ def placement_create():
                 "Role": request.form.get("Role", "").strip(),
                 "Package": package,
                 "Placement_Year": parse_int(
-                    request.form.get("Placement_Year", 2024), "Placement Year", 2000, 2100
+                    request.form.get("Placement_Year", current_year), "Placement Year", 2000, 2100
                 ),
                 "Placement_Type": request.form.get("Placement_Type", "On-campus").strip(),
                 "Offer_Status": request.form.get("Offer_Status", "Offered").strip(),
@@ -1444,10 +1575,7 @@ def placement_create():
             return redirect("/placements")
 
     # GET request: render standalone form
-    students_res = list_students(limit=100)
-    all_students = (
-        students_res.get("results", []) if isinstance(students_res, dict) else students_res
-    )
+    all_students = get_student_selector_options()
     all_companies = list_companies()
     all_opportunities = list_opportunities(opportunity_type="Placement")
 
@@ -1459,6 +1587,7 @@ def placement_create():
         all_students=all_students,
         all_companies=all_companies,
         all_opportunities=all_opportunities,
+        default_placement_year=current_year,
     )
 
 
@@ -1522,11 +1651,13 @@ def reports_view():
     # Present selected branch accurately back to template
     filters_display = dict(filters)
     filters_display["branch"] = branch or raw_branch
+    filter_options = get_dashboard_filter_options()
 
     return render_template(
         "reports/index.html",
         active_page="reports",
         filters=filters_display,
+        filter_options=filter_options,
         rows=report_data["rows"],
         summary=report_data["summary"],
         current_query_string=query_string,
@@ -1547,8 +1678,14 @@ def reports_export_csv():
         "min_salary": request.args.get("min_salary", "").strip() or None,
     }
 
+    export_limit = current_app.config.get(
+        "EXPORT_ROW_LIMIT", getattr(Config, "EXPORT_ROW_LIMIT", 10000)
+    )
     report_data = get_comprehensive_report_data(filters)
-    rows = report_data["rows"]
+    all_rows = report_data.get("rows", [])
+    total_count = len(all_rows)
+    is_truncated = total_count > export_limit
+    rows = all_rows[:export_limit]
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -1592,10 +1729,23 @@ def reports_export_csv():
     csv_data = output.getvalue()
     output.close()
 
+    headers = {
+        "Content-Disposition": "attachment; filename=placement_internship_report.csv",
+        "X-Export-Total-Count": str(total_count),
+        "X-Export-Count": str(len(rows)),
+        "X-Export-Limit": str(export_limit),
+        "X-Export-Limited": "true" if is_truncated else "false",
+        "X-Export-Status": "limited" if is_truncated else ("empty" if not rows else "complete"),
+    }
+    if is_truncated:
+        headers["X-Export-Warning"] = (
+            f"Export capped at {export_limit} records of {total_count} matching."
+        )
+
     return Response(
         csv_data,
         mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=placement_internship_report.csv"},
+        headers=headers,
     )
 
 
@@ -1613,8 +1763,14 @@ def reports_export_pdf():
         "min_salary": request.args.get("min_salary", "").strip() or None,
     }
 
+    pdf_limit = current_app.config.get(
+        "EXPORT_PDF_ROW_LIMIT", getattr(Config, "EXPORT_PDF_ROW_LIMIT", 150)
+    )
     report_data = get_comprehensive_report_data(filters)
-    rows = report_data.get("rows", [])
+    all_rows = report_data.get("rows", [])
+    total_records = len(all_rows)
+    is_truncated = total_records > pdf_limit
+    rows = all_rows[:pdf_limit]
 
     try:
         from reportlab.lib.pagesizes import letter, landscape
@@ -1670,9 +1826,17 @@ def reports_export_pdf():
                 title_style,
             )
         )
+
+        if is_truncated:
+            status_desc = f"Official Accreditation Snapshot (Limited to first {pdf_limit} of {total_records} records)"
+        elif not all_rows:
+            status_desc = "No student records found matching filter criteria"
+        else:
+            status_desc = f"Official Accreditation Snapshot (Complete: {total_records} records)"
+
         elements.append(
             Paragraph(
-                f'<b>Filter:</b> Branch: {branch or "All"} | <b>Total Records:</b> {len(rows)} | <b>Status:</b> Official University Accreditation Snapshot',
+                f"<b>Filter:</b> Branch: {branch or 'All'} | <b>Total Records:</b> {total_records} | <b>Status:</b> {status_desc}",
                 meta_style,
             )
         )
@@ -1692,32 +1856,42 @@ def reports_export_pdf():
         ]
         table_data = [[Paragraph(c, header_style) for c in columns]]
 
-        for r in rows[:150]:
+        if not rows:
             table_data.append(
                 [
-                    Paragraph(str(r.get("Roll_No", "-")), cell_style),
-                    Paragraph(str(r.get("Full_Name", "-")), cell_style),
-                    Paragraph(str(r.get("Branch", "-")), cell_style),
-                    Paragraph(f"{float(r.get('CGPA', 0)):.2f}", cell_style),
-                    Paragraph(str(r.get("Total_Offers", 0)), cell_style),
-                    Paragraph(str(r.get("Placed_Company") or "Unplaced"), cell_style),
-                    Paragraph(
-                        (
-                            f"{float(r.get('Placed_Package', 0)):.2f}"
-                            if r.get("Placed_Package")
-                            else "N/A"
-                        ),
-                        cell_style,
-                    ),
-                    Paragraph(str(r.get("Final_Status") or "N/A"), cell_style),
-                    Paragraph(
-                        "Completed" if r.get("Has_Mandatory_1", 0) > 0 else "Missing", cell_style
-                    ),
-                    Paragraph(
-                        "Completed" if r.get("Has_Mandatory_2", 0) > 0 else "Missing", cell_style
-                    ),
+                    Paragraph("No records found", cell_style),
+                    *[Paragraph("-", cell_style) for _ in range(len(columns) - 1)],
                 ]
             )
+        else:
+            for r in rows:
+                table_data.append(
+                    [
+                        Paragraph(str(r.get("Roll_No", "-")), cell_style),
+                        Paragraph(str(r.get("Full_Name", "-")), cell_style),
+                        Paragraph(str(r.get("Branch", "-")), cell_style),
+                        Paragraph(f"{float(r.get('CGPA', 0)):.2f}", cell_style),
+                        Paragraph(str(r.get("Total_Offers", 0)), cell_style),
+                        Paragraph(str(r.get("Placed_Company") or "Unplaced"), cell_style),
+                        Paragraph(
+                            (
+                                f"{float(r.get('Placed_Package', 0)):.2f}"
+                                if r.get("Placed_Package")
+                                else "N/A"
+                            ),
+                            cell_style,
+                        ),
+                        Paragraph(str(r.get("Final_Status") or "N/A"), cell_style),
+                        Paragraph(
+                            "Completed" if r.get("Has_Mandatory_1", 0) > 0 else "Missing",
+                            cell_style,
+                        ),
+                        Paragraph(
+                            "Completed" if r.get("Has_Mandatory_2", 0) > 0 else "Missing",
+                            cell_style,
+                        ),
+                    ]
+                )
 
         t = Table(table_data, repeatRows=1)
         t.setStyle(
@@ -1745,10 +1919,25 @@ def reports_export_pdf():
         pdf_bytes = buf.getvalue()
         buf.close()
 
+        headers = {
+            "Content-Disposition": "attachment; filename=placement_executive_report.pdf",
+            "X-Export-Total-Count": str(total_records),
+            "X-Export-Count": str(len(rows)),
+            "X-Export-Limit": str(pdf_limit),
+            "X-Export-Limited": "true" if is_truncated else "false",
+            "X-Export-Status": "limited"
+            if is_truncated
+            else ("empty" if not all_rows else "complete"),
+        }
+        if is_truncated:
+            headers["X-Export-Warning"] = (
+                f"PDF export capped at {pdf_limit} records of {total_records} matching."
+            )
+
         return Response(
             pdf_bytes,
             mimetype="application/pdf",
-            headers={"Content-Disposition": "attachment; filename=placement_executive_report.pdf"},
+            headers=headers,
         )
     except Exception as exc:
         logger.error("Failed to generate PDF report: %s", exc)
@@ -1885,8 +2074,10 @@ def export_saved_query_csv():
     """Exports the execution results of a saved query as a downloadable CSV file."""
     query_id = request.args.get("query_id")
     if not query_id:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return Response("Cannot export: query_id is required.", status=400, mimetype="text/plain")
         flash("Cannot export: query_id is required.", "danger")
-        return redirect(url_for("main.sql_reports_view"))
+        return redirect(url_for("main_bp.sql_reports_view"))
 
     params = {k: v for k, v in request.args.items() if k != "query_id"}
 
@@ -1894,6 +2085,9 @@ def export_saved_query_csv():
         res = execute_saved_query(query_id, params)
         columns = res.get("columns", [])
         rows = res.get("rows", [])
+        max_rows, _ = get_sql_report_limits()
+        total_count = res.get("total_count", len(rows))
+        is_truncated = res.get("is_truncated", len(rows) >= max_rows)
 
         output = io.StringIO()
         writer = csv.writer(output)
@@ -1906,15 +2100,37 @@ def export_saved_query_csv():
         output.close()
 
         filename = f"{query_id}_export.csv"
+        headers = {
+            "Content-Disposition": f"attachment; filename={filename}",
+            "X-Export-Total-Count": str(total_count),
+            "X-Export-Count": str(len(rows)),
+            "X-Export-Limit": str(max_rows),
+            "X-Export-Limited": "true" if is_truncated else "false",
+            "X-Export-Status": "limited" if is_truncated else ("empty" if not rows else "complete"),
+        }
+        if is_truncated:
+            headers["X-Export-Warning"] = (
+                f"Export capped at {max_rows} records of {total_count} matching."
+                if total_count > len(rows)
+                else f"Export capped at {max_rows} records."
+            )
         return Response(
             csv_content,
             mimetype="text/csv",
-            headers={"Content-Disposition": f"attachment; filename={filename}"},
+            headers=headers,
         )
+    except ValidationError as ve:
+        logger.warning("Saved query export validation error: %s", ve)
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return Response(f"Export Validation Error: {ve.message}", status=400, mimetype="text/plain")
+        flash(f"Export Validation Error: {ve.message}", "danger")
+        return redirect(url_for("main_bp.sql_reports_view"))
     except Exception as exc:
         logger.error("Failed to export saved query CSV: %s", exc)
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return Response("CSV Export Failed due to an internal processing error.", status=500, mimetype="text/plain")
         flash("CSV Export Failed due to an internal processing error.", "danger")
-        return redirect(url_for("main.sql_reports_view"))
+        return redirect(url_for("main_bp.sql_reports_view"))
 
 
 @main_bp.route("/api/sql-reports/run-custom", methods=["POST"])
@@ -1988,17 +2204,25 @@ def export_custom_query_csv():
     """Exports custom SQL execution results as a downloadable CSV."""
     raw_sql = request.form.get("sql", "").strip()
     if not raw_sql:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return Response("Cannot export: SQL query cannot be empty.", status=400, mimetype="text/plain")
         flash("Cannot export: SQL query cannot be empty.", "warning")
-        return redirect(url_for("main.sql_reports_view"))
+        return redirect(url_for("main_bp.sql_reports_view"))
 
     try:
         res = execute_custom_query(raw_sql)
         if res.get("status") == "error":
-            flash(f"Export Error: {res.get('error')}", "danger")
-            return redirect(url_for("main.sql_reports_view"))
+            err_msg = res.get("error", "Custom SQL execution failed.")
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return Response(f"Export Error: {err_msg}", status=400, mimetype="text/plain")
+            flash(f"Export Error: {err_msg}", "danger")
+            return redirect(url_for("main_bp.sql_reports_view"))
 
         columns = res.get("columns", [])
         rows = res.get("rows", [])
+        max_rows, _ = get_sql_report_limits()
+        total_count = res.get("total_count", len(rows))
+        is_truncated = res.get("is_truncated", len(rows) >= max_rows)
 
         output = io.StringIO()
         writer = csv.writer(output)
@@ -2010,15 +2234,33 @@ def export_custom_query_csv():
         csv_content = output.getvalue()
         output.close()
 
+        headers = {
+            "Content-Disposition": "attachment; filename=custom_sql_results.csv",
+            "X-Export-Total-Count": str(total_count),
+            "X-Export-Count": str(len(rows)),
+            "X-Export-Limit": str(max_rows),
+            "X-Export-Limited": "true" if is_truncated else "false",
+            "X-Export-Status": "limited" if is_truncated else ("empty" if not rows else "complete"),
+        }
+        if is_truncated:
+            headers["X-Export-Warning"] = (
+                f"Export capped at {max_rows} records of {total_count} matching."
+                if total_count > len(rows)
+                else f"Export capped at {max_rows} records."
+            )
         return Response(
             csv_content,
             mimetype="text/csv",
-            headers={"Content-Disposition": "attachment; filename=custom_sql_results.csv"},
+            headers=headers,
         )
     except ValidationError as ve:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return Response(f"SQL Validation Error: {ve.message}", status=400, mimetype="text/plain")
         flash(f"SQL Validation Error: {ve.message}", "danger")
-        return redirect(url_for("main.sql_reports_view"))
+        return redirect(url_for("main_bp.sql_reports_view"))
     except Exception as exc:
         logger.error("Failed to export custom SQL CSV: %s", exc)
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return Response("Custom CSV Export Failed due to an internal server error.", status=500, mimetype="text/plain")
         flash("Custom CSV Export Failed due to an internal server error.", "danger")
-        return redirect(url_for("main.sql_reports_view"))
+        return redirect(url_for("main_bp.sql_reports_view"))

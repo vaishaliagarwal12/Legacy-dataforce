@@ -15,7 +15,8 @@
     </div>
     <div class="d-flex flex-wrap gap-2">
         <a href="/placements/export-csv?search={{ active_filters.search }}&branch={{ active_filters.branch }}&batch_year={{ active_filters.batch_year }}&placement_year={{ active_filters.placement_year }}&company_id={{ active_filters.company_id }}&status={{ active_filters.status }}&min_package={{ active_filters.min_package }}&max_package={{ active_filters.max_package }}&sort_by={{ active_filters.sort_by }}&sort_dir={{ active_filters.sort_dir }}" 
-           class="btn btn-outline-secondary btn-sm"
+           class="btn btn-outline-secondary btn-sm export-download-btn"
+           data-export-btn
            title="Export filtered placement records to CSV">
             <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export CSV
         </a>
@@ -391,10 +392,11 @@
             <!-- Branch Filter -->
             <div class="col-6 col-md-2">
                 <label class="form-label small fw-semibold text-secondary mb-1">Branch</label>
+                {% set branch_labels = (filter_options.branch_labels if filter_options and filter_options.branch_labels else {}) %}
                 <select name="branch" class="form-select form-select-sm">
                     <option value="">All Branches</option>
-                    {% for b, label in [('CSE', 'Computer Science (CSE)'), ('ECE', 'Electronics & Comm (ECE)'), ('ME', 'Mechanical (ME)'), ('IT', 'Information Tech (IT)'), ('Civil', 'Civil Engineering'), ('Electrical', 'Electrical Engineering')] %}
-                    <option value="{{ b }}" {% if active_filters.branch in [b, label] or (b == 'CSE' and active_filters.branch in ['CSE', 'Computer Science']) %}selected{% endif %}>{{ label }}</option>
+                    {% for b in (filter_options.branches if filter_options and filter_options.branches else []) %}
+                    <option value="{{ b }}" {% if active_filters.branch in [b, branch_labels.get(b, b)] or (b == 'CSE' and active_filters.branch in ['CSE', 'Computer Science']) %}selected{% endif %}>{{ branch_labels.get(b, b) }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -705,7 +707,7 @@
                         <!-- Placement Year -->
                         <div class="col-12 col-md-3">
                             <label class="form-label fw-semibold small" for="modal_Placement_Year">Placement Year <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control form-control-sm" id="modal_Placement_Year" name="Placement_Year" value="2024" min="2000" max="2100" required>
+                            <input type="number" class="form-control form-control-sm" id="modal_Placement_Year" name="Placement_Year" value="{{ default_placement_year or '' }}" min="2000" max="2100" required>
                         </div>
 
                         <!-- Placement Type -->

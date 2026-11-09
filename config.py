@@ -1,6 +1,7 @@
 import os
 import secrets
 import logging
+from typing import Optional
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -12,6 +13,88 @@ ENV_PATH = BASE_DIR / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
 
 
+def get_env_int(
+    key: str,
+    default: int,
+    min_val: Optional[int] = None,
+    max_val: Optional[int] = None,
+) -> int:
+    """Safely retrieves an integer from environment variables with bounds checking."""
+    val = os.getenv(key)
+    if val is None or not str(val).strip():
+        return default
+    try:
+        parsed = int(str(val).strip())
+        if min_val is not None and parsed < min_val:
+            logger.warning(
+                "Config %s=%s below minimum %s; defaulting to %s",
+                key,
+                parsed,
+                min_val,
+                default,
+            )
+            return default
+        if max_val is not None and parsed > max_val:
+            logger.warning(
+                "Config %s=%s exceeds maximum %s; defaulting to %s",
+                key,
+                parsed,
+                max_val,
+                default,
+            )
+            return default
+        return parsed
+    except (ValueError, TypeError):
+        logger.warning(
+            "Config %s invalid integer '%s'; defaulting to %s",
+            key,
+            val,
+            default,
+        )
+        return default
+
+
+def get_env_float(
+    key: str,
+    default: float,
+    min_val: Optional[float] = None,
+    max_val: Optional[float] = None,
+) -> float:
+    """Safely retrieves a float from environment variables with bounds checking."""
+    val = os.getenv(key)
+    if val is None or not str(val).strip():
+        return default
+    try:
+        parsed = float(str(val).strip())
+        if min_val is not None and parsed < min_val:
+            logger.warning(
+                "Config %s=%s below minimum %s; defaulting to %s",
+                key,
+                parsed,
+                min_val,
+                default,
+            )
+            return default
+        if max_val is not None and parsed > max_val:
+            logger.warning(
+                "Config %s=%s exceeds maximum %s; defaulting to %s",
+                key,
+                parsed,
+                max_val,
+                default,
+            )
+            return default
+        return parsed
+    except (ValueError, TypeError):
+        logger.warning(
+            "Config %s invalid float '%s'; defaulting to %s",
+            key,
+            val,
+            default,
+        )
+        return default
+
+
 class Config:
     """Base application configuration loaded strictly from environment variables."""
 
@@ -19,6 +102,28 @@ class Config:
     ENV = os.getenv("FLASK_ENV", "production")
     DEBUG = False
     PORT = int(os.getenv("PORT", "5000"))
+
+    # Database Health Indicator Cache TTL (seconds)
+    DB_HEALTH_CACHE_TTL = get_env_float(
+        "DB_HEALTH_CACHE_TTL_SECONDS", 10.0, min_val=0.5, max_val=3600.0
+    )
+
+    # Custom SQL Execution Limits
+    SQL_REPORT_MAX_ROWS = get_env_int("SQL_REPORT_MAX_ROWS", 500, min_val=1, max_val=10000)
+    SQL_REPORT_TIMEOUT_MS = get_env_int("SQL_REPORT_TIMEOUT_MS", 3000, min_val=100, max_val=60000)
+
+    # Export Row Limits
+    EXPORT_ROW_LIMIT = get_env_int("EXPORT_ROW_LIMIT", 10000, min_val=1, max_val=100000)
+    EXPORT_PDF_ROW_LIMIT = get_env_int("EXPORT_PDF_ROW_LIMIT", 150, min_val=1, max_val=2000)
+
+    # Pagination Defaults & Boundaries
+    DEFAULT_PAGE_SIZE = get_env_int("DEFAULT_PAGE_SIZE", 10, min_val=1, max_val=100)
+    MAX_PAGE_SIZE = get_env_int("MAX_PAGE_SIZE", 100, min_val=10, max_val=500)
+
+    # Placement Package Reporting Bands / Brackets (in LPA)
+    PACKAGE_BRACKET_TIER_1_MAX = get_env_float("PACKAGE_BRACKET_TIER_1_MAX", 6.0, min_val=0.1)
+    PACKAGE_BRACKET_TIER_2_MAX = get_env_float("PACKAGE_BRACKET_TIER_2_MAX", 10.0, min_val=0.1)
+    PACKAGE_BRACKET_TIER_3_MAX = get_env_float("PACKAGE_BRACKET_TIER_3_MAX", 15.0, min_val=0.1)
 
     # Secret Key for session signing & CSRF protection
     # Dynamically generates a secure random key if not explicitly set via environment

@@ -53,8 +53,22 @@ def get_dashboard_filter_options() -> Dict[str, List[Any]]:
             "SELECT DISTINCT Placement_Year FROM PLACEMENT WHERE Placement_Year IS NOT NULL ORDER BY Placement_Year DESC"
         )
 
+        branches = [r["Branch"] for r in branches_raw if r.get("Branch")]
+        branch_labels = {
+            "CSE": "Computer Science (CSE)",
+            "ECE": "Electronics & Comm (ECE)",
+            "ME": "Mechanical (ME)",
+            "IT": "Information Tech (IT)",
+            "Civil": "Civil Engineering",
+            "Electrical": "Electrical Engineering",
+        }
+        for b in branches:
+            if b not in branch_labels:
+                branch_labels[b] = b
+
         return {
-            "branches": [r["Branch"] for r in branches_raw if r.get("Branch")],
+            "branches": branches,
+            "branch_labels": branch_labels,
             "batch_years": [int(r["Batch_Year"]) for r in batch_raw if r.get("Batch_Year")],
             "placement_years": [
                 int(r["Placement_Year"]) for r in placement_raw if r.get("Placement_Year")
@@ -64,6 +78,7 @@ def get_dashboard_filter_options() -> Dict[str, List[Any]]:
         logger.error("Error fetching dashboard filter options from database: %s", exc)
         return {
             "branches": [],
+            "branch_labels": {},
             "batch_years": [],
             "placement_years": [],
         }
@@ -147,9 +162,6 @@ def get_dashboard_stats(filters: Optional[Dict[str, Any]] = None) -> Dict[str, A
             COUNT(DISTINCT CASE WHEN p.Offer_Status IN ('Accepted', 'Joined') THEN p.Student_ID END) AS placed_students,
             SUM(CASE WHEN p.Offer_Status = 'Accepted' THEN 1 ELSE 0 END) AS accepted_offers,
             SUM(CASE WHEN p.Offer_Status = 'Joined' THEN 1 ELSE 0 END) AS joined_offers,
-            ROUND(COALESCE(AVG(p.Package), 0), 2) AS avg_package,
-            ROUND(COALESCE(MAX(p.Package), 0), 2) AS highest_package,
-            ROUND(COALESCE(MIN(p.Package), 0), 2) AS lowest_package,
             COUNT(DISTINCT p.Company_ID) AS companies_with_offers
         FROM PLACEMENT p
         JOIN STUDENT s ON p.Student_ID = s.Student_ID
@@ -160,13 +172,21 @@ def get_dashboard_stats(filters: Optional[Dict[str, Any]] = None) -> Dict[str, A
         or {}
     )
 
+    from services.placement_service import get_placement_package_statistics
+
+    pkg_stats = get_placement_package_statistics(
+        placement_year=placement_year,
+        batch_year=batch_year,
+        branch=branch,
+    )
+
     total_offers = int(placement_stats.get("total_offers") or 0)
     placed_students = int(placement_stats.get("placed_students") or 0)
     accepted_offers = int(placement_stats.get("accepted_offers") or 0)
     joined_offers = int(placement_stats.get("joined_offers") or 0)
-    avg_package = float(placement_stats.get("avg_package") or 0.0)
-    highest_package = float(placement_stats.get("highest_package") or 0.0)
-    lowest_package = float(placement_stats.get("lowest_package") or 0.0)
+    avg_package = pkg_stats["avg_package"]
+    highest_package = pkg_stats["highest_package"]
+    lowest_package = pkg_stats["lowest_package"]
     placement_rate = (
         round((placed_students / total_students * 100), 1) if total_students > 0 else 0.0
     )
@@ -267,6 +287,7 @@ def get_dashboard_stats(filters: Optional[Dict[str, Any]] = None) -> Dict[str, A
         "average_package": avg_package,
         "avg_package": avg_package,
         "highest_package": highest_package,
+        "lowest_package": lowest_package,
         "placement_rate": placement_rate,
     }
 
@@ -282,6 +303,7 @@ def get_dashboard_stats(filters: Optional[Dict[str, Any]] = None) -> Dict[str, A
         "placed_students": placed_students,
         "avg_package": avg_package,
         "highest_package": highest_package,
+        "lowest_package": lowest_package,
         "placement_rate": placement_rate,
         # Legacy preserved dictionaries
         "students": {

@@ -40,15 +40,15 @@
                             <div class="invalid-feedback">Company name is required.</div>
                         </div>
 
-                        <!-- Tier -->
+                        <!-- Company Type -->
                         <div class="col-12 col-md-4">
-                            <label class="form-label" for="Tier">Corporate Tier <span class="text-danger">*</span></label>
-                            <select class="form-select" id="Tier" name="Tier" required>
-                                <option value="Tier-1" {% if company and company.Tier == 'Tier-1' %}selected{% endif %}>Tier-1 (Dream & Marquee)</option>
-                                <option value="Tier-2" {% if company and company.Tier == 'Tier-2' %}selected{% endif %}>Tier-2 (Core & Product)</option>
-                                <option value="Tier-3" {% if not company or company.Tier == 'Tier-3' %}selected{% endif %}>Tier-3 (Mass & Services)</option>
+                            <label class="form-label" for="Company_Type">Company Type <span class="text-danger">*</span></label>
+                            <select class="form-select" id="Company_Type" name="Company_Type" required>
+                                {% for ctype in ['Product', 'Service', 'Startup', 'Other'] %}
+                                    <option value="{{ ctype }}" {% if company and (company.Company_Type == ctype or company.get('Company_Type') == ctype) %}selected{% elif not company and ctype == 'Product' %}selected{% endif %}>{{ ctype }}</option>
+                                {% endfor %}
                             </select>
-                            <div class="invalid-feedback">Please select a corporate tier.</div>
+                            <div class="invalid-feedback">Please select a company type.</div>
                         </div>
 
                         <!-- Industry -->

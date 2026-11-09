@@ -320,6 +320,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.table-card[data-paginate="true"]').forEach(wrapper => {
         initPaginatedTable(wrapper);
     });
+
+    // Initialize fetch-based export download interceptors
+    if (typeof window.initExportDownloadInterceptors === 'function') {
+        window.initExportDownloadInterceptors();
+    }
 });
 
 // -----------------------------------------------------------------------------
@@ -965,6 +970,237 @@ window.initEnterpriseDashboard = function(initialPayload) {
         });
     }
 };
+
+// -----------------------------------------------------------------------------
+// Export Truncation & Operational Alert Banner Utility
+// -----------------------------------------------------------------------------
+window.showExportAlert = function(message, type = 'warning') {
+    let container = document.getElementById('exportAlertContainer') ||
+                    document.querySelector('.flash-container') ||
+                    document.querySelector('.page-container');
+    if (!container) return;
+
+    // Remove any previous export alert to prevent clutter
+    const oldAlert = document.getElementById('exportTruncationAlert');
+    if (oldAlert) {
+        oldAlert.remove();
+    }
+
+    const alertDiv = document.createElement('div');
+    alertDiv.id = 'exportTruncationAlert';
+    const alertClass = type === 'warning' ? 'alert-warning' :
+                       (type === 'danger' || type === 'error' ? 'alert-danger' :
+                       (type === 'info' ? 'alert-info' : 'alert-success'));
+    const iconClass = type === 'warning' ? 'bi-exclamation-triangle-fill text-warning' :
+                      (type === 'danger' || type === 'error' ? 'bi-exclamation-octagon-fill text-danger' :
+                      (type === 'info' ? 'bi-info-circle-fill text-info' : 'bi-check-circle-fill text-success'));
+    const title = type === 'warning' ? 'Export Truncation Warning' :
+                  (type === 'danger' || type === 'error' ? 'Export Failed' :
+                  (type === 'info' ? 'Export Notice' : 'Export Complete'));
+
+    alertDiv.className = `alert ${alertClass} alert-dismissible fade show shadow-sm d-flex align-items-center justify-content-between mb-3`;
+    alertDiv.setAttribute('role', 'alert');
+    alertDiv.innerHTML = `
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi ${iconClass} fs-5 flex-shrink-0"></i>
+            <div>
+                <strong>${title}:</strong> <span>${message}</span>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+
+    container.prepend(alertDiv);
+    try {
+        alertDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (_) {}
+};
+
+// -----------------------------------------------------------------------------
+// Safe Fetch-Based File Download with Header Truncation Inspection
+// -----------------------------------------------------------------------------
+window.handleExportDownload = async function(linkEl, exportUrl) {
+    if (!linkEl || !exportUrl || exportUrl === '#' || exportUrl.endsWith('#')) {
+        return;
+    }
+
+    // Guard against repeated simultaneous clicks on the same export link
+    if (linkEl.dataset.exporting === 'true') {
+        return;
+    }
+
+    const originalHtml = linkEl.innerHTML;
+    linkEl.dataset.exporting = 'true';
+    linkEl.style.pointerEvents = 'none';
+    linkEl.setAttribute('aria-busy', 'true');
+    linkEl.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Preparing download...';
+
+    try {
+        const response = await fetch(exportUrl, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        if (!response.ok) {
+            let errorMsg = `Failed to generate export (HTTP ${response.status}).`;
+            try {
+                const text = await response.text();
+                if (text && text.length < 200 && !text.includes('<!DOCTYPE')) {
+                    errorMsg = text;
+                }
+            } catch (_) {}
+            window.showExportAlert(errorMsg, 'danger');
+            if (window.showToast) {
+                window.showToast(errorMsg, 'danger', 'Export Failed');
+            }
+            return;
+        }
+
+        // Determine filename from Content-Disposition header or fallback
+        const disposition = response.headers.get('Content-Disposition') || '';
+        let filename = 'export_data.csv';
+        const filenameMatch = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1].replace(/['"]/g, '').trim();
+        } else if (exportUrl.includes('/reports/export-pdf')) {
+            filename = 'placement_executive_report.pdf';
+        } else if (exportUrl.includes('/students/export-csv')) {
+            filename = 'students_directory.csv';
+        } else if (exportUrl.includes('/placements/export-csv')) {
+            filename = 'placement_offers_directory.csv';
+        } else if (exportUrl.includes('/internships/export-csv')) {
+            filename = 'internships_registry.csv';
+        } else if (exportUrl.includes('/reports/export')) {
+            filename = 'placement_internship_report.csv';
+        }
+
+        // Read truncation and metadata headers
+        const isLimited = response.headers.get('X-Export-Limited') === 'true' ||
+                          response.headers.get('X-Export-Status') === 'limited';
+        const exportStatus = response.headers.get('X-Export-Status') || '';
+        const exportWarning = response.headers.get('X-Export-Warning') || '';
+        const exportCount = response.headers.get('X-Export-Count') || '';
+        const exportTotal = response.headers.get('X-Export-Total-Count') || '';
+        const exportLimit = response.headers.get('X-Export-Limit') || '';
+
+        // Trigger safe Blob download using URL.createObjectURL
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const tempLink = document.createElement('a');
+        tempLink.style.display = 'none';
+        tempLink.href = downloadUrl;
+        tempLink.download = filename;
+        tempLink.setAttribute('data-download-bypass', 'true');
+        document.body.appendChild(tempLink);
+        tempLink.click();
+
+        setTimeout(() => {
+            window.URL.revokeObjectURL(downloadUrl);
+            tempLink.remove();
+        }, 2000);
+
+        // Feedback to user based on export status and limits
+        if (isLimited) {
+            const warningText = exportWarning ||
+                `Export truncated: Only ${exportCount || 'limited'} records were downloaded because the dataset exceeds the system limit${exportLimit ? ' (' + exportLimit + ' records max)' : ''}. Total matching records: ${exportTotal || exportCount}.`;
+            window.showExportAlert(warningText, 'warning');
+            if (window.showToast) {
+                window.showToast(warningText, 'warning', 'Export Limited');
+            }
+        } else if (exportStatus === 'empty' || exportCount === '0') {
+            const emptyText = 'No matching records found for the active filter criteria. An empty export file was generated.';
+            window.showExportAlert(emptyText, 'info');
+            if (window.showToast) {
+                window.showToast(emptyText, 'info', 'Empty Export');
+            }
+        } else {
+            const countText = exportCount ? ` (${exportCount} records)` : '';
+            const successText = `Export downloaded successfully${countText}: ${filename}`;
+            if (window.showToast) {
+                window.showToast(successText, 'success', 'Export Complete');
+            }
+        }
+    } catch (err) {
+        console.error('Export download error:', err);
+        const errorText = 'Network or system error occurred while generating download. Please try again.';
+        window.showExportAlert(errorText, 'danger');
+        if (window.showToast) {
+            window.showToast(errorText, 'danger', 'Export Error');
+        }
+    } finally {
+        linkEl.dataset.exporting = 'false';
+        linkEl.style.pointerEvents = '';
+        linkEl.removeAttribute('aria-busy');
+        linkEl.innerHTML = originalHtml;
+    }
+};
+
+// -----------------------------------------------------------------------------
+// Global Export Click Interceptor Setup
+// -----------------------------------------------------------------------------
+window.initExportDownloadInterceptors = function() {
+    if (window._exportInterceptorsInitialized) return;
+    window._exportInterceptorsInitialized = true;
+
+    function getExportAnchor(element) {
+        if (!element || element.nodeType !== Node.ELEMENT_NODE) return null;
+        const anchor = element.closest('a');
+        if (!anchor) return null;
+        if (anchor.hasAttribute('data-download-bypass')) return null;
+
+        if (anchor.id === 'btnDownloadSavedCsv' ||
+            anchor.classList.contains('export-download-btn') ||
+            anchor.hasAttribute('data-export-btn')) {
+            return anchor;
+        }
+
+        const href = anchor.getAttribute('href') || '';
+        if (
+            href.includes('/students/export-csv') ||
+            href.includes('/placements/export-csv') ||
+            href.includes('/internships/export-csv') ||
+            href.includes('/reports/export') ||
+            href.includes('/reports/export-pdf') ||
+            href.includes('/sql-reports/export-saved')
+        ) {
+            return anchor;
+        }
+
+        return null;
+    }
+
+    document.addEventListener('click', (e) => {
+        const anchor = getExportAnchor(e.target);
+        if (!anchor) {
+            // Normal navigation or unrelated link - DO NOT intercept!
+            return;
+        }
+
+        const href = anchor.getAttribute('href');
+        if (!href || href === '#' || href.endsWith('#')) {
+            if (anchor.id === 'btnDownloadSavedCsv') {
+                e.preventDefault();
+                if (window.showToast) {
+                    window.showToast('Please select a saved report before downloading CSV.', 'warning', 'Export Notice');
+                }
+            }
+            return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+        window.handleExportDownload(anchor, anchor.href);
+    });
+};
+
+// Auto-run interceptor registration
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', window.initExportDownloadInterceptors);
+} else {
+    window.initExportDownloadInterceptors();
+}
 
 // -----------------------------------------------------------------------------
 // Toast Notification Utility

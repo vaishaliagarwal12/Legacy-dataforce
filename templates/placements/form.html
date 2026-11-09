@@ -120,8 +120,8 @@
 
                         <div class="col-12 col-md-3">
                             <label class="form-label fw-semibold small" for="Placement_Year">Placement Year <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control form-control-sm" id="Placement_Year" name="Placement_Year" 
-                                   value="{% if mode == 'edit' %}{{ offer.Placement_Year }}{% else %}2024{% endif %}" 
+                            <input type="number" class="form-control form-control-sm" id="Placement_Year" name="Placement_Year"
+                                   value="{% if mode == 'edit' %}{{ offer.Placement_Year }}{% else %}{{ default_placement_year or '' }}{% endif %}"
                                    min="2000" max="2100" required>
                         </div>
 

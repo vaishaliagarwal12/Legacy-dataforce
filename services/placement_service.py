@@ -1,6 +1,7 @@
 import logging
 import math
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
+from config import Config
 from db.connection import get_cursor, execute_one, execute_query
 from services.exceptions import ValidationError, NotFoundError, ConflictError
 
@@ -493,6 +494,118 @@ def list_placement_offers(
     }
 
 
+def get_package_bracket_thresholds() -> Tuple[float, float, float]:
+    """Returns centralized placement package reporting thresholds (tier 1, tier 2, tier 3 max in LPA)."""
+    try:
+        from flask import current_app, has_app_context
+
+        if has_app_context() and current_app:
+            t1 = float(
+                current_app.config.get(
+                    "PACKAGE_BRACKET_TIER_1_MAX", Config.PACKAGE_BRACKET_TIER_1_MAX
+                )
+            )
+            t2 = float(
+                current_app.config.get(
+                    "PACKAGE_BRACKET_TIER_2_MAX", Config.PACKAGE_BRACKET_TIER_2_MAX
+                )
+            )
+            t3 = float(
+                current_app.config.get(
+                    "PACKAGE_BRACKET_TIER_3_MAX", Config.PACKAGE_BRACKET_TIER_3_MAX
+                )
+            )
+            return t1, t2, t3
+    except Exception:
+        pass
+    return (
+        Config.PACKAGE_BRACKET_TIER_1_MAX,
+        Config.PACKAGE_BRACKET_TIER_2_MAX,
+        Config.PACKAGE_BRACKET_TIER_3_MAX,
+    )
+
+
+def classify_package_tier(package: float) -> str:
+    """Classifies a placement package (in LPA) into one of four reporting tiers.
+
+    Preserves exact existing reporting bands and boundary behavior:
+    - package < 6.0: tier_below_6
+    - 6.0 <= package < 10.0: tier_6_to_10
+    - 10.0 <= package < 15.0: tier_10_to_15
+    - package >= 15.0: tier_above_15
+    """
+    t1, t2, t3 = get_package_bracket_thresholds()
+    pkg = float(package)
+    if pkg < t1:
+        return "tier_below_6"
+    elif pkg < t2:
+        return "tier_6_to_10"
+    elif pkg < t3:
+        return "tier_10_to_15"
+    else:
+        return "tier_above_15"
+
+
+def get_placement_package_statistics(
+    placement_year: Optional[int] = None,
+    batch_year: Optional[int] = None,
+    branch: Optional[str] = None,
+    company_id: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Calculates consolidated average, maximum, and minimum placement packages.
+
+    Applies optional placement_year, batch_year, branch, and company_id filters.
+    Preserves exact database semantics: COALESCE(..., 0) and ROUND(..., 2).
+    """
+    where_clauses = ["1=1"]
+    params: List[Any] = []
+
+    if placement_year is not None:
+        try:
+            where_clauses.append("p.Placement_Year = %s")
+            params.append(int(placement_year))
+        except (ValueError, TypeError):
+            pass
+
+    if batch_year is not None:
+        try:
+            where_clauses.append("s.Batch_Year = %s")
+            params.append(int(batch_year))
+        except (ValueError, TypeError):
+            pass
+
+    if branch and str(branch).strip() and str(branch).strip().lower() not in ("all", "none"):
+        where_clauses.append("s.Branch = %s")
+        params.append(str(branch).strip())
+
+    if company_id is not None:
+        try:
+            where_clauses.append("p.Company_ID = %s")
+            params.append(int(company_id))
+        except (ValueError, TypeError):
+            pass
+
+    where_sql = " AND ".join(where_clauses)
+    sql = f"""
+        SELECT
+            COUNT(p.Placement_ID) AS total_offers,
+            ROUND(COALESCE(AVG(p.Package), 0), 2) AS avg_package,
+            ROUND(COALESCE(MAX(p.Package), 0), 2) AS highest_package,
+            ROUND(COALESCE(MIN(p.Package), 0), 2) AS lowest_package
+        FROM PLACEMENT p
+        JOIN STUDENT s ON p.Student_ID = s.Student_ID
+        JOIN COMPANY c ON p.Company_ID = c.Company_ID
+        WHERE {where_sql}
+    """
+    row = execute_one(sql, tuple(params)) or {}
+    return {
+        "total_offers": int(row.get("total_offers") or 0),
+        "avg_package": float(row.get("avg_package") or 0.0),
+        "highest_package": float(row.get("highest_package") or 0.0),
+        "lowest_package": float(row.get("lowest_package") or 0.0),
+    }
+
+
 def get_placement_analytics(
     placement_year: Optional[int] = None,
     batch_year: Optional[int] = None,
@@ -530,16 +643,20 @@ def get_placement_analytics(
 
     where_sql = " AND ".join(where_clauses)
 
-    # 1. Overall KPIs
+    # 1. Overall KPIs & Consolidated Package Statistics
+    pkg_stats = get_placement_package_statistics(
+        placement_year=placement_year,
+        batch_year=batch_year,
+        branch=branch,
+        company_id=company_id,
+    )
+
     kpi_sql = f"""
         SELECT 
             COUNT(p.Placement_ID) AS total_offers,
             COUNT(DISTINCT p.Student_ID) AS unique_students_offered,
             COUNT(DISTINCT CASE WHEN p.Offer_Status IN ('Accepted', 'Joined') THEN p.Student_ID END) AS placed_students,
             COUNT(DISTINCT CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Student_ID END) AS joined_students,
-            ROUND(COALESCE(AVG(p.Package), 0), 2) AS avg_package,
-            ROUND(COALESCE(MAX(p.Package), 0), 2) AS highest_package,
-            ROUND(COALESCE(MIN(p.Package), 0), 2) AS lowest_package,
             COUNT(CASE WHEN p.Is_PPO = 'Yes' THEN 1 END) AS ppo_offers,
             COUNT(CASE WHEN p.Placement_Type = 'On-campus' THEN 1 END) AS on_campus_offers,
             COUNT(CASE WHEN p.Placement_Type = 'Off-campus' THEN 1 END) AS off_campus_offers
@@ -569,9 +686,9 @@ def get_placement_analytics(
         "unique_students_offered": int(kpi_raw.get("unique_students_offered") or 0),
         "placed_students": int(kpi_raw.get("placed_students") or 0),
         "joined_students": int(kpi_raw.get("joined_students") or 0),
-        "avg_package": float(kpi_raw.get("avg_package") or 0.0),
-        "highest_package": float(kpi_raw.get("highest_package") or 0.0),
-        "lowest_package": float(kpi_raw.get("lowest_package") or 0.0),
+        "avg_package": pkg_stats["avg_package"],
+        "highest_package": pkg_stats["highest_package"],
+        "lowest_package": pkg_stats["lowest_package"],
         "multi_offer_students": int(multi_raw.get("multi_count") or 0),
         "ppo_offers": int(kpi_raw.get("ppo_offers") or 0),
         "on_campus_offers": int(kpi_raw.get("on_campus_offers") or 0),
@@ -620,12 +737,13 @@ def get_placement_analytics(
         br["highest_package"] = float(br["highest_package"] or 0.0)
 
     # 4. Package distribution tiers
+    t1, t2, t3 = get_package_bracket_thresholds()
     pkg_tier_sql = f"""
         SELECT 
-            SUM(CASE WHEN p.Package < 6.0 THEN 1 ELSE 0 END) AS tier_below_6,
-            SUM(CASE WHEN p.Package >= 6.0 AND p.Package < 10.0 THEN 1 ELSE 0 END) AS tier_6_to_10,
-            SUM(CASE WHEN p.Package >= 10.0 AND p.Package < 15.0 THEN 1 ELSE 0 END) AS tier_10_to_15,
-            SUM(CASE WHEN p.Package >= 15.0 THEN 1 ELSE 0 END) AS tier_above_15
+            SUM(CASE WHEN p.Package < {t1} THEN 1 ELSE 0 END) AS tier_below_6,
+            SUM(CASE WHEN p.Package >= {t1} AND p.Package < {t2} THEN 1 ELSE 0 END) AS tier_6_to_10,
+            SUM(CASE WHEN p.Package >= {t2} AND p.Package < {t3} THEN 1 ELSE 0 END) AS tier_10_to_15,
+            SUM(CASE WHEN p.Package >= {t3} THEN 1 ELSE 0 END) AS tier_above_15
         FROM PLACEMENT p
         JOIN STUDENT s ON p.Student_ID = s.Student_ID
         JOIN COMPANY c ON p.Company_ID = c.Company_ID

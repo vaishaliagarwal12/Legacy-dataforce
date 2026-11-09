@@ -3,14 +3,31 @@ import time
 import decimal
 import datetime
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 import pymysql
 from pymysql.cursors import DictCursor
 
+from config import Config
 from db.connection import get_cursor, get_readonly_connection
 from services.exceptions import ValidationError, ServiceError
 
 logger = logging.getLogger(__name__)
+
+
+def get_sql_report_limits() -> Tuple[int, int]:
+    """Retrieves centralized (max_rows, timeout_ms) for custom and saved SQL execution."""
+    max_rows = getattr(Config, "SQL_REPORT_MAX_ROWS", 500)
+    timeout_ms = getattr(Config, "SQL_REPORT_TIMEOUT_MS", 3000)
+    try:
+        from flask import current_app, has_app_context
+
+        if has_app_context() and current_app:
+            max_rows = int(current_app.config.get("SQL_REPORT_MAX_ROWS", max_rows))
+            timeout_ms = int(current_app.config.get("SQL_REPORT_TIMEOUT_MS", timeout_ms))
+    except Exception:
+        pass
+    return max_rows, timeout_ms
+
 
 # ==============================================================================
 # CATALOG OF SAVED DBMS QUERIES
@@ -46,15 +63,17 @@ ORDER BY CGPA DESC;""",
                 "name": "branch",
                 "label": "Branch Code",
                 "type": "select",
-                "options": ["CSE", "ECE", "ME", "IT"],
-                "default": "CSE",
+                "dynamic_source": "branches",
+                "options": [],
+                "placeholder": "Select branch",
             },
             {
                 "name": "batch_year",
                 "label": "Batch Year",
-                "type": "number",
-                "default": 2024,
-                "placeholder": "e.g. 2024",
+                "type": "select",
+                "dynamic_source": "batch_years",
+                "options": [],
+                "placeholder": "Select batch year",
             },
         ],
     },
@@ -75,8 +94,9 @@ WHERE s.Roll_No = %s;""",
             {
                 "name": "roll_no",
                 "label": "Roll Number",
-                "type": "text",
-                "default": "CS201802",
+                "type": "select",
+                "dynamic_source": "students",
+                "options": [],
                 "placeholder": "e.g. CS201802",
             },
         ],
@@ -95,8 +115,9 @@ ORDER BY s.CGPA DESC;""",
             {
                 "name": "skill",
                 "label": "Skill Name",
-                "type": "text",
-                "default": "Python",
+                "type": "select",
+                "dynamic_source": "skills",
+                "options": [],
                 "placeholder": "e.g. Python, SQL, Java",
             },
         ],
@@ -116,7 +137,6 @@ ORDER BY CGPA DESC;""",
                 "label": "Minimum CGPA",
                 "type": "number",
                 "step": "0.1",
-                "default": 8.0,
                 "placeholder": "e.g. 8.0",
             },
         ],
@@ -164,7 +184,6 @@ ORDER BY s.Student_ID;""",
                 "name": "search_name",
                 "label": "Name Keyword",
                 "type": "text",
-                "default": "Aarav",
                 "placeholder": "e.g. Aarav, Sharma, Neha",
             },
         ],
@@ -196,9 +215,10 @@ ORDER BY Placement_Year, Package DESC;""",
             {
                 "name": "company_name",
                 "label": "Company Name",
-                "type": "text",
-                "default": "Infosys Technologies",
-                "placeholder": "e.g. Infosys Technologies, Apex Cloud Innovations, Google India",
+                "type": "select",
+                "dynamic_source": "companies",
+                "options": [],
+                "placeholder": "Select company",
             },
         ],
     },
@@ -334,7 +354,6 @@ ORDER BY Package DESC;""",
                 "label": "Minimum Package (LPA)",
                 "type": "number",
                 "step": "0.5",
-                "default": 10.0,
                 "placeholder": "e.g. 10.0",
             },
         ],
@@ -357,8 +376,9 @@ ORDER BY Internship_No;""",
             {
                 "name": "roll_no",
                 "label": "Roll Number",
-                "type": "text",
-                "default": "CS201802",
+                "type": "select",
+                "dynamic_source": "students",
+                "options": [],
                 "placeholder": "e.g. CS201802",
             },
         ],
@@ -376,9 +396,10 @@ ORDER BY Start_Date;""",
             {
                 "name": "company_name",
                 "label": "Company Name",
-                "type": "text",
-                "default": "Infosys Technologies",
-                "placeholder": "e.g. Infosys Technologies, Apex Cloud Innovations, Google India",
+                "type": "select",
+                "dynamic_source": "companies",
+                "options": [],
+                "placeholder": "Select company",
             },
         ],
     },
@@ -438,14 +459,12 @@ ORDER BY Start_Date;""",
                 "name": "start_date",
                 "label": "Start Date",
                 "type": "text",
-                "default": "2023-01-01",
                 "placeholder": "YYYY-MM-DD",
             },
             {
                 "name": "end_date",
                 "label": "End Date",
                 "type": "text",
-                "default": "2024-12-31",
                 "placeholder": "YYYY-MM-DD",
             },
         ],
@@ -516,9 +535,10 @@ ORDER BY ps.Skill;""",
             {
                 "name": "company_name",
                 "label": "Company Name",
-                "type": "text",
-                "default": "Infosys Technologies",
-                "placeholder": "e.g. Infosys Technologies, Apex Cloud Innovations, Google India",
+                "type": "select",
+                "dynamic_source": "companies",
+                "options": [],
+                "placeholder": "Select company",
             },
         ],
     },
@@ -552,9 +572,10 @@ ORDER BY Record_Type, Student_Name;""",
             {
                 "name": "company_name",
                 "label": "Company Name",
-                "type": "text",
-                "default": "Infosys Technologies",
-                "placeholder": "e.g. Infosys Technologies, Apex Cloud Innovations, Google India",
+                "type": "select",
+                "dynamic_source": "companies",
+                "options": [],
+                "placeholder": "Select company",
             },
         ],
     },
@@ -995,14 +1016,86 @@ ORDER BY Semester ASC, Sem_Branch_Rank ASC;""",
 SAVED_QUERIES_BY_ID = {q["id"]: q for q in SAVED_QUERIES}
 
 
+def get_report_dynamic_options() -> Dict[str, List[Any]]:
+    """Retrieves dynamic parameter options from the database for SQL reports.
+
+    Gracefully handles empty tables or database connection failures by returning empty lists.
+    """
+    options: Dict[str, List[Any]] = {
+        "branches": [],
+        "batch_years": [],
+        "companies": [],
+        "students": [],
+        "skills": [],
+    }
+    try:
+        with get_cursor(commit=False) as cursor:
+            # Branches from STUDENT
+            cursor.execute(
+                "SELECT DISTINCT Branch FROM STUDENT WHERE Branch IS NOT NULL AND Branch != '' ORDER BY Branch ASC"
+            )
+            options["branches"] = [r["Branch"] for r in cursor.fetchall() if r.get("Branch")]
+
+            # Batch Years from STUDENT
+            cursor.execute(
+                "SELECT DISTINCT Batch_Year FROM STUDENT WHERE Batch_Year IS NOT NULL ORDER BY Batch_Year DESC"
+            )
+            options["batch_years"] = [
+                int(r["Batch_Year"]) for r in cursor.fetchall() if r.get("Batch_Year")
+            ]
+
+            # Companies from COMPANY
+            cursor.execute(
+                "SELECT DISTINCT Company_Name FROM COMPANY WHERE Company_Name IS NOT NULL AND Company_Name != '' ORDER BY Company_Name ASC"
+            )
+            options["companies"] = [
+                r["Company_Name"] for r in cursor.fetchall() if r.get("Company_Name")
+            ]
+
+            # Student Roll Numbers from STUDENT
+            cursor.execute(
+                "SELECT DISTINCT Roll_No FROM STUDENT WHERE Roll_No IS NOT NULL AND Roll_No != '' ORDER BY Roll_No ASC"
+            )
+            options["students"] = [r["Roll_No"] for r in cursor.fetchall() if r.get("Roll_No")]
+
+            # Technical Skills from STUDENT_SKILL
+            cursor.execute(
+                "SELECT DISTINCT Skill FROM STUDENT_SKILL WHERE Skill IS NOT NULL AND Skill != '' ORDER BY Skill ASC"
+            )
+            options["skills"] = [r["Skill"] for r in cursor.fetchall() if r.get("Skill")]
+    except Exception as exc:
+        logger.warning("Could not load dynamic report parameter options from database: %s", exc)
+
+    return options
+
+
 def list_saved_queries() -> List[Dict[str, Any]]:
-    """Returns the catalog of saved queries grouped by category."""
-    return SAVED_QUERIES
+    """Returns the catalog of saved queries with parameter options populated dynamically from the database."""
+    dyn_opts = get_report_dynamic_options()
+    resolved_queries: List[Dict[str, Any]] = []
+
+    for q in SAVED_QUERIES:
+        q_copy = dict(q)
+        if "params" in q:
+            resolved_params = []
+            for p in q["params"]:
+                p_copy = dict(p)
+                source_key = p.get("dynamic_source")
+                if source_key and source_key in dyn_opts:
+                    p_copy["options"] = list(dyn_opts[source_key])
+                resolved_params.append(p_copy)
+            q_copy["params"] = resolved_params
+        resolved_queries.append(q_copy)
+
+    return resolved_queries
 
 
 def get_saved_query(query_id: str) -> Optional[Dict[str, Any]]:
-    """Fetches metadata for a single saved query by its ID."""
-    return SAVED_QUERIES_BY_ID.get(query_id)
+    """Fetches metadata for a single saved query by its ID with dynamic options populated."""
+    for q in list_saved_queries():
+        if q["id"] == query_id:
+            return q
+    return None
 
 
 def _serialize_value(val: Any) -> Any:
@@ -1019,7 +1112,8 @@ def execute_saved_query(
 ) -> Dict[str, Any]:
     """Executes a saved query using strict parameterization with %s placeholders.
 
-    Never concatenates user input into the SQL string.
+    Never concatenates user input into the SQL string. Validates required parameters
+    and data types without falling back to demo test fixtures.
     """
     query_meta = get_saved_query(query_id)
     if not query_meta:
@@ -1034,29 +1128,61 @@ def execute_saved_query(
 
     # Special case: D7 polymorphic query uses company_name twice in UNION ALL
     if query_id == "combined_company_polymorphic":
-        default_co = param_meta_list[0]["default"] if param_meta_list else "Infosys Technologies"
-        val = str(param_values.get("company_name", default_co)).strip() or default_co
+        raw_co = param_values.get("company_name")
+        if raw_co is None or str(raw_co).strip() == "":
+            raise ValidationError("Parameter 'Company Name' is required.")
+        val = str(raw_co).strip()
         args_list = [val, val]
     elif query_id == "students_name_search":
-        val = str(param_values.get("search_name", "Aarav")).strip() or "Aarav"
+        raw_name = param_values.get("search_name")
+        if raw_name is None or str(raw_name).strip() == "":
+            raise ValidationError("Parameter 'Name Keyword' is required.")
+        val = str(raw_name).strip()
         wildcard_val = f"%{val}%"
         args_list = [wildcard_val, wildcard_val]
     else:
         for pm in param_meta_list:
-            raw = param_values.get(pm["name"], pm.get("default"))
+            p_name = pm["name"]
+            p_label = pm.get("label", p_name)
+            raw = param_values.get(p_name)
             if raw is None or str(raw).strip() == "":
-                raw = pm.get("default")
+                if pm.get("default") is not None and str(pm.get("default")).strip() != "":
+                    raw = pm.get("default")
+                else:
+                    raise ValidationError(f"Parameter '{p_label}' is required.")
 
             p_type = pm.get("type", "text")
-            if p_type == "number":
+            if p_type == "number" or p_name == "batch_year":
                 step = pm.get("step")
                 try:
                     casted = float(raw) if (step or "." in str(raw)) else int(raw)
                 except (ValueError, TypeError):
-                    casted = float(raw) if "." in str(raw) else int(float(raw))
+                    raise ValidationError(f"Parameter '{p_label}' must be a valid number.")
+
+                if p_name == "min_cgpa":
+                    if not (0.0 <= casted <= 10.0):
+                        raise ValidationError("Parameter 'Minimum CGPA' must be between 0.0 and 10.0.")
+                elif p_name == "min_package":
+                    if casted < 0:
+                        raise ValidationError("Parameter 'Minimum Package (LPA)' cannot be negative.")
+                elif p_name == "batch_year":
+                    if not (2000 <= casted <= 2100):
+                        raise ValidationError("Parameter 'Batch Year' must be between 2000 and 2100.")
                 args_list.append(casted)
             else:
-                args_list.append(str(raw).strip())
+                str_val = str(raw).strip()
+                if p_name in ("start_date", "end_date"):
+                    try:
+                        datetime.date.fromisoformat(str_val)
+                    except ValueError:
+                        raise ValidationError(f"Parameter '{p_label}' must be in YYYY-MM-DD format.")
+                args_list.append(str_val)
+
+        if query_id == "internships_date_range":
+            start_d = str(param_values.get("start_date", "")).strip()
+            end_d = str(param_values.get("end_date", "")).strip()
+            if start_d and end_d and start_d > end_d:
+                raise ValidationError("Start Date cannot be later than End Date.")
 
     start_time = time.perf_counter()
     with get_cursor(commit=False) as cursor:
@@ -1066,7 +1192,10 @@ def execute_saved_query(
             elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
             columns = [col[0] for col in cursor.description] if cursor.description else []
-            rows = [{k: _serialize_value(v) for k, v in row.items()} for row in raw_rows[:500]]
+            max_rows, _ = get_sql_report_limits()
+            total_count = len(raw_rows)
+            is_truncated = total_count > max_rows
+            rows = [{k: _serialize_value(v) for k, v in row.items()} for row in raw_rows[:max_rows]]
 
             return {
                 "id": query_id,
@@ -1078,6 +1207,8 @@ def execute_saved_query(
                 "columns": columns,
                 "rows": rows,
                 "row_count": len(rows),
+                "total_count": total_count,
+                "is_truncated": is_truncated,
                 "execution_time_ms": elapsed_ms,
             }
         except pymysql.MySQLError as err:
@@ -1162,16 +1293,17 @@ def validate_custom_sql(raw_sql: str) -> str:
             f"Forbidden operation detected: '{matched_op}'. Data definition, modification, and execution commands are blocked."
         )
 
-    # Rule 5: Enforce max 500 rows limit
+    # Rule 5: Enforce max rows limit from centralized configuration
+    max_rows, _ = get_sql_report_limits()
     limit_match = re.search(r"\bLIMIT\s+(\d+)\b", sql, re.IGNORECASE)
     if limit_match:
         specified_limit = int(limit_match.group(1))
-        if specified_limit > 500:
-            # Clamp limit down to 500
-            sql = sql[: limit_match.start()] + "LIMIT 500" + sql[limit_match.end() :]
+        if specified_limit > max_rows:
+            # Clamp limit down to max_rows
+            sql = sql[: limit_match.start()] + f"LIMIT {max_rows}" + sql[limit_match.end() :]
     else:
-        # Append LIMIT 500 safely
-        sql = f"{sql} LIMIT 500"
+        # Append LIMIT max_rows safely
+        sql = f"{sql} LIMIT {max_rows}"
 
     return sql
 
@@ -1181,13 +1313,14 @@ def execute_custom_query(raw_sql: str) -> Dict[str, Any]:
 
     1. Validates SQL through `validate_custom_sql`.
     2. Authenticates as the dedicated MySQL user `placement_readonly` (SELECT privilege only).
-    3. Enforces session statement timeout `max_execution_time = 3000` (3 seconds).
-    4. Fetches at most 500 rows.
+    3. Enforces session statement timeout `max_execution_time` from centralized configuration.
+    4. Fetches at most `SQL_REPORT_MAX_ROWS` rows.
     5. Measures execution time in milliseconds.
     6. Formats all database errors into human-readable messages without server crash.
     """
     # Step 1: Server-side validation
     validated_sql = validate_custom_sql(raw_sql)
+    max_rows, timeout_ms = get_sql_report_limits()
 
     start_time = time.perf_counter()
 
@@ -1196,18 +1329,20 @@ def execute_custom_query(raw_sql: str) -> Dict[str, Any]:
         with get_readonly_connection() as connection:
             cursor = connection.cursor(DictCursor)
             try:
-                # Step 3: Set query timeout to 3000ms (3 seconds)
+                # Step 3: Set query timeout from centralized config
                 try:
-                    cursor.execute("SET SESSION max_execution_time = 3000;")
+                    cursor.execute(f"SET SESSION max_execution_time = {timeout_ms};")
                 except Exception as set_err:
                     logger.debug("Could not set session max_execution_time: %s", set_err)
 
                 # Step 4: Execute query
                 cursor.execute(validated_sql)
-                raw_rows = cursor.fetchmany(500)
+                raw_rows = cursor.fetchmany(max_rows)
                 elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
                 columns = [col[0] for col in cursor.description] if cursor.description else []
+                total_count = len(raw_rows)
+                is_truncated = total_count >= max_rows
                 rows = [{k: _serialize_value(v) for k, v in row.items()} for row in raw_rows]
 
                 return {
@@ -1216,6 +1351,8 @@ def execute_custom_query(raw_sql: str) -> Dict[str, Any]:
                     "columns": columns,
                     "rows": rows,
                     "row_count": len(rows),
+                    "total_count": total_count,
+                    "is_truncated": is_truncated,
                     "execution_time_ms": elapsed_ms,
                     "error": None,
                 }

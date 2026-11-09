@@ -19,12 +19,14 @@
             <div>
                 <div class="d-flex align-items-center gap-2">
                     <h2 class="h4 fw-bold mb-0">{{ company.Company_Name }}</h2>
-                    {% if company.Tier == 'Tier-1' %}
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Tier-1 Marquee</span>
-                    {% elif company.Tier == 'Tier-2' %}
-                        <span class="badge bg-info-subtle text-info border border-info-subtle">Tier-2 Core</span>
+                    {% if company.Company_Type == 'Product' %}
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Product</span>
+                    {% elif company.Company_Type == 'Service' %}
+                        <span class="badge bg-info-subtle text-info border border-info-subtle">Service</span>
+                    {% elif company.Company_Type == 'Startup' %}
+                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Startup</span>
                     {% else %}
-                        <span class="badge bg-secondary-subtle text-secondary border">Tier-3 Services</span>
+                        <span class="badge bg-secondary-subtle text-secondary border">{{ company.Company_Type or 'Other' }}</span>
                     {% endif %}
                 </div>
                 <div class="text-secondary small mt-1 d-flex flex-wrap align-items-center gap-3">

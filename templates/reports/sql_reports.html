@@ -118,7 +118,7 @@
                         <button type="button" id="btnRunSaved" class="btn btn-primary px-4 shadow-sm">
                             <i class="bi bi-play-fill me-1"></i> Run Query
                         </button>
-                        <a id="btnDownloadSavedCsv" href="#" class="btn btn-outline-success px-3">
+                        <a id="btnDownloadSavedCsv" href="#" class="btn btn-outline-success px-3 export-download-btn" data-export-btn title="Download saved query CSV">
                             <i class="bi bi-download me-1"></i> Download CSV
                         </a>
                     </div>
@@ -304,8 +304,17 @@ document.addEventListener("DOMContentLoaded", function () {
     // -------------------------------------------------------------------------
     // Render Selected Query Form & Concept
     // -------------------------------------------------------------------------
+    const lastQueryParams = {};
+    let previousQueryId = null;
+
     function onSavedQueryChange() {
+        // Save parameters for the query we are navigating away from
+        if (previousQueryId) {
+            lastQueryParams[previousQueryId] = collectSavedParams(previousQueryId);
+        }
+
         const queryId = selectEl.value;
+        previousQueryId = queryId;
         const q = savedQueriesMap[queryId];
         if (!q) return;
 
@@ -315,6 +324,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // Render Parameters
         paramsContainerEl.innerHTML = "";
         const params = q.params || [];
+        const savedForThis = lastQueryParams[queryId] || {};
 
         if (params.length === 0) {
             paramsContainerEl.innerHTML = '<span class="text-muted small fst-italic">This query does not require additional parameters.</span>';
@@ -328,18 +338,45 @@ document.addEventListener("DOMContentLoaded", function () {
                 label.textContent = p.label;
                 wrapper.appendChild(label);
 
+                const currentVal = savedForThis[p.name] !== undefined
+                    ? savedForThis[p.name]
+                    : (p.default !== undefined && p.default !== null ? p.default : "");
+
                 if (p.type === "select") {
                     const sel = document.createElement("select");
                     sel.name = p.name;
                     sel.id = `param_${p.name}`;
                     sel.className = "form-select form-select-sm";
-                    (p.options || []).forEach(opt => {
-                        const optEl = document.createElement("option");
-                        optEl.value = opt;
-                        optEl.textContent = opt;
-                        if (opt === p.default) optEl.selected = true;
-                        sel.appendChild(optEl);
+                    sel.addEventListener("change", () => {
+                        updateSavedCsvLink();
+                        if (!lastQueryParams[queryId]) lastQueryParams[queryId] = {};
+                        lastQueryParams[queryId][p.name] = sel.value;
                     });
+
+                    const opts = p.options || [];
+                    if (opts.length === 0) {
+                        const emptyOpt = document.createElement("option");
+                        emptyOpt.value = "";
+                        emptyOpt.textContent = "-- No options available in DB --";
+                        sel.appendChild(emptyOpt);
+                    } else {
+                        const promptOpt = document.createElement("option");
+                        promptOpt.value = "";
+                        promptOpt.textContent = `-- Select ${p.label} --`;
+                        sel.appendChild(promptOpt);
+
+                        opts.forEach(opt => {
+                            const optEl = document.createElement("option");
+                            const val = typeof opt === "object" ? opt.value : opt;
+                            const text = typeof opt === "object" ? opt.label : opt;
+                            optEl.value = val;
+                            optEl.textContent = text;
+                            if (currentVal && String(val) === String(currentVal)) {
+                                optEl.selected = true;
+                            }
+                            sel.appendChild(optEl);
+                        });
+                    }
                     wrapper.appendChild(sel);
                 } else {
                     const inp = document.createElement("input");
@@ -347,9 +384,14 @@ document.addEventListener("DOMContentLoaded", function () {
                     inp.name = p.name;
                     inp.id = `param_${p.name}`;
                     inp.className = "form-control form-control-sm";
-                    inp.value = p.default !== undefined ? p.default : "";
+                    inp.value = currentVal;
                     if (p.placeholder) inp.placeholder = p.placeholder;
                     if (p.step) inp.step = p.step;
+                    inp.addEventListener("input", () => {
+                        updateSavedCsvLink();
+                        if (!lastQueryParams[queryId]) lastQueryParams[queryId] = {};
+                        lastQueryParams[queryId][p.name] = inp.value.trim();
+                    });
                     wrapper.appendChild(inp);
                 }
                 paramsContainerEl.appendChild(wrapper);
@@ -359,8 +401,8 @@ document.addEventListener("DOMContentLoaded", function () {
         updateSavedCsvLink();
     }
 
-    function collectSavedParams() {
-        const queryId = selectEl.value;
+    function collectSavedParams(targetQueryId) {
+        const queryId = targetQueryId || selectEl.value;
         const q = savedQueriesMap[queryId];
         const params = {};
         if (q && q.params) {
@@ -368,6 +410,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 const el = document.getElementById(`param_${p.name}`);
                 if (el) {
                     params[p.name] = el.value.trim();
+                } else if (lastQueryParams[queryId] && lastQueryParams[queryId][p.name] !== undefined) {
+                    params[p.name] = lastQueryParams[queryId][p.name];
                 }
             });
         }
@@ -380,7 +424,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const urlParams = new URLSearchParams();
         urlParams.set("query_id", queryId);
         for (const [k, v] of Object.entries(params)) {
-            urlParams.set(k, v);
+            if (v !== undefined && v !== null && String(v).trim() !== "") {
+                urlParams.set(k, v);
+            }
         }
         btnDownloadSavedCsv.href = `/sql-reports/export-saved?${urlParams.toString()}`;
     }
@@ -391,6 +437,7 @@ document.addEventListener("DOMContentLoaded", function () {
     async function runSavedQuery() {
         const queryId = selectEl.value;
         const params = collectSavedParams();
+        lastQueryParams[queryId] = params;
         updateSavedCsvLink();
 
         btnRunSaved.disabled = true;
@@ -562,14 +609,79 @@ document.addEventListener("DOMContentLoaded", function () {
         customAlertContainer.style.display = "none";
     });
 
-    btnDownloadCustomCsv.addEventListener("click", function () {
+    btnDownloadCustomCsv.addEventListener("click", async function () {
         const sql = customSqlInput.value.trim();
         if (!sql) {
-            alert("Please enter a SQL query before downloading CSV.");
+            if (window.showToast) {
+                window.showToast("Please enter a SQL query before downloading CSV.", "warning", "Export Notice");
+            } else {
+                alert("Please enter a SQL query before downloading CSV.");
+            }
             return;
         }
-        customCsvSqlInput.value = sql;
-        customCsvForm.submit();
+
+        const origHtml = btnDownloadCustomCsv.innerHTML;
+        btnDownloadCustomCsv.disabled = true;
+        btnDownloadCustomCsv.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Exporting...';
+
+        try {
+            const formData = new FormData();
+            formData.append("sql", sql);
+            const response = await fetch("/sql-reports/export-custom", {
+                method: "POST",
+                body: formData,
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest"
+                }
+            });
+
+            if (!response.ok) {
+                let errText = "Failed to export custom SQL query.";
+                try {
+                    const text = await response.text();
+                    if (text && text.length < 200 && !text.includes("<!DOCTYPE")) {
+                        errText = text;
+                    }
+                } catch (_) {}
+                if (window.showExportAlert) window.showExportAlert(errText, "danger");
+                if (window.showToast) window.showToast(errText, "danger", "Export Error");
+                return;
+            }
+
+            const isLimited = response.headers.get("X-Export-Limited") === "true" ||
+                              response.headers.get("X-Export-Status") === "limited";
+            const exportWarning = response.headers.get("X-Export-Warning") || "";
+            const exportCount = response.headers.get("X-Export-Count") || "";
+
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.style.display = "none";
+            a.href = downloadUrl;
+            a.download = "custom_sql_results.csv";
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                window.URL.revokeObjectURL(downloadUrl);
+                a.remove();
+            }, 2000);
+
+            if (isLimited) {
+                const warnMsg = exportWarning || `Export truncated: Only ${exportCount} rows exported due to maximum limit.`;
+                if (window.showExportAlert) window.showExportAlert(warnMsg, "warning");
+                if (window.showToast) window.showToast(warnMsg, "warning", "Export Limited");
+            } else if (exportCount === "0") {
+                if (window.showToast) window.showToast("Query returned 0 rows. Empty CSV downloaded.", "info", "Empty Export");
+            } else {
+                if (window.showToast) window.showToast(`Custom SQL export completed successfully (${exportCount} rows).`, "success", "Export Complete");
+            }
+        } catch (err) {
+            console.error("Custom export error:", err);
+            if (window.showToast) window.showToast("Network error during custom CSV export.", "danger", "Export Error");
+        } finally {
+            btnDownloadCustomCsv.disabled = false;
+            btnDownloadCustomCsv.innerHTML = origHtml;
+        }
     });
 
     // Snippet Buttons

@@ -6,7 +6,7 @@ from services.security import validate_safe_url
 
 logger = logging.getLogger(__name__)
 
-VALID_COMPANY_TYPES = ("Product", "Service", "Startup", "PSU", "MNC", "Other")
+VALID_COMPANY_TYPES = ("Product", "Service", "Startup", "Other")
 
 
 def validate_company_payload(data: Dict[str, Any], is_update: bool = False) -> None:

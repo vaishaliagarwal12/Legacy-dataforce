@@ -680,3 +680,24 @@ def delete_student(student_id: int) -> Dict[str, Any]:
         "message": f"Student {student['Roll_No']} ({student['First_Name']} {student.get('Last_Name') or ''}) safely deleted.",
         "deleted_student_id": student_id,
     }
+
+
+def get_student_selector_options() -> List[Dict[str, Any]]:
+    """Retrieves lightweight student identity tuples for dynamic UI dropdown selectors.
+
+    Returns all active students without arbitrary pagination limits.
+    Projected fields: Student_ID, Roll_No, First_Name, Last_Name, Branch, Batch_Year.
+    """
+    sql = """
+        SELECT Student_ID, Roll_No, First_Name, Last_Name, Branch, Batch_Year
+        FROM STUDENT
+        ORDER BY Roll_No ASC
+    """
+    rows = execute_query(sql)
+    for r in rows:
+        if r.get("Batch_Year") is not None:
+            try:
+                r["Batch_Year"] = int(r["Batch_Year"])
+            except (ValueError, TypeError):
+                pass
+    return rows

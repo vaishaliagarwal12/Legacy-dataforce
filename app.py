@@ -60,8 +60,11 @@ def create_app(config_name: str = None) -> Flask:
     @app.context_processor
     def inject_template_context():
         now = time.time()
-        # Query MySQL at most once every 10 seconds to avoid per-render database overhead
-        if now - _db_health_cache["last_check"] > 10.0:
+        # Query MySQL at most once per cache_ttl to avoid per-render database overhead
+        cache_ttl = float(
+            app.config.get("DB_HEALTH_CACHE_TTL", getattr(Config, "DB_HEALTH_CACHE_TTL", 10.0))
+        )
+        if now - _db_health_cache["last_check"] > cache_ttl:
             try:
                 from db.connection import ping_db
 

@@ -17,8 +17,11 @@
         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
             <i class="bi bi-printer me-1"></i> Print Report
         </button>
-        <a href="/reports/export?{{ current_query_string }}" class="btn btn-success btn-sm">
+        <a href="/reports/export?{{ current_query_string }}" class="btn btn-success btn-sm export-download-btn" data-export-btn title="Export filtered records to CSV">
             <i class="bi bi-file-earmark-excel me-1"></i> Export to CSV
+        </a>
+        <a href="/reports/export-pdf?{{ current_query_string }}" class="btn btn-danger btn-sm export-download-btn" data-export-btn title="Export filtered executive summary to PDF">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Export to PDF
         </a>
     </div>
 </div>
@@ -35,10 +38,11 @@
             <!-- Branch Filter -->
             <div class="col-12 col-sm-6 col-md-3">
                 <label class="form-label small fw-semibold">Engineering Department</label>
+                {% set branch_labels = (filter_options.branch_labels if filter_options and filter_options.branch_labels else {}) %}
                 <select name="branch" class="form-select form-select-sm">
                     <option value="">All Departments</option>
-                    {% for code, label in [('CSE', 'Computer Science (CSE)'), ('ECE', 'Electronics & Comm (ECE)'), ('ME', 'Mechanical Engineering (ME)'), ('IT', 'Information Technology (IT)')] %}
-                        <option value="{{ code }}" {% if filters.branch == code %}selected{% endif %}>{{ label }}</option>
+                    {% for b in (filter_options.branches if filter_options and filter_options.branches else []) %}
+                        <option value="{{ b }}" {% if filters.branch in [b, branch_labels.get(b, b)] or (b == 'CSE' and filters.branch in ['CSE', 'Computer Science']) %}selected{% endif %}>{{ branch_labels.get(b, b) }}</option>
                     {% endfor %}
                 </select>
             </div>
