@@ -1,194 +1,166 @@
-# Entity-Relationship & Relational Architecture Document
+# Entity-Relationship & Relational Architecture Document (Canonical 7-Table Schema)
 
-This document provides a comprehensive technical breakdown of the relational database architecture for the **Campus Placement & Internship Management System**. It specifies the complete entity catalog, relationship cardinalities (1:1, 1:N, M:N), foreign key integrity constraints, cascading actions, identifying vs non-identifying relationships, and the structural entity-relationship diagram.
+This document provides a comprehensive technical specification of the relational database architecture for the **Campus Placement & Academic Internship Management System (Legacy DataForce)**. It details the approved **7-table canonical schema**, entity definitions, relationship cardinalities (1:N, M:N), foreign key integrity constraints, cascading/restrict actions, business rule constraints, and normal forms.
 
 ---
 
 ## 📌 Table of Contents
 
-- [1. Entity Catalog](#1-entity-catalog)
+- [1. Canonical Entity Catalog (7 Tables & 2 Views)](#1-canonical-entity-catalog-7-tables--2-views)
 - [2. Relationship Classification & Cardinalities](#2-relationship-classification--cardinalities)
-  - [2.1 One-to-One (1:1) Relationships](#21-one-to-one-11-relationships)
-  - [2.2 One-to-Many (1:N) Relationships](#22-one-to-many-1n-relationships)
-  - [2.3 Many-to-Many (M:N) Associative Relationships](#23-many-to-many-mn-associative-relationships)
-- [3. Identifying vs Non-Identifying Relationships & Weak Entities](#3-identifying-vs-non-identifying-relationships--weak-entities)
-- [4. Foreign Key & Cascading Action Matrix](#4-foreign-key--cascading-action-matrix)
-- [5. Rationale for Referential Actions](#5-rationale-for-referential-actions)
+  - [2.1 Identifying Relationships (1:N Multi-Valued Attributes)](#21-identifying-relationships-1n-multi-valued-attributes)
+  - [2.2 Associative Outcome Entities (M:N Attributed Relationships)](#22-associative-outcome-entities-mn-attributed-relationships)
+- [3. Foreign Key & Referential Integrity Matrix](#3-foreign-key--referential-integrity-matrix)
+- [4. Business Rules & Schema Constraints](#4-business-rules--schema-constraints)
+  - [4.1 Single Joined Offer Rule (`uq_one_joined_offer`)](#41-single-joined-offer-rule-uq_one_joined_offer)
+  - [4.2 Placement Joined Status Rule (`chk_placement_joined_status`)](#42-placement-joined-status-rule-chk_placement_joined_status)
+  - [4.3 Mandatory Internship Curriculum Rule (`chk_internship_curriculum`)](#43-mandatory-internship-curriculum-rule-chk_internship_curriculum)
+  - [4.4 Chronological Date Ordering (`chk_internship_dates`)](#44-chronological-date-ordering-chk_internship_dates)
+- [5. Normalization Audit & Normal Form Truth](#5-normalization-audit--normal-form-truth)
 - [6. Entity-Relationship (ER) Diagram (Mermaid)](#6-entity-relationship-er-diagram-mermaid)
 
 ---
 
-## 1. Entity Catalog
+## 1. Canonical Entity Catalog (7 Tables & 2 Views)
 
-The schema comprises **16 normalized relational tables** categorized across four operational domains:
+The relational schema is streamlined to **exactly 7 canonical base tables** and **2 relational views**:
 
-### Academic & Student Master Domain
-1. **`UNIVERSITY`**: Master entity defining academic institutions, headquarters location, and establishment years.
-2. **`COURSE`**: Academic curriculum catalog specifying department offerings, semesters (1–8), credit weightages, and course types (Core, Elective, Lab, Seminar).
-3. **`STUDENT`**: Central student master entity. Name is decomposed into `First_Name` and `Last_Name` for 1NF compliance. Tracks `Roll_No` (unique candidate key), branch, batch, CGPA, and backlogs.
-4. **`STUDENT_PHONE`**: Multivalued attribute decomposition table for student contact numbers. Enforces 1NF without string-concatenated arrays.
-5. **`STUDENT_SKILL`**: Multivalued attribute decomposition table for technical and core competencies per student.
-6. **`STUDENT_COURSE`**: Associative bridge table modeling the M:N enrollment relationship between students and courses with grade records.
-7. **`STUDENT_PROFILE`**: Co-curricular differentiators including projects, hackathon achievements, certifications, and competitive coding ratings.
-8. **`RESUME`**: Student resume versions uploaded across academic cycles.
-9. **`EDUCATION_DOCUMENT`**: Secondary education marksheets (10th, 12th, Diploma) linked to resumes for verification.
-10. **`SEMESTER_RESULT`**: Official verified semester ledger tracking SGPA and earned credits per semester for CGPA audit.
+### The 7 Canonical Base Tables
 
-### Corporate Recruitment Domain
-11. **`COMPANY`**: Corporate organizations participating in campus hiring. Tracks company types (Product, Service, Startup, PSU, MNC) and industry sectors.
-12. **`RECRUITMENT_DRIVE`**: Hiring drives hosted by companies for a specific academic batch year and hiring season (Summer, Winter, Autumn, Spring).
-13. **`OPPORTUNITY`**: Specific job or internship designations opened during a drive, specifying compensation package/stipend and role type.
-14. **`ELIGIBILITY`**: 1:1 eligibility constraint rule per opportunity specifying minimum CGPA, eligible engineering branches, and max backlog allowances.
-15. **`SELECTION_PROCESS`**: Multi-round selection stages (Aptitude, Coding, Technical Interview, HR) configured per opportunity.
+1. **`STUDENT`**: Central student master entity. Name is decomposed into atomic `First_Name` and `Last_Name` (1NF). Tracks `Roll_No` (unique candidate key), academic department (`Branch`), graduating `Batch_Year`, `CGPA`, `Backlogs`, `Email`, and optional `Resume_Link`.
+2. **`STUDENT_PHONE`**: Multivalued attribute decomposition table for student contact numbers. Enforces 1NF without comma-delimited strings. Composite PK: `(Student_ID, Phone_No)`.
+3. **`STUDENT_SKILL`**: Multivalued attribute decomposition table for student technical skills and proficiencies. Composite PK: `(Student_ID, Skill)`.
+4. **`COMPANY`**: Corporate organizations recruiting campus talent. Categorized by `Company_Type` (`Product`, `Service`, `Startup`) and industry sector.
+5. **`PLACEMENT`**: Full-time corporate placement offers secured by students. Tracks designated `Role`, compensation `Package` (in LPA), `Placement_Year`, `Offer_Status` (`Offered`, `Accepted`, `Declined`), and actual joining status `Joined` (`Yes`, `No`).
+6. **`PLACEMENT_SKILL`**: Decomposed evaluated technical skills required for each placement offer. Composite PK: `(Placement_ID, Skill)`.
+7. **`INTERNSHIP`**: Student practical training and academic internship records. Composite PK: `(Student_ID, Internship_No)`. Enforces mandatory curriculum requirements (Internship 1 in Sem 5, Internship 2 in Sem 8) alongside optional additional internships.
 
-### Career Outcome Domain
-16. **`INTERNSHIP_REQUIREMENT`**: Curricular requirements prescribing mandatory summer internships, prerequisite semesters, and report submission deadlines.
-17. **`INTERNSHIP`**: Student internship engagements. Distinguishes Mandatory (degree-fulfilling) from Additional (voluntary) internships.
-18. **`PLACEMENT`**: Final employment offers secured by students. Enforces compensation (Package in LPA), offer lifecycle (`Offered`, `Accepted`, `Joined`, `Declined`), and single-acceptance rules.
-19. **`PLACEMENT_SKILL`**: Decomposed evaluated technical skills required for each placement offer.
+### The 2 Relational Views
+
+1. **`V_PLACEMENT_DETAIL`**: Relational view joining `PLACEMENT`, `STUDENT`, and `COMPANY` with aggregated skills from `PLACEMENT_SKILL`.
+2. **`V_INTERNSHIP_DETAIL`**: Relational view joining `INTERNSHIP`, `STUDENT`, and `COMPANY`. Dynamically calculates duration with zero redundant storage:
+   $$\text{Duration\_Months} = \text{ROUND}(\text{DATEDIFF}(\text{End\_Date}, \text{Start\_Date}) / 30.44, 1)$$
 
 ---
 
 ## 2. Relationship Classification & Cardinalities
 
 ```
-+--------------------------------------------------------------------------------+
-|                           RELATIONSHIP ARCHITECTURE                            |
-+-------------------+--------------------------------+---------------------------+
-| Cardinality       | Entities                       | Bridge / Constraint       |
-+-------------------+--------------------------------+---------------------------+
-| 1:1               | OPPORTUNITY <-> ELIGIBILITY    | Opportunity_ID UNIQUE     |
-| 1:N               | UNIVERSITY  -> COURSE          | University_ID FK          |
-| 1:N               | STUDENT     -> STUDENT_PHONE   | Student_ID FK             |
-| 1:N               | STUDENT     -> STUDENT_SKILL   | Student_ID FK             |
-| 1:N               | STUDENT     -> STUDENT_PROFILE | Student_ID FK             |
-| 1:N               | STUDENT     -> RESUME          | Student_ID FK             |
-| 1:N               | RESUME      -> EDUCATION_DOC   | Resume_ID FK              |
-| 1:N               | STUDENT     -> SEMESTER_RESULT | Student_ID FK             |
-| 1:N               | COMPANY     -> RECRUIT_DRIVE   | Company_ID FK             |
-| 1:N               | RECRUIT_DRIVE -> OPPORTUNITY   | Drive_ID FK               |
-| 1:N               | OPPORTUNITY -> SELECTION_ROUND | Opportunity_ID FK         |
-| 1:N               | REQ_POLICY  -> INTERNSHIP      | Requirement_ID FK (NULL)  |
-| 1:N               | PLACEMENT   -> PLACEMENT_SKILL | Placement_ID FK           |
-| M:N               | STUDENT <-> COURSE             | STUDENT_COURSE (Bridge)   |
-| M:N (attributed)  | STUDENT <-> OPPORTUNITY        | PLACEMENT (Bridge entity) |
-| M:N (attributed)  | STUDENT <-> COMPANY            | INTERNSHIP (Bridge entity)|
-+-------------------+--------------------------------+---------------------------+
++-----------------------------------------------------------------------------------------------------+
+|                               CANONICAL RELATIONSHIP ARCHITECTURE                                   |
++-------------------+----------------------------+----------------------------------------------------+
+| Cardinality       | Entities                   | Implementation / Foreign Key                       |
++-------------------+----------------------------+----------------------------------------------------+
+| 1:N (Identifying) | STUDENT -> STUDENT_PHONE   | Student_ID FK (ON DELETE CASCADE)                  |
+| 1:N (Identifying) | STUDENT -> STUDENT_SKILL   | Student_ID FK (ON DELETE CASCADE)                  |
+| 1:N (Identifying) | PLACEMENT -> PLACEMENT_SKILL| Placement_ID FK (ON DELETE CASCADE)                |
+| M:N (Attributed)  | STUDENT <-> COMPANY        | PLACEMENT (FK Student_ID, FK Company_ID RESTRICT)  |
+| M:N (Attributed)  | STUDENT <-> COMPANY        | INTERNSHIP (FK Student_ID, FK Company_ID RESTRICT) |
++-------------------+----------------------------+----------------------------------------------------+
 ```
 
-### 2.1 One-to-One (1:1) Relationships
+### 2.1 Identifying Relationships (1:N Multi-Valued Attributes)
 
-#### `OPPORTUNITY` (1) ——— (0..1) `ELIGIBILITY`
-- **Parent**: `OPPORTUNITY` (`Opportunity_ID` PK)
-- **Child**: `ELIGIBILITY` (`Opportunity_ID` FK with `UNIQUE` constraint)
-- **Semantics**: Exactly one eligibility ruleset applies to a recruitment opportunity. The `UNIQUE` constraint on `ELIGIBILITY.Opportunity_ID` physically guarantees that multiple conflicting criteria cannot be assigned to the same job opening.
+- **`STUDENT` (1) ——— (0..N) `STUDENT_PHONE`**:
+  - Identifying child. Composite PK: `(Student_ID, Phone_No)`.
+  - Phone numbers are meaningless without the student entity; deleting a student cascades and removes phone entries.
+- **`STUDENT` (1) ——— (0..N) `STUDENT_SKILL`**:
+  - Identifying child. Composite PK: `(Student_ID, Skill)`.
+  - Technical skills belong directly to the student; deleting a student cascades and removes skill entries.
+- **`PLACEMENT` (1) ——— (0..N) `PLACEMENT_SKILL`**:
+  - Identifying child. Composite PK: `(Placement_ID, Skill)`.
+  - Evaluated skills belong directly to the specific offer; deleting an offer cascades and removes evaluated skills.
 
-### 2.2 One-to-Many (1:N) Relationships
+### 2.2 Associative Outcome Entities (M:N Attributed Relationships)
 
-1. **`UNIVERSITY` (1) ——— (0..N) `COURSE`**:
-   - An academic catalog contains many course offerings; each course belongs to exactly one university.
-2. **`STUDENT` (1) ——— (0..N) `STUDENT_PHONE`**:
-   - A student can have multiple phone numbers (multivalued attribute decomposition).
-3. **`STUDENT` (1) ——— (0..N) `STUDENT_SKILL`**:
-   - A student possesses multiple validated technical competencies.
-4. **`STUDENT` (1) ——— (0..N) `STUDENT_PROFILE`**:
-   - A student records multiple extracurricular profiles (GitHub, LeetCode, Certifications).
-5. **`STUDENT` (1) ——— (0..N) `RESUME`**:
-   - A student may upload multiple resume revisions over semesters.
-6. **`RESUME` (1) ——— (0..N) `EDUCATION_DOCUMENT`**:
-   - A resume has multiple verified supporting marksheets.
-7. **`STUDENT` (1) ——— (0..N) `SEMESTER_RESULT`**:
-   - A student has up to 8 verified semester results; enforced unique per `(Student_ID, Semester)`.
-8. **`COMPANY` (1) ——— (0..N) `RECRUITMENT_DRIVE`**:
-   - A company conducts recruitment drives across seasons and batch years.
-9. **`RECRUITMENT_DRIVE` (1) ——— (1..N) `OPPORTUNITY`**:
-   - A drive opens one or more specific roles (e.g., Software Development Engineer, Cloud Associate).
-10. **`OPPORTUNITY` (1) ——— (1..N) `SELECTION_PROCESS`**:
-    - An opportunity conducts multiple sequential interview/test rounds; enforced unique per `(Opportunity_ID, Round_Number)`.
-11. **`INTERNSHIP_REQUIREMENT` (1) ——— (0..N) `INTERNSHIP`**:
-    - Curriculum guidelines map to mandatory student internships.
-12. **`PLACEMENT` (1) ——— (0..N) `PLACEMENT_SKILL`**:
-    - An offer evaluates multiple specific technical competencies.
-
-### 2.3 Many-to-Many (M:N) Associative Relationships
-
-#### `STUDENT` (M) <———> (N) `COURSE` via `STUDENT_COURSE`
-- **Intersection Table**: `STUDENT_COURSE`
-- **Composite Primary Key**: `(Student_ID, Course_ID)`
-- **Payload Attributes**: `Enrollment_Year`, `Grade`
-- **Semantics**: A student registers for multiple courses across academic semesters; a course has enrollments from many students.
-
-#### `STUDENT` (M) <———> (N) `OPPORTUNITY` via `PLACEMENT`
-- **Attributed Associative Entity**: `PLACEMENT`
-- **Primary Key**: `Placement_ID` (Surrogate)
-- **Foreign Keys**: `Student_ID` (FK -> `STUDENT`), `Opportunity_ID` (FK -> `OPPORTUNITY`), `Company_ID` (FK -> `COMPANY`)
-- **Payload Attributes**: `Package`, `Placement_Year`, `Placement_Type`, `Offer_Status`, `Joined`, `Interview_Rounds`
-- **Semantics**: Students can compete for and receive offers from multiple opportunities. Rather than a pure junction table, `PLACEMENT` is an attributed associative entity storing high-value compensation and status lifecycle data.
+- **`STUDENT` (M) <———> (N) `COMPANY` via `PLACEMENT`**:
+  - A student may receive multiple offers across different companies; a company recruits multiple students.
+  - Implemented as an attributed relation with `Placement_ID` primary key, `Student_ID` FK, and `Company_ID` FK.
+- **`STUDENT` (M) <———> (N) `COMPANY` via `INTERNSHIP`**:
+  - A student undertakes multiple internships (Mandatory #1, Mandatory #2, Additional #3+) across companies; companies host multiple student interns.
+  - Implemented with composite primary key `(Student_ID, Internship_No)`.
 
 ---
 
-## 3. Identifying vs Non-Identifying Relationships & Weak Entities
+## 3. Foreign Key & Referential Integrity Matrix
 
-### 3.1 Weak Entities & Identifying Relationships
-
-1. **`INTERNSHIP` as a Weak Entity**:
-   - **Parent**: `STUDENT`
-   - **Identifying Key**: `(Student_ID, Internship_No)`
-   - **Rationale**: An internship sequence number (`Internship_No` 1 or 2) has no universal institutional meaning without the associated `Student_ID`. The composite candidate key `(Student_ID, Internship_No)` identifies the experience within the student's academic transcript.
-2. **`SELECTION_PROCESS` as a Weak Entity**:
-   - **Parent**: `OPPORTUNITY`
-   - **Identifying Key**: `(Opportunity_ID, Round_Number)`
-   - **Rationale**: A `Round_Number` (Round 1, Round 2) exists exclusively within the context of a specific `Opportunity_ID`. Deleting the opportunity invalidates and destroys all of its selection rounds.
-3. **`STUDENT_PHONE` & `STUDENT_SKILL`**:
-   - Pure identifying child relationships where composite PKs `(Student_ID, Phone_No)` and `(Student_ID, Skill)` depend entirely on the parent student.
-
-### 3.2 Non-Identifying Relationships
-
-- **`PLACEMENT` to `OPPORTUNITY`**:
-  - Non-identifying with `ON DELETE SET NULL`. If a recruitment drive or opportunity is archived or purged from future listings, student placement records must NOT disappear. The offer retains `Company_ID`, `Student_ID`, `Role`, and `Package`, with `Opportunity_ID` set to `NULL`.
-- **`INTERNSHIP` to `INTERNSHIP_REQUIREMENT`**:
-  - Optional non-identifying. Additional voluntary internships do not reference any curriculum requirement (`Requirement_ID IS NULL`).
-
----
-
-## 4. Foreign Key & Cascading Action Matrix
-
-| Child Table | Foreign Key Column | Parent Table | Referenced PK | ON DELETE Action | ON UPDATE Action | Business Rationale |
+| Child Table | Foreign Key Column | Parent Table | Referenced PK | ON DELETE Action | ON UPDATE Action | Business & Architectural Rationale |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `COURSE` | `University_ID` | `UNIVERSITY` | `University_ID` | **CASCADE** | **CASCADE** | Deleting a university purges its internal course catalog. |
-| `STUDENT_PHONE` | `Student_ID` | `STUDENT` | `Student_ID` | **CASCADE** | **CASCADE** | Contact numbers have no meaning without the student. |
-| `STUDENT_SKILL` | `Student_ID` | `STUDENT` | `Student_ID` | **CASCADE** | **CASCADE** | Skills inventory belongs directly to the student entity. |
-| `STUDENT_COURSE`| `Student_ID` | `STUDENT` | `Student_ID` | **CASCADE** | **CASCADE** | Purging a student purges their enrollment history. |
-| `STUDENT_COURSE`| `Course_ID` | `COURSE` | `Course_ID` | **CASCADE** | **CASCADE** | Removing an obsolete course purges enrollment records. |
-| `STUDENT_PROFILE`| `Student_ID` | `STUDENT` | `Student_ID` | **CASCADE** | **CASCADE** | Extracurricular achievements belong to student. |
-| `RESUME` | `Student_ID` | `STUDENT` | `Student_ID` | **CASCADE** | **CASCADE** | Resume documents belong to student. |
-| `EDUCATION_DOC` | `Resume_ID` | `RESUME` | `Resume_ID` | **CASCADE** | **CASCADE** | Marksheets depend strictly on the uploaded resume. |
-| `SEMESTER_RESULT`| `Student_ID` | `STUDENT` | `Student_ID` | **CASCADE** | **CASCADE** | Academic semester results belong to student. |
-| `RECRUIT_DRIVE` | `Company_ID` | `COMPANY` | `Company_ID` | **RESTRICT** | **CASCADE** | **CRITICAL**: Cannot delete a company with active drives. |
-| `OPPORTUNITY` | `Drive_ID` | `RECRUIT_DRIVE`| `Drive_ID` | **CASCADE** | **CASCADE** | Deleting a drive removes its published openings. |
-| `ELIGIBILITY` | `Opportunity_ID`| `OPPORTUNITY` | `Opportunity_ID`| **CASCADE** | **CASCADE** | Eligibility criteria exist strictly for the opportunity. |
-| `SELECTION_ROUND`| `Opportunity_ID`| `OPPORTUNITY` | `Opportunity_ID`| **CASCADE** | **CASCADE** | Selection stages exist strictly for the opportunity. |
-| `INTERNSHIP` | `Student_ID` | `STUDENT` | `Student_ID` | **CASCADE** | **CASCADE** | Internship record belongs to student transcript. |
-| `INTERNSHIP` | `Company_ID` | `COMPANY` | `Company_ID` | **RESTRICT** | **CASCADE** | **CRITICAL**: Cannot delete company with hired interns. |
-| `INTERNSHIP` | `Opportunity_ID`| `OPPORTUNITY` | `Opportunity_ID`| **SET NULL** | **CASCADE** | Preserves student internship history if opportunity is pruned. |
-| `INTERNSHIP` | `Requirement_ID`| `INTERN_REQ` | `Requirement_ID`| **SET NULL** | **CASCADE** | Preserves internship if requirement definition changes. |
-| `PLACEMENT` | `Student_ID` | `STUDENT` | `Student_ID` | **CASCADE** | **CASCADE** | Offer record belongs to student. |
-| `PLACEMENT` | `Company_ID` | `COMPANY` | `Company_ID` | **RESTRICT** | **CASCADE** | **CRITICAL**: Cannot delete company with hired graduates. |
-| `PLACEMENT` | `Opportunity_ID`| `OPPORTUNITY` | `Opportunity_ID`| **SET NULL** | **CASCADE** | Preserves employment package if opportunity is deleted. |
-| `PLACEMENT_SKILL`| `Placement_ID` | `PLACEMENT` | `Placement_ID` | **CASCADE** | **CASCADE** | Evaluated skills belong strictly to the placement offer. |
+| `STUDENT_PHONE` | `Student_ID` | `STUDENT` | `Student_ID` | **CASCADE** | **CASCADE** | Dependent multivalued attribute; purges when student is removed. |
+| `STUDENT_SKILL` | `Student_ID` | `STUDENT` | `Student_ID` | **CASCADE** | **CASCADE** | Dependent multivalued attribute; purges when student is removed. |
+| `PLACEMENT` | `Student_ID` | `STUDENT` | `Student_ID` | **RESTRICT** | **CASCADE** | **CRITICAL**: Cannot delete a student with historical employment offers without administrative audit. |
+| `PLACEMENT` | `Company_ID` | `COMPANY` | `Company_ID` | **RESTRICT** | **CASCADE** | **CRITICAL**: Cannot delete a company with recorded placement hires. |
+| `PLACEMENT_SKILL` | `Placement_ID` | `PLACEMENT` | `Placement_ID` | **CASCADE** | **CASCADE** | Evaluated skills depend strictly on the placement record. |
+| `INTERNSHIP` | `Student_ID` | `STUDENT` | `Student_ID` | **RESTRICT** | **CASCADE** | **CRITICAL**: Cannot delete a student with completed curricular internships. |
+| `INTERNSHIP` | `Company_ID` | `COMPANY` | `Company_ID` | **RESTRICT** | **CASCADE** | **CRITICAL**: Cannot delete an employer hosting verified student internships. |
 
 ---
 
-## 5. Rationale for Referential Actions
+## 4. Business Rules & Schema Constraints
 
-### Why `ON DELETE RESTRICT` on `COMPANY`?
-Accidental or malicious deletion of a corporate partner (e.g., Google or Microsoft) would disastrously invalidate historical accreditation data, placement statistics, and alumni employment records. Setting `ON DELETE RESTRICT` guarantees that as long as any `RECRUITMENT_DRIVE`, `PLACEMENT`, or `INTERNSHIP` references the company, the DBMS aborts the delete operation with error code `1451`.
+### 4.1 Single Joined Offer Rule (`uq_one_joined_offer`)
 
-### Why `ON DELETE CASCADE` on Student Children?
-Tables such as `STUDENT_PHONE`, `STUDENT_SKILL`, `STUDENT_PROFILE`, and `RESUME` are dependent multi-valued decompositions of the master student entity. Orphan rows in these tables serve no purpose. Automatic cascading guarantees database hygiene without dangling records.
+An institution permits candidates to receive multiple preliminary employment offers, but strictly forbids joining more than one company.
 
-### Why `ON DELETE SET NULL` on `Opportunity_ID` in `PLACEMENT`?
-An institution may clear temporary recruitment drive data at the end of an academic season. However, students who obtained jobs must never lose their salary, role, or hiring company records. The DBMS sets `Opportunity_ID = NULL`, keeping the placement record intact.
+**Schema Enforcement**:
+```sql
+Joined_Student INT GENERATED ALWAYS AS (CASE WHEN Joined = 'Yes' THEN Student_ID ELSE NULL END) STORED,
+CONSTRAINT uq_one_joined_offer UNIQUE KEY (Joined_Student)
+```
+- When `Joined = 'No'`, `Joined_Student` is `NULL`. In standard SQL/MySQL InnoDB, `NULL` values are excluded from unique index collisions, allowing unlimited preliminary offers per student.
+- When `Joined = 'Yes'`, `Joined_Student` evaluates to `Student_ID`. A second joined offer for the same student creates duplicate `Student_ID` values in `uq_one_joined_offer`, triggering MySQL Error 1062 (Duplicate entry).
+
+### 4.2 Placement Joined Status Rule (`chk_placement_joined_status`)
+
+A student can only join a company if the offer has been officially accepted.
+
+**Schema Enforcement**:
+```sql
+CONSTRAINT chk_placement_joined_status CHECK (Joined = 'No' OR Offer_Status = 'Accepted')
+```
+- Allowed states: `(Offered, No)`, `(Declined, No)`, `(Accepted, No)`, and `(Accepted, Yes)`.
+- Illegal state: `(Offered, Yes)` and `(Declined, Yes)` are physically rejected at the database level.
+- Semantics: **"Placed" strictly means `Joined = 'Yes'`**. `Offer_Status = 'Accepted'` tracks accepted offers separately before joining confirmation.
+
+### 4.3 Mandatory Internship Curriculum Rule (`chk_internship_curriculum`)
+
+Academic regulations mandate exactly two degree-required internships, followed by optional additional training:
+
+1. **Internship 1 (Mandatory)**: Done during the summer vacation after the 2nd year (Semester 4). Report submitted in **Semester 5**, carrying **4 credits**.
+2. **Internship 2 (Mandatory)**: Done **during the 8th semester**; report submitted **after the end of the 8th semester**, carrying **4 credits** (`Report_Semester = 8`).
+3. **Internship 3+ (Additional)**: Extracurricular/voluntary. Credits and report semesters are optional (`NULL`).
+
+**Schema Enforcement**:
+```sql
+CONSTRAINT chk_internship_curriculum CHECK (
+    (Internship_No = 1 AND Internship_Type = 'Mandatory' AND Credits = 4 AND Report_Semester = 5)
+    OR
+    (Internship_No = 2 AND Internship_Type = 'Mandatory' AND Credits = 4 AND Report_Semester = 8)
+    OR
+    (Internship_No >= 3 AND Internship_Type = 'Additional')
+)
+```
+
+### 4.4 Chronological Date Ordering (`chk_internship_dates`)
+
+```sql
+CONSTRAINT chk_internship_dates CHECK (End_Date >= Start_Date)
+```
+Guarantees chronological sanity across all internship engagements.
+
+---
+
+## 5. Normalization Audit & Normal Form Truth
+
+| Table Name | Normal Form Achieved | Formal Proof & Evaluation |
+| :--- | :---: | :--- |
+| `STUDENT` | **BCNF** | Key: `Student_ID`, Alternate Key: `Roll_No`, `Email`. All functional dependencies have a superkey on the left-hand side: `Student_ID -> {Roll_No, First_Name, Last_Name, Branch, Batch_Year, CGPA, Backlogs, Email}`. |
+| `STUDENT_PHONE` | **BCNF** | Key: `(Student_ID, Phone_No)`. All attributes form the candidate key (all-key relation). No non-trivial functional dependencies exist. |
+| `STUDENT_SKILL` | **BCNF** | Key: `(Student_ID, Skill)`. All attributes form the candidate key. No non-trivial functional dependencies exist. |
+| `COMPANY` | **BCNF** | Key: `Company_ID`, Alternate Key: `Company_Name`. Every determinant is a candidate key. |
+| `PLACEMENT` | **BCNF** | Key: `Placement_ID`. Functional dependencies: `Placement_ID -> {Student_ID, Company_ID, Role, Package, Placement_Year, Offer_Status, Joined}`. Determinant is a candidate key. |
+| `PLACEMENT_SKILL` | **BCNF** | Key: `(Placement_ID, Skill)`. All attributes form the candidate key. |
+| `INTERNSHIP` | **1NF (Intentional Denormalization)** | Key: `(Student_ID, Internship_No)`. **Notice**: Curricular rules enforce the dependency `Internship_No -> {Internship_Type, Credits, Report_Semester}`. Because `Internship_No` is a proper subset of the composite primary key `(Student_ID, Internship_No)`, this dependency represents a **partial functional dependency**, which formally violates 2NF, 3NF, and BCNF. This is an intentional engineering denormalization to consolidate curriculum rules directly inside the 7-table schema without requiring an auxiliary `INTERNSHIP_REQUIREMENT` table. |
 
 ---
 
@@ -196,33 +168,13 @@ An institution may clear temporary recruitment drive data at the end of an acade
 
 ```mermaid
 erDiagram
-    UNIVERSITY ||--o{ COURSE : offers
-    UNIVERSITY {
-        int University_ID PK
-        varchar University_Name UK
-        varchar Location
-        int Established_Year
-    }
-
-    COURSE ||--o{ STUDENT_COURSE : enrolls
-    COURSE {
-        int Course_ID PK
-        int University_ID FK
-        varchar Course_Name
-        varchar Department
-        int Semester
-        int Credits
-        varchar Course_Type
-    }
-
-    STUDENT ||--o{ STUDENT_COURSE : registers
-    STUDENT ||--o{ STUDENT_PHONE : has
-    STUDENT ||--o{ STUDENT_SKILL : possesses
-    STUDENT ||--o{ STUDENT_PROFILE : showcases
-    STUDENT ||--o{ RESUME : uploads
-    STUDENT ||--o{ SEMESTER_RESULT : achieves
-    STUDENT ||--o{ PLACEMENT : receives
-    STUDENT ||--o{ INTERNSHIP : completes
+    STUDENT ||--o{ STUDENT_PHONE : "has phone numbers"
+    STUDENT ||--o{ STUDENT_SKILL : "possesses skills"
+    STUDENT ||--o{ PLACEMENT : "receives offers"
+    STUDENT ||--o{ INTERNSHIP : "undertakes training"
+    COMPANY ||--o{ PLACEMENT : "hires graduates"
+    COMPANY ||--o{ INTERNSHIP : "hosts interns"
+    PLACEMENT ||--o{ PLACEMENT_SKILL : "evaluates skills"
 
     STUDENT {
         int Student_ID PK
@@ -231,7 +183,6 @@ erDiagram
         varchar Last_Name
         varchar Branch
         int Batch_Year
-        varchar Section
         decimal CGPA
         int Backlogs
         varchar Email UK
@@ -239,133 +190,45 @@ erDiagram
     }
 
     STUDENT_PHONE {
-        int Student_ID PK,FK
+        int Student_ID PK, FK
         varchar Phone_No PK
     }
 
     STUDENT_SKILL {
-        int Student_ID PK,FK
+        int Student_ID PK, FK
         varchar Skill PK
     }
 
-    STUDENT_COURSE {
-        int Student_ID PK,FK
-        int Course_ID PK,FK
-        int Enrollment_Year
-        varchar Grade
-    }
-
-    STUDENT_PROFILE {
-        int Profile_ID PK
-        int Student_ID FK
-        varchar Profile_Type
-        varchar Title
-        text Description
-        varchar Link
-        int Year
-        varchar Proficiency_Level
-    }
-
-    RESUME ||--o{ EDUCATION_DOCUMENT : contains
-    RESUME {
-        int Resume_ID PK
-        int Student_ID FK
-        varchar File_Name
-        varchar File_Link
-        date Upload_Date
-        int Resume_Year
-    }
-
-    EDUCATION_DOCUMENT {
-        int Doc_ID PK
-        int Resume_ID FK
-        varchar Document_Type
-        decimal Percentage_CGPA
-        varchar Board
-        int Year_of_Passing
-        varchar File_Link
-    }
-
-    SEMESTER_RESULT {
-        int Result_ID PK
-        int Student_ID FK
-        int Semester
-        decimal SGPA
-        int Year
-        int Total_Credits
-    }
-
-    COMPANY ||--o{ RECRUITMENT_DRIVE : organizes
-    COMPANY ||--o{ PLACEMENT : hires
-    COMPANY ||--o{ INTERNSHIP : contracts
     COMPANY {
         int Company_ID PK
         varchar Company_Name UK
         varchar Company_Type
-        varchar Industry
+        varchar Sector
         varchar Location
         varchar Website
     }
 
-    RECRUITMENT_DRIVE ||--o{ OPPORTUNITY : features
-    RECRUITMENT_DRIVE {
-        int Drive_ID PK
+    PLACEMENT {
+        int Placement_ID PK
+        int Student_ID FK
         int Company_ID FK
-        int Drive_Year
-        varchar Drive_Type
-        varchar Season
-        date Drive_Date
-    }
-
-    OPPORTUNITY ||--|| ELIGIBILITY : requires
-    OPPORTUNITY ||--o{ SELECTION_PROCESS : conducts
-    OPPORTUNITY ||--o{ PLACEMENT : yields
-    OPPORTUNITY ||--o{ INTERNSHIP : yields
-    OPPORTUNITY {
-        int Opportunity_ID PK
-        int Drive_ID FK
         varchar Role
-        varchar Opportunity_Type
-        decimal Package_Stipend
-        int Duration_Months
+        decimal Package
+        int Placement_Year
+        varchar Offer_Status
+        varchar Joined
+        int Joined_Student UK "Generated Column"
     }
 
-    ELIGIBILITY {
-        int Eligibility_ID PK
-        int Opportunity_ID UK,FK
-        decimal Minimum_CGPA
-        varchar Eligible_Branch
-        int Max_Backlogs
-        text Other_Criteria
-    }
-
-    SELECTION_PROCESS {
-        int Round_ID PK
-        int Opportunity_ID FK
-        int Round_Number
-        varchar Round_Type
-        text Description
-    }
-
-    INTERNSHIP_REQUIREMENT ||--o{ INTERNSHIP : dictates
-    INTERNSHIP_REQUIREMENT {
-        int Requirement_ID PK
-        int Internship_No UK
-        varchar Mandatory
-        varchar Prescribed_Period
-        int Required_Result_Semester
-        int Report_Submission_Semester
-        int Credits
-        text Description
+    PLACEMENT_SKILL {
+        int Placement_ID PK, FK
+        varchar Skill PK
     }
 
     INTERNSHIP {
-        int Internship_ID PK
-        int Student_ID FK
+        int Student_ID PK, FK
+        int Internship_No PK
         int Company_ID FK
-        int Opportunity_ID FK
-        int Requirement_ID FK
-        int Internship_No
         varchar Internship_Type
         varchar Role
         decimal Stipend
@@ -373,26 +236,8 @@ erDiagram
         date End_Date
         int Credits
         int Report_Semester
-    }
-
-    PLACEMENT ||--o{ PLACEMENT_SKILL : evaluates
-    PLACEMENT {
-        int Placement_ID PK
-        int Student_ID FK
-        int Company_ID FK
-        int Opportunity_ID FK
-        varchar Role
-        decimal Package
-        int Placement_Year
-        varchar Placement_Type
-        varchar Is_PPO
-        varchar Joined
-        varchar Offer_Status
-        int Interview_Rounds
-    }
-
-    PLACEMENT_SKILL {
-        int Placement_ID PK,FK
-        varchar Skill PK
+        varchar Report_Grade
+        varchar Report_Link
+        varchar Certificate_Link
     }
 ```

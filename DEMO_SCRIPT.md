@@ -72,45 +72,40 @@ Before calling the professors to your screen, ensure:
    - Filter by **Branch**: `CSE`, **Min CGPA**: `≥ 8.0`, **Placement Status**: `Placed`.
    - Click column headers (e.g. **CGPA**) to show server-side sorting (ascending / descending).
    - Click **Export CSV** in the top-right header to demonstrate instant export of filtered student records.
-3. Click on **Aarav Sharma** (`/students/1`) to display the **Comprehensive Student Profile Dossier**:
-   - Point out the 9 modular tabs: Personal Details, Academic Details, Semester Results, Registered Courses, Technical Skills, Projects, Achievements, Resume & Documents, and Placement & Internship Records.
-   - Scroll to **Multivalued Phone Numbers** and **Technical Skills**.
-   - Scroll to **Semester Results**: Show Semester 1 through 6 SGPAs with composite uniqueness on `(Student_ID, Semester)`.
+3. Click on **Aarav Sharma** (`/students/1`) to display the **Canonical Student Profile Dossier**:
+   - Point out the 4 canonical tabs: Profile & Academics, Technical Skills, Internships, and Placement Offers.
+   - Point out **Multivalued Phone Numbers** (`STUDENT_PHONE`) and **Technical Skills** (`STUDENT_SKILL`).
+   - Highlight Academic Standing: CGPA (9.20), 0 Backlogs, and Placed destination.
 
 ### Spoken Script:
-> *"Let's navigate to the Student Management module. In standard legacy databases, student phone numbers and technical skills are often stored as comma-separated text strings, directly violating First Normal Form (1NF).*
+> *"Let's navigate to the Student Management module. In standard legacy databases, student phone numbers and technical skills are often stored as comma-separated text strings, directly violating First Normal Form (1NF).
 >
-> *In our relational architecture, we strictly decomposed multivalued attributes into dedicated child relation tables: `STUDENT_PHONE` and `STUDENT_SKILL` with composite primary keys `(Student_ID, Phone_No)` and `(Student_ID, Skill)`.*
+> In our relational architecture, we strictly decomposed multivalued attributes into dedicated child relation tables: `STUDENT_PHONE` and `STUDENT_SKILL` with composite primary keys `(Student_ID, Phone_No)` and `(Student_ID, Skill)`.
 >
-> *On Aarav's profile, notice our semester tracking in `SEMESTER_RESULT`. We enforce composite uniqueness on `(Student_ID, Semester)`—preventing duplicate results for the same academic term, while CHECK constraints guarantee SGPAs remain strictly within the 0.00 to 10.00 scale."*
+> On Aarav's profile, notice his academic standing and career outcome. All tables in this master domain satisfy Boyce-Codd Normal Form (BCNF) with verified primary and candidate keys."*
 
 ---
 
-## 📍 Module 3: Corporate Hierarchy & Recruitment Pipeline (2:00 – 3:15)
+## 📍 Module 3: Corporate Hierarchy & Hiring Records (2:00 – 3:15)
 
 ### Actions to Perform:
 1. Click **"Companies"** (`/companies`) in the sidebar.
 2. In the Search bar, filter by category: select **"Product"**.
-3. Click on **"Google India"** (`/companies/1`).
-4. Walk the committee through the **Recruitment Foreign Key Hierarchy**:
-   - `COMPANY`: Corporate entity metadata, industry sector, and category.
-   - `RECRUITMENT_DRIVE`: Seasonal campus drive partitioned by `Drive_Year` and `Season`.
-   - `OPPORTUNITY`: Open roles (e.g., Software Engineer L3, CTC 42.0 LPA).
-   - `ELIGIBILITY` & `ELIGIBILITY_BRANCH`: Minimum CGPA (8.50), max backlogs (0), and allowed branches (CSE, IT).
-   - `SELECTION_PROCESS`: Multi-round pipeline (Online Coding Challenge $\rightarrow$ Technical Interview 1 $\rightarrow$ System Design $\rightarrow$ Googliness/HR).
-   - `PLACEMENT`: Recruited students list.
+3. Click on a company record (`/companies/1`).
+4. Walk the committee through the **Canonical Corporate Relationship Design**:
+   - `COMPANY`: Corporate entity metadata, industry sector, location, and category.
+   - **Placement Offers Card** (Left): Shows all graduate offers issued by this company (`PLACEMENT`).
+   - **Internship Engagements Card** (Right): Shows all student internships hosted by this company (`INTERNSHIP`).
 5. Highlight **Referential Integrity Design**:
-   - Point to the "Delete Company" button. Explain that `ON DELETE RESTRICT` protects Google India from accidental deletion because active placed students exist.
+   - Point to the "Delete Company" button. Explain that `ON DELETE RESTRICT` protects the corporate partner from accidental deletion because active placed students or interns exist.
 
 ### Spoken Script:
-> *"Next, let's examine our corporate recruitment pipeline. The schema models a clean five-tier foreign key hierarchy:*
-> 1. *`COMPANY` represents the hiring partner.*
-> 2. *`RECRUITMENT_DRIVE` captures seasonal campus recruitment drives.*
-> 3. *`OPPORTUNITY` defines open designations and compensation packages.*
-> 4. *`ELIGIBILITY` establishes minimum CGPA and allowed engineering branches.*
-> 5. *`SELECTION_PROCESS` models sequential interview rounds.*
+> *"Next, let's examine our corporate hiring records. The canonical schema models clean relational connections directly between companies, student placements, and internships:
+> 1. `COMPANY` represents the verified hiring partner.
+> 2. `PLACEMENT` captures full-time employment offers, compensation packages, and joined outcomes.
+> 3. `INTERNSHIP` records curricular practical training and degree internship fulfillment.
 >
-> *Notice our referential integrity design: we enforce `ON DELETE RESTRICT` on companies. If an administrator attempts to delete Google India while students hold offers, MySQL immediately aborts the deletion to protect institutional career history. Conversely, dependent selection rounds and eligibility records use `ON DELETE CASCADE` under their parent opportunity."*
+> Notice our referential integrity design: we enforce `ON DELETE RESTRICT` on companies. If an administrator attempts to delete a company while students hold offers or completed internships, MySQL immediately aborts the deletion (error 1451) to protect institutional career history. Conversely, evaluated skills in `PLACEMENT_SKILL` use `ON DELETE CASCADE` under their parent offer."*
 
 ---
 
@@ -162,17 +157,18 @@ Before calling the professors to your screen, ensure:
      * Partially Compliant: Completed I1, pending I2.
      * Missing Mandatory: Flagged students requiring academic dean intervention.
 4. Explain the **Academic Prerequisite Rule**:
-   - Mandatory Summer Internship 1 (after Sem 4) evaluates **Semester 3 SGPA** ($\ge 6.00$).
-   - Mandatory Summer Internship 2 (after Sem 5) evaluates **Semester 5 SGPA** ($\ge 6.00$).
+   - Mandatory Summer Internship 1 (after Sem 4, evaluated in Semester 5, 4 credits).
+   - Mandatory Internship 2 (done in 8th semester, report submitted after the end of 8th semester, 4 credits).
 5. Click on an internship record (`/internships/1`) to show the dossier:
-   - Start Date, End Date, Duration, Stipend, Submission Semester, Report Grade, and Verified Certificate link.
+   - Start Date, End Date, Dynamic Duration (via `V_INTERNSHIP_DETAIL`), Stipend, Report Semester, Grade, and Certificate link.
 
 ### Spoken Script:
-> *"In university academic governance, degree fulfillment requires mandatory summer internships between semesters. Our system enforces strict prerequisite verification:*
-> - *Internship 1 is completed during the summer break after Semester 4, and its eligibility is evaluated against the student's **Semester 3 SGPA** (minimum 6.00).*
-> - *Internship 2 is completed during the third-year summer break, after Semester 5, and its eligibility is evaluated against the student's **Semester 5 SGPA** (minimum 6.00).*
+> *"In university academic governance, degree fulfillment requires mandatory internships. Our system enforces strict curriculum rules directly in MySQL:
+> - Internship 1 is completed during the summer break after Semester 4, carrying 4 credits with report submitted in Semester 5.
+> - Internship 2: done in 8th semester, report submitted after the end of 8th semester, carrying 4 credits (Report_Semester = 8).
+> - Additional internships (No. 3 and above) are voluntary and optional.
 >
-> *Using dynamic SQL joins between `INTERNSHIP`, `INTERNSHIP_REQUIREMENT`, and `SEMESTER_RESULT`, our system validates prerequisite compliance and flags students who have not completed their degree-fulfilling internships. This allows the academic committee to conduct graduation audits proactively."*
+> Enforced by the `chk_internship_curriculum` constraint and checked in the Python service layer, duration is computed on the fly through view `V_INTERNSHIP_DETAIL` using DATEDIFF, storing zero redundant weeks or months."*
 
 ---
 

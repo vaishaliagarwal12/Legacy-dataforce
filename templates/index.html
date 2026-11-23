@@ -138,14 +138,14 @@
             <span class="metric-label">Internship Requirements</span>
             <span class="metric-value">/api/internships/requirements</span>
             <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                Requirement 1: Sem 3 SGPA (Summer after 2nd yr); Requirement 2: Sem 5 SGPA (Summer after 3rd yr).
+                Requirement 1: Sem 5 Report, 4 Credits (Summer after 2nd yr); Requirement 2: done in 8th semester, report submitted after the end of 8th semester (Sem 8 Report, 4 Credits).
             </p>
         </div>
         <div class="metric-item">
-            <span class="metric-label">Prerequisite SGPA Join</span>
+            <span class="metric-label">Mandatory Internship Audit</span>
             <span class="metric-value">/api/internships/analytics/prerequisite-sgpa</span>
             <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                Dynamically joins <code>INTERNSHIP &rarr; REQUIREMENT &rarr; SEMESTER_RESULT</code>. Zero redundant SGPA storage (3NF).
+                Relational join <code>INTERNSHIP &rarr; STUDENT &rarr; COMPANY</code> enforcing curriculum compliance with zero redundancy.
             </p>
         </div>
         <div class="metric-item">

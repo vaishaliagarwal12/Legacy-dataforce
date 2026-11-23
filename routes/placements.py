@@ -109,15 +109,15 @@ def api_placement_analytics():
 
 @placement_bp.route("/check-eligibility", methods=["GET"])
 def api_check_eligibility():
-    """Evaluates candidate eligibility against an opportunity opening."""
+    """Evaluates candidate eligibility based on student academic record."""
     student_id = request.args.get("student_id", type=int)
     opportunity_id = request.args.get("opportunity_id", type=int)
-    if not student_id or not opportunity_id:
+    if not student_id:
         return (
             jsonify(
                 {
                     "status": "error",
-                    "message": "Both student_id and opportunity_id query parameters are required.",
+                    "message": "student_id query parameter is required.",
                 }
             ),
             400,

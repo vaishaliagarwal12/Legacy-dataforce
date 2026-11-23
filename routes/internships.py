@@ -6,8 +6,6 @@ from services import (
     list_internships,
     update_internship,
     delete_internship,
-    list_requirements,
-    get_requirement,
     get_mandatory_internships_with_prerequisite_sgpa,
     get_students_missing_mandatory_internships,
     check_internship_eligibility,
@@ -16,6 +14,31 @@ from services import (
     get_internship_dashboard_analytics,
     get_pending_internship_reports,
 )
+
+CANONICAL_REQUIREMENTS = [
+    {
+        "Requirement_ID": 1,
+        "Internship_No": 1,
+        "Mandatory": "Yes",
+        "Internship_Type": "Mandatory",
+        "Prescribed_Period": "Summer Vacation after 2nd Year",
+        "Report_Submission_Semester": 5,
+        "Report_Semester": 5,
+        "Credits": 4,
+        "Description": "Done in summer vacation after 2nd year; report submitted in semester 5.",
+    },
+    {
+        "Requirement_ID": 2,
+        "Internship_No": 2,
+        "Mandatory": "Yes",
+        "Internship_Type": "Mandatory",
+        "Prescribed_Period": "During 8th semester",
+        "Report_Submission_Semester": 8,
+        "Report_Semester": 8,
+        "Credits": 4,
+        "Description": "Done during the 8th semester; report submitted after the end of the 8th semester.",
+    },
+]
 
 
 @internship_bp.route("", methods=["POST"])
@@ -140,14 +163,15 @@ def api_delete_internship(internship_id: int):
 @internship_bp.route("/requirements", methods=["GET"])
 def api_list_requirements():
     """Lists the official mandatory internship requirements."""
-    requirements = list_requirements()
-    return jsonify({"status": "success", "total": len(requirements), "data": requirements}), 200
+    return jsonify({"status": "success", "total": len(CANONICAL_REQUIREMENTS), "data": CANONICAL_REQUIREMENTS}), 200
 
 
 @internship_bp.route("/requirements/<int:req_id>", methods=["GET"])
 def api_get_requirement(req_id: int):
     """Retrieves an official internship requirement by ID."""
-    req = get_requirement(req_id)
+    req = next((r for r in CANONICAL_REQUIREMENTS if r["Requirement_ID"] == req_id), None)
+    if not req:
+        return jsonify({"status": "error", "message": f"Requirement with ID {req_id} not found."}), 404
     return jsonify({"status": "success", "data": req}), 200
 
 
@@ -158,16 +182,13 @@ def api_get_requirement(req_id: int):
 
 @internship_bp.route("/analytics/prerequisite-sgpa", methods=["GET"])
 def api_prerequisite_sgpa_join():
-    """Demonstrates 3NF normalization: dynamically fetches Sem 3 SGPA (Internship 1)
-    and Sem 5 SGPA (Internship 2) by joining internship -> requirement -> semester result
-    without redundant SGPA storage.
-    """
+    """Retrieves mandatory internships joined with Student and Company."""
     records = get_mandatory_internships_with_prerequisite_sgpa()
     return (
         jsonify(
             {
                 "status": "success",
-                "description": "Prerequisite SGPA fetched dynamically via INTERNSHIP -> INTERNSHIP_REQUIREMENT -> SEMESTER_RESULT (Zero redundancy)",
+                "description": "Student and company records fetched dynamically via INTERNSHIP -> STUDENT and INTERNSHIP -> COMPANY (Zero redundancy)",
                 "total": len(records),
                 "data": records,
             }
@@ -232,7 +253,7 @@ def api_pending_internship_reports():
 
 @internship_bp.route("/check-eligibility", methods=["GET"])
 def api_check_internship_eligibility():
-    """Evaluates student academic eligibility for an internship using actual SEMESTER_RESULT records."""
+    """Evaluates student academic eligibility for an internship using student CGPA and backlogs."""
     student_id = request.args.get("student_id", type=int)
     internship_no = request.args.get("internship_no", default=1, type=int)
     min_sgpa = request.args.get("min_sgpa", default=6.00, type=float)

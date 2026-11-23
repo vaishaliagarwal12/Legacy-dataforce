@@ -136,18 +136,13 @@ class TestPlacementServiceUnit:
             assert "Accepted_Company" in s
 
     def test_check_candidate_eligibility_for_opportunity(
-        self, app, clean_test_student, clean_test_drive_and_opp
+        self, app, clean_test_student
     ):
-        """Verifies candidate eligibility checks for branch, CGPA, and backlog thresholds."""
+        """Verifies candidate eligibility checks for student CGPA and backlogs."""
         student = clean_test_student
-        opp = clean_test_drive_and_opp["opportunity"]
-
-        # Student CGPA is 8.75, opp Minimum_CGPA is 7.00, branch matches -> Eligible
-        eval_result = check_candidate_eligibility_for_opportunity(
-            student["Student_ID"], opp["Opportunity_ID"]
-        )
+        eval_result = check_candidate_eligibility_for_opportunity(student["Student_ID"])
         assert eval_result["is_eligible"] is True
-        assert len(eval_result["violations"]) == 0
+        assert eval_result["student"]["CGPA"] >= 6.0
 
 
 class TestInternshipServiceUnit:
@@ -170,11 +165,10 @@ class TestInternshipServiceUnit:
         assert determine_internship_status("2026-01-01", "2027-01-01", None) == "In Progress"
 
     def test_check_internship_academic_eligibility(self, app):
-        """Verifies prerequisite SGPA checks for mandatory internships."""
-        # Student 1 has Sem 3 SGPA >= 6.0 in seed data
+        """Verifies academic eligibility checks for mandatory internships."""
         eval_i1 = check_internship_eligibility(student_id=1, internship_no=1)
         assert "is_eligible" in eval_i1
-        assert eval_i1["required_result_semester"] == 3
+        assert eval_i1["is_eligible"] is True
 
 
 class TestCompanyServiceUnit:

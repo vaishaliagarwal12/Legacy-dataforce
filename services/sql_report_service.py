@@ -626,11 +626,11 @@ GROUP BY CASE WHEN p.Joined = 'Yes' THEN 'Placed Students' ELSE 'Non-Placed Stud
     SELECT
         s.Branch,
         COUNT(DISTINCT s.Student_ID) AS Total_Students,
-        COUNT(DISTINCT CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN s.Student_ID END) AS Placed_Students,
+        COUNT(DISTINCT CASE WHEN p.Joined = 'Yes' THEN s.Student_ID END) AS Placed_Students,
         COUNT(p.Placement_ID) AS Total_Offers,
-        ROUND(AVG(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package END), 2) AS Avg_Package,
-        MAX(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package END) AS Highest_Package,
-        MIN(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package END) AS Lowest_Package
+        ROUND(AVG(CASE WHEN p.Joined = 'Yes' THEN p.Package END), 2) AS Avg_Package,
+        MAX(CASE WHEN p.Joined = 'Yes' THEN p.Package END) AS Highest_Package,
+        MIN(CASE WHEN p.Joined = 'Yes' THEN p.Package END) AS Lowest_Package
     FROM STUDENT s
     LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID
     GROUP BY s.Branch
@@ -647,7 +647,7 @@ BranchMedians AS (
             COUNT(*) OVER (PARTITION BY s.Branch) AS total_count
         FROM PLACEMENT p
         JOIN STUDENT s ON p.Student_ID = s.Student_ID
-        WHERE (p.Joined = 'Yes' OR p.Offer_Status = 'Joined')
+        WHERE p.Joined = 'Yes'
     ) ranked
     WHERE row_num IN (FLOOR((total_count + 1) / 2), CEIL((total_count + 1) / 2))
     GROUP BY Branch
@@ -679,12 +679,12 @@ ORDER BY b.Branch ASC;""",
         p.Placement_Year,
         COUNT(p.Placement_ID) AS Total_Offers,
         COUNT(DISTINCT p.Student_ID) AS Total_Candidates_Offered,
-        COUNT(DISTINCT CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Student_ID END) AS Placed_Count,
+        COUNT(DISTINCT CASE WHEN p.Joined = 'Yes' THEN p.Student_ID END) AS Placed_Count,
         ROUND(AVG(p.Package), 2) AS Avg_Offered_Package,
-        ROUND(AVG(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package END), 2) AS Avg_Accepted_Package,
+        ROUND(AVG(CASE WHEN p.Joined = 'Yes' THEN p.Package END), 2) AS Avg_Accepted_Package,
         MAX(p.Package) AS Highest_Package,
         MIN(p.Package) AS Lowest_Package,
-        ROUND(SUM(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package ELSE 0 END), 2) AS Total_Accepted_Volume
+        ROUND(SUM(CASE WHEN p.Joined = 'Yes' THEN p.Package ELSE 0 END), 2) AS Total_Accepted_Volume
     FROM PLACEMENT p
     JOIN STUDENT s ON p.Student_ID = s.Student_ID
     GROUP BY p.Placement_Year
@@ -725,7 +725,7 @@ ORDER BY Placement_Year DESC;""",
         COUNT(*) OVER (PARTITION BY s.Branch) AS total_count
     FROM PLACEMENT p
     JOIN STUDENT s ON p.Student_ID = s.Student_ID
-    WHERE (p.Joined = 'Yes' OR p.Offer_Status = 'Joined')
+    WHERE p.Joined = 'Yes'
 ),
 BranchMedians AS (
     SELECT
@@ -745,7 +745,7 @@ BranchStats AS (
         ROUND(STDDEV_POP(p.Package), 2) AS Std_Dev
     FROM PLACEMENT p
     JOIN STUDENT s ON p.Student_ID = s.Student_ID
-    WHERE (p.Joined = 'Yes' OR p.Offer_Status = 'Joined')
+    WHERE p.Joined = 'Yes'
     GROUP BY s.Branch
 )
 SELECT
@@ -776,12 +776,12 @@ ORDER BY Branch_Rank ASC;""",
         c.Location,
         COUNT(p.Placement_ID) AS Total_Offers_Extended,
         COUNT(DISTINCT p.Student_ID) AS Distinct_Candidates_Offered,
-        COUNT(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN 1 END) AS Accepted_Offers,
+        COUNT(CASE WHEN p.Joined = 'Yes' THEN 1 END) AS Accepted_Offers,
         ROUND(AVG(p.Package), 2) AS Avg_Offered_Package,
-        ROUND(AVG(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package END), 2) AS Avg_Accepted_Package,
+        ROUND(AVG(CASE WHEN p.Joined = 'Yes' THEN p.Package END), 2) AS Avg_Accepted_Package,
         MAX(p.Package) AS Highest_Package,
         MIN(p.Package) AS Lowest_Package,
-        ROUND(SUM(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package ELSE 0 END), 2) AS Total_Compensation_Committed
+        ROUND(SUM(CASE WHEN p.Joined = 'Yes' THEN p.Package ELSE 0 END), 2) AS Total_Compensation_Committed
     FROM COMPANY c
     LEFT JOIN PLACEMENT p ON c.Company_ID = p.Company_ID
     GROUP BY c.Company_ID, c.Company_Name, c.Company_Type, c.Industry, c.Location
@@ -824,8 +824,8 @@ ORDER BY Accepted_Offers DESC, Total_Offers_Extended DESC;""",
         MAX(p.Package) AS Highest_Offer,
         MIN(p.Package) AS Lowest_Offer,
         ROUND(MAX(p.Package) - MIN(p.Package), 2) AS Package_Spread,
-        MAX(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN c.Company_Name END) AS Joined_Company,
-        MAX(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package END) AS Joined_Package,
+        MAX(CASE WHEN p.Joined = 'Yes' THEN c.Company_Name END) AS Joined_Company,
+        MAX(CASE WHEN p.Joined = 'Yes' THEN p.Package END) AS Joined_Package,
         GROUP_CONCAT(CONCAT(c.Company_Name, ' (', p.Package, ' LPA - ', p.Offer_Status, ')') ORDER BY p.Package DESC SEPARATOR ' | ') AS All_Offers
     FROM STUDENT s
     JOIN PLACEMENT p ON s.Student_ID = p.Student_ID
@@ -898,7 +898,7 @@ ORDER BY Branch ASC;""",
         ROW_NUMBER() OVER (PARTITION BY s.Branch ORDER BY s.CGPA DESC) AS Branch_Priority_Rank,
         DENSE_RANK() OVER (ORDER BY s.CGPA DESC) AS Overall_CGPA_Rank
     FROM STUDENT s
-    LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID AND (p.Joined = 'Yes' OR p.Offer_Status = 'Joined')
+    LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID AND p.Joined = 'Yes'
     WHERE p.Placement_ID IS NULL
 )
 SELECT * FROM UnplacedStudents ORDER BY Branch, Branch_Priority_Rank;""",
@@ -920,8 +920,8 @@ SELECT * FROM UnplacedStudents ORDER BY Branch, Branch_Priority_Rank;""",
             WHEN s.CGPA >= 6.0 THEN '4. 6.0 - 6.99 (Eligible / Pass)'
             ELSE '5. Below 6.0 (Under Cutoff)'
         END AS CGPA_Band,
-        CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN 1 ELSE 0 END AS Is_Placed,
-        CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package END AS Placed_Package,
+        CASE WHEN p.Joined = 'Yes' THEN 1 ELSE 0 END AS Is_Placed,
+        CASE WHEN p.Joined = 'Yes' THEN p.Package END AS Placed_Package,
         p.Placement_ID
     FROM STUDENT s
     LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID
@@ -942,73 +942,71 @@ ORDER BY CGPA_Band ASC;""",
     },
     {
         "id": "report_drive_performance",
-        "title": "E9. Recruitment Drive Conversion & Hiring Yield",
+        "title": "E9. Corporate Hiring Yield & Acceptance Conversion",
         "group": "Executive Reports",
-        "dbms_concept": "Four-table equi-join traversing RECRUITMENT_DRIVE, COMPANY, OPPORTUNITY, and PLACEMENT computing selection yield and classifying performance via DENSE_RANK().",
-        "sql": """WITH DriveStats AS (
+        "dbms_concept": "Aggregation joining COMPANY and PLACEMENT computing selection conversion yield (Joined / Total Offers) and classifying corporate recruitment volume via DENSE_RANK().",
+        "sql": """WITH CompanyHiringStats AS (
     SELECT
-        rd.Drive_ID,
+        c.Company_ID,
         c.Company_Name,
         c.Company_Type,
-        rd.Drive_Year,
-        rd.Drive_Type,
-        rd.Season,
-        rd.Drive_Date,
-        COUNT(DISTINCT o.Opportunity_ID) AS Total_Opportunities,
+        c.Industry,
+        p.Placement_Year,
         COUNT(p.Placement_ID) AS Total_Offers_Extended,
-        COUNT(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN 1 END) AS Accepted_Hires,
+        COUNT(CASE WHEN p.Offer_Status = 'Accepted' THEN 1 END) AS Accepted_Offers,
+        COUNT(CASE WHEN p.Joined = 'Yes' THEN 1 END) AS Joined_Hires,
         ROUND(AVG(p.Package), 2) AS Avg_Package_Offered,
-        ROUND(AVG(CASE WHEN p.Joined = 'Yes' OR p.Offer_Status = 'Joined' THEN p.Package END), 2) AS Avg_Accepted_Package,
+        ROUND(AVG(CASE WHEN p.Joined = 'Yes' THEN p.Package END), 2) AS Avg_Joined_Package,
         MAX(p.Package) AS Highest_Package
-    FROM RECRUITMENT_DRIVE rd
-    JOIN COMPANY c ON rd.Company_ID = c.Company_ID
-    LEFT JOIN OPPORTUNITY o ON rd.Drive_ID = o.Drive_ID
-    LEFT JOIN PLACEMENT p ON o.Opportunity_ID = p.Opportunity_ID
-    GROUP BY rd.Drive_ID, c.Company_Name, c.Company_Type, rd.Drive_Year, rd.Drive_Type, rd.Season, rd.Drive_Date
+    FROM COMPANY c
+    JOIN PLACEMENT p ON c.Company_ID = p.Company_ID
+    GROUP BY c.Company_ID, c.Company_Name, c.Company_Type, c.Industry, p.Placement_Year
 )
 SELECT
-    d.*,
-    ROUND(COALESCE(100.0 * Accepted_Hires / NULLIF(Total_Offers_Extended, 0), 0), 1) AS Acceptance_Rate,
-    DENSE_RANK() OVER (ORDER BY Total_Offers_Extended DESC, Accepted_Hires DESC) AS Drive_Rank
-FROM DriveStats d
-ORDER BY Drive_Year DESC, Total_Offers_Extended DESC;""",
+    chs.*,
+    ROUND(COALESCE(100.0 * Joined_Hires / NULLIF(Total_Offers_Extended, 0), 0), 1) AS Conversion_Rate,
+    DENSE_RANK() OVER (PARTITION BY Placement_Year ORDER BY Total_Offers_Extended DESC, Joined_Hires DESC) AS Year_Company_Rank
+FROM CompanyHiringStats chs
+ORDER BY Placement_Year DESC, Total_Offers_Extended DESC;""",
         "params": [],
     },
     {
         "id": "report_semester_performance",
-        "title": "E10. Semester Academic Progression & SGPA Trend Analysis",
+        "title": "E10. Student Academic & Career Progression Trajectory",
         "group": "Executive Reports",
-        "dbms_concept": "Academic result evaluation computing Pass and Distinction rates, tracking student cohort trajectory via LAG() window functions across curriculum semesters, and ranking branches within each semester.",
-        "sql": """WITH SemStats AS (
+        "dbms_concept": "Cohort trajectory evaluation grouping by Branch and Batch_Year, computing placement rates and internship compliance, and calculating inter-cohort delta via LAG() window functions.",
+        "sql": """WITH CohortStats AS (
     SELECT
-        sr.Semester,
         s.Branch,
-        COUNT(sr.Result_ID) AS Total_Students_Evaluated,
-        ROUND(AVG(sr.SGPA), 2) AS Avg_SGPA,
-        MAX(sr.SGPA) AS Highest_SGPA,
-        MIN(sr.SGPA) AS Lowest_SGPA,
-        COUNT(CASE WHEN sr.SGPA >= 6.0 THEN 1 END) AS Pass_Count,
-        COUNT(CASE WHEN sr.SGPA >= 8.0 THEN 1 END) AS Distinction_Count,
-        ROUND(100.0 * COUNT(CASE WHEN sr.SGPA >= 6.0 THEN 1 END) / COUNT(sr.Result_ID), 1) AS Pass_Rate,
-        ROUND(100.0 * COUNT(CASE WHEN sr.SGPA >= 8.0 THEN 1 END) / COUNT(sr.Result_ID), 1) AS Distinction_Rate
-    FROM SEMESTER_RESULT sr
-    JOIN STUDENT s ON sr.Student_ID = s.Student_ID
-    GROUP BY sr.Semester, s.Branch
+        s.Batch_Year,
+        COUNT(DISTINCT s.Student_ID) AS Total_Students,
+        ROUND(AVG(s.CGPA), 2) AS Avg_CGPA,
+        COUNT(DISTINCT CASE WHEN p.Joined = 'Yes' THEN s.Student_ID END) AS Placed_Count,
+        COUNT(DISTINCT CASE WHEN i.Internship_No = 1 AND i.Internship_Type = 'Mandatory' THEN s.Student_ID END) AS I1_Compliant,
+        COUNT(DISTINCT CASE WHEN i.Internship_No = 2 AND i.Internship_Type = 'Mandatory' THEN s.Student_ID END) AS I2_Compliant,
+        ROUND(COALESCE(AVG(p.Package), 0), 2) AS Avg_Placement_Package,
+        MAX(p.Package) AS Max_Package
+    FROM STUDENT s
+    LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID
+    LEFT JOIN INTERNSHIP i ON s.Student_ID = i.Student_ID
+    GROUP BY s.Branch, s.Batch_Year
 )
 SELECT
-    Semester,
     Branch,
-    Total_Students_Evaluated,
-    Avg_SGPA,
-    Highest_SGPA,
-    Lowest_SGPA,
-    Pass_Rate,
-    Distinction_Rate,
-    LAG(Avg_SGPA) OVER (PARTITION BY Branch ORDER BY Semester ASC) AS Prev_Sem_Avg,
-    ROUND(COALESCE(Avg_SGPA - LAG(Avg_SGPA) OVER (PARTITION BY Branch ORDER BY Semester ASC), 0), 2) AS SGPA_Progression,
-    DENSE_RANK() OVER (PARTITION BY Semester ORDER BY Avg_SGPA DESC) AS Sem_Branch_Rank
-FROM SemStats
-ORDER BY Semester ASC, Sem_Branch_Rank ASC;""",
+    Batch_Year,
+    Total_Students,
+    Avg_CGPA,
+    Placed_Count,
+    ROUND(100.0 * Placed_Count / NULLIF(Total_Students, 0), 1) AS Placement_Rate,
+    I1_Compliant,
+    I2_Compliant,
+    Avg_Placement_Package,
+    Max_Package,
+    LAG(Avg_CGPA) OVER (PARTITION BY Branch ORDER BY Batch_Year ASC) AS Prev_Batch_CGPA,
+    ROUND(COALESCE(Avg_CGPA - LAG(Avg_CGPA) OVER (PARTITION BY Branch ORDER BY Batch_Year ASC), 0), 2) AS CGPA_YoY_Delta,
+    DENSE_RANK() OVER (PARTITION BY Batch_Year ORDER BY Placed_Count DESC, Avg_Placement_Package DESC) AS Batch_Branch_Rank
+FROM CohortStats
+ORDER BY Batch_Year DESC, Batch_Branch_Rank ASC;""",
         "params": [],
     },
 ]
@@ -1416,3 +1414,17 @@ def execute_custom_query(raw_sql: str) -> Dict[str, Any]:
             "execution_time_ms": elapsed_ms,
             "error": readable_msg,
         }
+
+
+# Aliases for cross-service and test compatibility
+validate_custom_query_safety = validate_custom_sql
+
+
+def is_safe_custom_sql(raw_sql: str) -> bool:
+    """Helper that returns True if raw_sql passes custom SQL validation, else False."""
+    try:
+        validate_custom_sql(raw_sql)
+        return True
+    except Exception:
+        return False
+

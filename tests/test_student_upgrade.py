@@ -96,20 +96,20 @@ class StudentUpgradeTestCase(unittest.TestCase):
             self.assertLessEqual(s["CGPA"], 9.0)
 
     def test_05_filter_by_placement_status(self):
-        """Verifies filtering by Placed, Unplaced, and Multiple offer statuses."""
-        # Placed
+        """Verifies filtering by Placed (Joined='Yes'), Unplaced (Joined='No'/None), and Multiple offer statuses."""
+        # Placed (Joined = 'Yes')
         res_placed = list_students(placement_status="Placed")
         placed_records = res_placed["results"] if isinstance(res_placed, dict) else res_placed
         for s in placed_records:
-            self.assertGreater(s["Placement_Offers"], 0)
+            self.assertGreater(s["Joined_Offers"], 0)
 
-        # Unplaced
+        # Unplaced (Not Joined)
         res_unplaced = list_students(placement_status="Unplaced")
         unplaced_records = (
             res_unplaced["results"] if isinstance(res_unplaced, dict) else res_unplaced
         )
         for s in unplaced_records:
-            self.assertEqual(s["Placement_Offers"], 0)
+            self.assertEqual(s["Joined_Offers"], 0)
 
         # Multiple Offers
         res_multi = list_students(placement_status="Multiple")
@@ -201,20 +201,15 @@ class StudentUpgradeTestCase(unittest.TestCase):
         self.assertIsInstance(student["Placements"], list)
 
     def test_08_student_detail_page_renders_all_sections(self):
-        """Verifies GET /students/<id> HTML view renders all 9 profile sections."""
+        """Verifies GET /students/<id> HTML view renders canonical profile sections."""
         res = self.client.get("/students/1")
         self.assertEqual(res.status_code, 200)
         html = res.get_data(as_text=True)
 
-        # Verify all 9 sections appear in the page
+        # Verify canonical 7-table sections appear in the page
         self.assertIn("Personal Details", html)
-        self.assertIn("Academic Details", html)
-        self.assertIn("Official Semester Results", html)
-        self.assertIn("Enrolled Courses", html)
+        self.assertIn("Academic Standing", html)
         self.assertIn("Technical Skills", html)
-        self.assertIn("Projects and Achievements", html)
-        self.assertIn("Resume Repository", html)
-        self.assertIn("Education Documents", html)
         self.assertIn("Internship History", html)
         self.assertIn("Placement Offers History", html)
 

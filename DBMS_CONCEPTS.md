@@ -93,17 +93,15 @@ Suppose an institution maintained an unnormalized single flat table `STUDENT_PLA
 > 2. No non-prime attribute is **partially functionally dependent** on any candidate key. Every non-prime attribute must depend on the **entire** candidate key.
 
 #### Project Decomposition Proof:
-Consider course enrollments. In an un-normalized intersection:
-- **Composite Primary Key**: `(Student_ID, Course_ID)`
-- **Functional Dependencies**:
-  - `(Student_ID, Course_ID) -> Grade, Enrollment_Year` (Full dependency)
-  - `Course_ID -> Course_Name, Department, Semester, Credits` (Partial dependency on a subset of the candidate key!)
-
-If `Course_Name` and `Credits` were stored in the enrollment table, modifying course credits would require updating thousands of student enrollment records.
+Consider a composite table storing student skills and proficiency ratings:
+- **Composite Primary Key**: `(Student_ID, Skill)`
+- If this table improperly stored student degree details: `(Student_ID, Skill) -> Student_Branch, CGPA`
+- `Student_ID -> Student_Branch, CGPA` would represent a **partial dependency** on a subset of the composite primary key.
 
 **2NF Resolution in Our Schema**:
-- Decomposed into `COURSE(Course_ID, Course_Name, Department, Semester, Credits, Course_Type)`.
-- The bridge table `STUDENT_COURSE(Student_ID, Course_ID, Enrollment_Year, Grade)` contains **only** attributes that depend on the full composite key `(Student_ID, Course_ID)`.
+- Decomposed into `STUDENT(Student_ID, Roll_No, First_Name, Last_Name, Branch, Batch_Year, CGPA, Backlogs, Email)`.
+- The child tables `STUDENT_PHONE(Student_ID, Phone_No)` and `STUDENT_SKILL(Student_ID, Skill)` are all-key relations with zero partial dependencies.
+- Similarly, `PLACEMENT_SKILL(Placement_ID, Skill)` has no non-prime attributes, fully satisfying 2NF.
 
 ---
 
@@ -121,11 +119,11 @@ Consider student placement offers:
   - `Company_ID -> Company_Name, Company_Location` (Non-prime transitive dependency!)
   - Therefore: `Placement_ID -> Company_Name` is a **transitive dependency**.
 
-If Google relocated, every placement row referencing Google would need updating.
+If a corporate partner updated its head office or name, every placement row referencing that company would require updating.
 
 **3NF Resolution in Our Schema**:
-- Decoupled into `COMPANY(Company_ID, Company_Name, Industry, Location, Website)` where `Company_ID` is the primary key.
-- `PLACEMENT` references `Company_ID` as a foreign key. Non-prime attributes in `PLACEMENT` (`Package`, `Placement_Year`, `Offer_Status`) depend strictly and directly on `Placement_ID`.
+- Decoupled into `COMPANY(Company_ID, Company_Name, Company_Type, Sector, Location, Website)` where `Company_ID` is the primary key.
+- `PLACEMENT` references `Company_ID` as a foreign key. Non-prime attributes in `PLACEMENT` (`Role`, `Package`, `Placement_Year`, `Offer_Status`, `Joined`) depend strictly and directly on `Placement_ID`.
 
 ---
 
@@ -133,15 +131,43 @@ If Google relocated, every placement row referencing Google would need updating.
 
 > **Definition**: A relation is in BCNF (a stricter variant of 3NF) if and only if for every non-trivial functional dependency $X \rightarrow Y$, the determinant $X$ is a **superkey**.
 
-#### Project Implementation in `COURSE`:
-In `COURSE(Course_ID, University_ID, Course_Name, Department, Semester, Credits, Course_Type)`:
-- Candidate Key 1: `Course_ID`
-- Candidate Key 2: `(University_ID, Course_Name, Semester)`
-- Functional Dependencies:
-  - `Course_ID -> University_ID, Course_Name, Department, Semester, Credits, Course_Type` ($Course_ID$ is a candidate key / superkey).
-  - `(University_ID, Course_Name, Semester) -> Course_ID, Department, Credits, Course_Type` ($University\_ID, Course\_Name, Semester$ is a candidate key / superkey).
+#### Project Implementation in `STUDENT` and `COMPANY`:
+In `STUDENT(Student_ID, Roll_No, First_Name, Last_Name, Branch, Batch_Year, CGPA, Backlogs, Email)`:
+- Candidate Key 1: `Student_ID`
+- Candidate Key 2: `Roll_No`
+- Candidate Key 3: `Email`
+- All functional dependencies have a candidate key / superkey as their determinant:
+  - `Student_ID -> {Roll_No, First_Name, Last_Name, Branch, Batch_Year, CGPA, Backlogs, Email}`
+  - `Roll_No -> {Student_ID, First_Name, Last_Name, Branch, Batch_Year, CGPA, Backlogs, Email}`
+  - `Email -> {Student_ID, Roll_No, First_Name, Last_Name, Branch, Batch_Year, CGPA, Backlogs}`
 
-Because every determinant in `COURSE` is a superkey, the table satisfies **BCNF**.
+Because every determinant is a superkey, `STUDENT`, `COMPANY`, and `PLACEMENT` fully satisfy **BCNF**.
+
+---
+
+### 1.7 Normal Form Truth & Intentional 1NF Denormalization in `INTERNSHIP`
+
+In this canonical 7-table architecture, normal forms are formally categorized:
+
+1. **Tables in BCNF**:
+   - `STUDENT`: BCNF
+   - `STUDENT_PHONE`: BCNF (all-key relation)
+   - `STUDENT_SKILL`: BCNF (all-key relation)
+   - `COMPANY`: BCNF
+   - `PLACEMENT`: BCNF
+   - `PLACEMENT_SKILL`: BCNF (all-key relation)
+
+2. **Table in 1NF (Intentional Denormalization)**:
+   - `INTERNSHIP`: Composite Primary Key is `(Student_ID, Internship_No)`.
+   - Institutional curriculum rules dictate:
+     - `Internship_No = 1` -> Mandatory, 4 credits, evaluated in Semester 5 (done in summer after 2nd year).
+     - `Internship_No = 2` -> Mandatory, 4 credits, evaluated in Semester 8 ("Internship 2: done in 8th semester, report submitted after the end of 8th semester.")
+     - `Internship_No >= 3` -> Additional voluntary internship.
+   - **Functional Dependency Analysis**:
+     $$\text{Internship\_No} \rightarrow \{\text{Internship\_Type}, \text{Credits}, \text{Report\_Semester}\}$$
+     Because `Internship_No` is a **proper subset** of the candidate key `(Student_ID, Internship_No)`, this dependency is a **partial functional dependency**.
+   - Therefore, `INTERNSHIP` formally **violates 2NF, 3NF, and BCNF**, remaining strictly in **1NF**.
+   - **Architectural Rationale**: Consolidating curriculum rules directly into `INTERNSHIP` via the database `chk_internship_curriculum` constraint allows the schema to be reduced to exactly 7 tables without maintaining a separate `INTERNSHIP_REQUIREMENT` table. Storing `Credits` and `Report_Semester` directly provides an immutable transcript snapshot for graduation compliance.
 
 ---
 
@@ -175,8 +201,9 @@ Because every determinant in `COURSE` is a superkey, the table satisfies **BCNF*
 #### Composite Key
 A primary key consisting of two or more attributes:
 - `STUDENT_PHONE`: `PRIMARY KEY (Student_ID, Phone_No)`
-- `STUDENT_COURSE`: `PRIMARY KEY (Student_ID, Course_ID)`
+- `STUDENT_SKILL`: `PRIMARY KEY (Student_ID, Skill)`
 - `PLACEMENT_SKILL`: `PRIMARY KEY (Placement_ID, Skill)`
+- `INTERNSHIP`: `PRIMARY KEY (Student_ID, Internship_No)`
 
 #### Surrogate Key vs. Natural Key Trade-Offs
 

@@ -126,23 +126,26 @@
                                 <span class="badge bg-primary-subtle text-primary fw-bold">{{ internship.Credits or 4 }} Credits</span>
                             </div>
                             <div class="col-6">
-                                <span class="text-muted d-block">Prerequisite Result Semester</span>
-                                <strong>{% if internship.Required_Result_Semester %}Semester {{ internship.Required_Result_Semester }}{% else %}None (Extracurricular){% endif %}</strong>
+                                <span class="text-muted d-block">Report Defense Semester</span>
+                                <strong>{% if internship.Report_Semester %}Semester {{ internship.Report_Semester }}{% else %}N/A (Extracurricular){% endif %}</strong>
                             </div>
                             <div class="col-6">
-                                <span class="text-muted d-block">Verified Prerequisite SGPA</span>
-                                {% if internship.Prerequisite_Semester_SGPA is not none %}
-                                    <span class="badge badge-status-success fs-6 fw-bold">
-                                        <i class="bi bi-link-45deg me-1"></i>{{ "%.2f"|format(internship.Prerequisite_Semester_SGPA) }} SGPA
-                                    </span>
-                                    <small class="text-muted d-block mt-1">{{ internship.Prerequisite_Credits or 24 }} Sem Credits</small>
-                                {% else %}
-                                    <span class="text-muted">&mdash;</span>
-                                {% endif %}
+                                <span class="text-muted d-block">Student CGPA</span>
+                                <span class="badge badge-status-success fs-6 fw-bold">
+                                    {{ "%.2f"|format(internship.CGPA or 8.0) }} CGPA
+                                </span>
                             </div>
                             <div class="col-12">
                                 <span class="text-muted d-block">Curriculum Requirement Rule</span>
-                                <div class="text-secondary small">{{ internship.Prescribed_Period or 'Additional voluntary industry training (Extracurricular)' }}</div>
+                                <div class="text-secondary small">
+                                    {% if internship.Internship_No == 1 and internship.Internship_Type == 'Mandatory' %}
+                                        Mandatory Internship 1: Done in summer vacation after 2nd year; report submitted in semester 5 (4 credits).
+                                    {% elif internship.Internship_No == 2 and internship.Internship_Type == 'Mandatory' %}
+                                        Internship 2: done in 8th semester, report submitted after the end of 8th semester (4 credits).
+                                    {% else %}
+                                        Additional voluntary industry training (Extracurricular).
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                     </div>

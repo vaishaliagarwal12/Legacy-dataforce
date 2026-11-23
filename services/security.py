@@ -49,3 +49,17 @@ def validate_safe_url(url: Optional[str], field_name: str = "URL") -> None:
         raise ValidationError(
             f"Invalid {field_name}: Only secure HTTP/HTTPS URLs are allowed (e.g., https://example.com)."
         )
+
+
+def validate_file_upload(filename: Optional[str], allowed_extensions: Optional[set] = None) -> None:
+    """Validates uploaded file extensions (e.g. pdf, doc, docx)."""
+    if not filename or not str(filename).strip():
+        return
+    if allowed_extensions is None:
+        allowed_extensions = {"pdf", "doc", "docx", "png", "jpg", "jpeg"}
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in allowed_extensions:
+        raise ValidationError(
+            f"File extension '.{ext}' is not permitted. Allowed: {', '.join(sorted(allowed_extensions))}"
+        )
+

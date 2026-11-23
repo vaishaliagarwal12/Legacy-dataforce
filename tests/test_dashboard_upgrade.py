@@ -32,24 +32,24 @@ class DashboardUpgradeTestCase(unittest.TestCase):
         # 2. Eligible Students (0 Backlogs and CGPA >= 6.0)
         self.assertEqual(kpi["eligible_students"], 27)
         # 3. Total Companies
-        self.assertEqual(kpi["total_companies"], 11)
-        # 4. Active Recruitment Drives
-        self.assertEqual(kpi["active_drives"], 21)
+        self.assertEqual(kpi["total_companies"], 10)
+        # 4. Active Recruitment Drives (0 in 7-table schema, represented by Accepted Offers)
+        self.assertEqual(kpi["active_drives"], 0)
         # 5. Total Placement Offers
-        self.assertEqual(kpi["total_offers"], 38)
-        # 6. Successfully Placed Students
+        self.assertEqual(kpi["total_offers"], 40)
+        # 6. Successfully Placed Students (Joined = 'Yes')
         self.assertEqual(kpi["placed_students"], 20)
         self.assertEqual(kpi["placement_rate"], 66.7)
-        # 7. Average Package (12.07 LPA)
-        self.assertAlmostEqual(kpi["avg_package"], 12.07, places=2)
-        # 8. Highest Package (19.50 LPA)
-        self.assertEqual(kpi["highest_package"], 19.50)
+        # 7. Average Package
+        self.assertAlmostEqual(kpi["avg_package"], 12.61, places=2)
+        # 8. Highest Package
+        self.assertEqual(kpi["highest_package"], 20.00)
 
         # Legacy backward-compatibility assertions
         self.assertEqual(stats["students"]["total"], 30)
-        self.assertEqual(stats["placements"]["total_offers"], 38)
-        self.assertEqual(stats["companies"]["total"], 11)
-        self.assertEqual(stats["internships"]["total"], 62)
+        self.assertEqual(stats["placements"]["total_offers"], 40)
+        self.assertEqual(stats["companies"]["total"], 10)
+        self.assertEqual(stats["internships"]["total"], 63)
 
     def test_02_branch_filter_calculations(self):
         """Verify KPI metrics correctly calculate when filtered by engineering discipline (CSE and ME)."""
@@ -58,11 +58,11 @@ class DashboardUpgradeTestCase(unittest.TestCase):
         cse_kpi = cse_stats["kpi"]
         self.assertEqual(cse_kpi["total_students"], 14)
         self.assertEqual(cse_kpi["eligible_students"], 14)
-        self.assertEqual(cse_kpi["placed_students"], 12)
-        self.assertEqual(cse_kpi["total_offers"], 25)
+        self.assertEqual(cse_kpi["placed_students"], 13)
+        self.assertEqual(cse_kpi["total_offers"], 28)
         self.assertEqual(cse_kpi["total_companies"], 8)
-        self.assertAlmostEqual(cse_kpi["avg_package"], 13.87, places=2)
-        self.assertEqual(cse_kpi["highest_package"], 19.50)
+        self.assertAlmostEqual(cse_kpi["avg_package"], 14.26, places=2)
+        self.assertEqual(cse_kpi["highest_package"], 20.00)
 
         # Mechanical Engineering (ME) Filter (Cohort with 0 placement offers)
         me_stats = get_dashboard_stats(filters={"branch": "ME"})
@@ -79,13 +79,12 @@ class DashboardUpgradeTestCase(unittest.TestCase):
         stats_2024 = get_dashboard_stats(filters={"batch_year": 2024})
         kpi_2024 = stats_2024["kpi"]
         self.assertTrue(kpi_2024["total_students"] > 0)
-        self.assertEqual(kpi_2024["active_drives"], 9)  # Drives in 2024 cycle
+        self.assertEqual(kpi_2024["total_offers"], 11)
 
         # Placement Year filter
         stats_py2022 = get_dashboard_stats(filters={"placement_year": 2022})
         kpi_py2022 = stats_py2022["kpi"]
         self.assertEqual(kpi_py2022["total_offers"], 10)
-        self.assertEqual(kpi_py2022["active_drives"], 4)
 
     def test_04_chart1_branchwise_placement_distribution(self):
         """Verify Chart 1: Branch-wise placement distribution data structure and accuracy."""
@@ -104,7 +103,7 @@ class DashboardUpgradeTestCase(unittest.TestCase):
         # Verify CSE values
         cse_idx = data["labels"].index("CSE")
         self.assertEqual(data["student_counts"][cse_idx], 14)
-        self.assertEqual(data["placed_students"][cse_idx], 12)
+        self.assertEqual(data["placed_students"][cse_idx], 13)
         self.assertEqual(data["eligible_students"][cse_idx], 14)
 
     def test_05_chart2_yearwise_placement_trends(self):
@@ -112,8 +111,8 @@ class DashboardUpgradeTestCase(unittest.TestCase):
         data = get_yearwise_placement_chart_data()
         self.assertFalse(data["is_empty"])
         self.assertEqual(data["labels"], ["2022", "2023", "2024", "2025"])
-        self.assertEqual(data["offer_counts"], [10, 6, 11, 11])
-        self.assertEqual(data["accepted_counts"], [6, 3, 5, 6])
+        self.assertEqual(data["offer_counts"], [10, 9, 11, 10])
+        self.assertEqual(data["accepted_counts"], [6, 4, 5, 5])
         self.assertEqual(len(data["avg_packages"]), 4)
 
     def test_06_chart3_package_distribution(self):
@@ -121,9 +120,9 @@ class DashboardUpgradeTestCase(unittest.TestCase):
         data = get_package_distribution_chart_data()
         self.assertFalse(data["is_empty"])
         self.assertEqual(len(data["labels"]), 4)
-        self.assertEqual(data["total_offers"], 38)
-        self.assertEqual(sum(data["counts"]), 38)
-        self.assertEqual(data["counts"], [11, 8, 7, 12])
+        self.assertEqual(data["total_offers"], 40)
+        self.assertEqual(sum(data["counts"]), 40)
+        self.assertEqual(data["counts"], [10, 8, 8, 14])
 
         # Verify percentages sum close to 100%
         self.assertAlmostEqual(sum(data["percentages"]), 100.0, delta=1.0)
@@ -137,7 +136,7 @@ class DashboardUpgradeTestCase(unittest.TestCase):
         self.assertEqual(len(data["placement_offers"]), len(data["total_internships"]))
 
         cse_idx = data["labels"].index("CSE")
-        self.assertEqual(data["placement_offers"][cse_idx], 25)
+        self.assertEqual(data["placement_offers"][cse_idx], 28)
         self.assertEqual(data["total_internships"][cse_idx], 32)
 
     def test_08_chart5_internship_completion(self):
@@ -153,8 +152,7 @@ class DashboardUpgradeTestCase(unittest.TestCase):
             ],
         )
         self.assertEqual(data["total_students"], 30)
-        self.assertEqual(data["counts"][0], 29)  # 29 fully completed
-        self.assertEqual(data["counts"][2], 1)  # 1 pending
+        self.assertEqual(data["counts"], [29, 1, 0])
         self.assertEqual(data["completion_rate"], 96.7)
 
     def test_09_chart6_multiple_offers_distribution(self):
@@ -171,8 +169,8 @@ class DashboardUpgradeTestCase(unittest.TestCase):
             ],
         )
         self.assertEqual(data["total_students"], 30)
-        self.assertEqual(data["counts"], [7, 10, 11, 2])
-        self.assertEqual(data["multiple_offer_students"], 13)
+        self.assertEqual(data["counts"], [7, 9, 11, 3])
+        self.assertEqual(data["multiple_offer_students"], 14)
 
     def test_10_empty_filter_state_handling(self):
         """Verify that out-of-range filters handle zero records gracefully with is_empty flags."""
@@ -238,7 +236,7 @@ class DashboardUpgradeTestCase(unittest.TestCase):
         self.assertIn("Total Students", html)
         self.assertIn("Eligible Students", html)
         self.assertIn("Total Companies", html)
-        self.assertIn("Active Recruitment Drives", html)
+        self.assertIn("Accepted Offers", html)
         self.assertIn("Total Placement Offers", html)
         self.assertIn("Successfully Placed Students", html)
         self.assertIn("Average Package", html)

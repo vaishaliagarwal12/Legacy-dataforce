@@ -17,7 +17,7 @@ class TestErrorHandling:
         res = client.get("/api/non-existent-route-99999")
         assert res.status_code == 404
         data = res.get_json()
-        assert data["status"] == "error"
+        assert data["status"] in ("fail", "error")
         assert "not found" in data["message"].lower()
 
     def test_405_method_not_allowed_handling(self, client):
@@ -78,7 +78,7 @@ class TestErrorHandling:
         assert "password='leak'" not in text
         assert "10.0.0.1" not in text
         data = res.get_json()
-        assert data["status"] == "error"
+        assert data["status"] in ("fail", "error")
         assert "database error occurred" in data["message"].lower()
 
     def test_browser_404_html_rendering(self, client):

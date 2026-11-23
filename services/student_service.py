@@ -121,7 +121,6 @@ def create_student(data: Dict[str, Any]) -> Dict[str, Any]:
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
 
-    # ATOMIC TRANSACTION: Insert student + dependent multivalued phones & skills
     with get_cursor(commit=True) as cursor:
         cursor.execute(
             insert_sql,
@@ -140,13 +139,11 @@ def create_student(data: Dict[str, Any]) -> Dict[str, Any]:
         )
         student_id = cursor.lastrowid
 
-        # Multivalued contact numbers
         if phone_numbers:
             phone_sql = "INSERT INTO STUDENT_PHONE (Student_ID, Phone_No) VALUES (%s, %s)"
             phone_tuples = [(student_id, phone) for phone in set(phone_numbers)]
             cursor.executemany(phone_sql, phone_tuples)
 
-        # Multivalued technical skills
         if skills:
             skill_sql = "INSERT INTO STUDENT_SKILL (Student_ID, Skill) VALUES (%s, %s)"
             skill_tuples = [(student_id, skill) for skill in set(skills)]
@@ -157,20 +154,16 @@ def create_student(data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def get_student(student_id: int) -> Dict[str, Any]:
-    """Retrieves full student details across all 9 profile sections:
-    1. Personal details
-    2. Academic details
-    3. Semester results
-    4. Registered courses
-    5. Technical skills
-    6. Projects and achievements
-    7. Resume and education documents
-    8. Internship history
-    9. Placement offers
+    """Retrieves full student details across canonical 7-table schema:
+    1. Personal details & Phone Numbers (STUDENT, STUDENT_PHONE)
+    2. Academic details (STUDENT)
+    3. Technical skills (STUDENT_SKILL)
+    4. Placement offers (PLACEMENT, COMPANY)
+    5. Internship history (INTERNSHIP, COMPANY)
     """
     student_sql = """
         SELECT Student_ID, Roll_No, First_Name, Last_Name, Branch, Batch_Year,
-               Section, CGPA, Backlogs, Email, Resume_Link
+               Section, CGPA, Backlogs, Email, Resume_Link, Date_of_Birth, Gender, Personal_Email
         FROM STUDENT
         WHERE Student_ID = %s
     """
@@ -182,84 +175,17 @@ def get_student(student_id: int) -> Dict[str, Any]:
     student["Full_Name"] = f"{student['First_Name']} {student.get('Last_Name') or ''}".strip()
     student["Is_Eligible"] = student["Backlogs"] == 0 and student["CGPA"] >= 6.0
 
-    # 1. Personal Details: Phone Numbers
+    # 1. Phone Numbers (STUDENT_PHONE)
     phones_sql = "SELECT Phone_No FROM STUDENT_PHONE WHERE Student_ID = %s ORDER BY Phone_No"
     phones = execute_query(phones_sql, (student_id,))
     student["Phone_Numbers"] = [p["Phone_No"] for p in phones]
 
-    # 2. Registered Courses
-    courses_sql = """
-        SELECT c.Course_ID, c.Course_Name, c.Department, c.Semester, c.Credits, c.Course_Type,
-               sc.Enrollment_Year, sc.Grade
-        FROM STUDENT_COURSE sc
-        JOIN COURSE c ON sc.Course_ID = c.Course_ID
-        WHERE sc.Student_ID = %s
-        ORDER BY sc.Enrollment_Year DESC, c.Semester ASC
-    """
-    student["Registered_Courses"] = execute_query(courses_sql, (student_id,))
-
-    # 3. Profiles: Projects, Achievements, Certifications, Hackathons
-    profiles_sql = """
-        SELECT Profile_ID, Profile_Type, Title, Description, Link, Year, Proficiency_Level
-        FROM STUDENT_PROFILE
-        WHERE Student_ID = %s
-        ORDER BY Year DESC, Profile_Type ASC
-    """
-    profiles = execute_query(profiles_sql, (student_id,))
-    student["Profiles"] = profiles
-    student["Projects"] = [
-        p for p in profiles if str(p.get("Profile_Type", "")).lower() in ("project", "research")
-    ]
-    student["Achievements"] = [
-        p
-        for p in profiles
-        if str(p.get("Profile_Type", "")).lower()
-        in ("hackathon", "achievement", "award", "certification", "codingprofile", "competitive")
-    ]
-
-    # 4. Technical Skills (STUDENT_SKILL + Profiles)
+    # 2. Technical Skills (STUDENT_SKILL)
     skills_sql = "SELECT Skill FROM STUDENT_SKILL WHERE Student_ID = %s ORDER BY Skill"
     skills = execute_query(skills_sql, (student_id,))
     student["Skills"] = [s["Skill"] for s in skills]
 
-    # 5. Semester Results (SGPA, Credits, Semester breakdown)
-    sem_sql = """
-        SELECT Result_ID, Semester, SGPA, Total_Credits, Year
-        FROM SEMESTER_RESULT
-        WHERE Student_ID = %s
-        ORDER BY Semester ASC
-    """
-    sem_rows = execute_query(sem_sql, (student_id,))
-    for sr in sem_rows:
-        sr["SGPA"] = float(sr["SGPA"])
-    student["Semester_Results"] = sem_rows
-
-    # 6. Uploaded Resumes
-    resume_sql = """
-        SELECT Resume_ID, File_Name, File_Link, Resume_Year, Upload_Date
-        FROM RESUME
-        WHERE Student_ID = %s
-        ORDER BY Resume_Year DESC, Upload_Date DESC
-    """
-    student["Resumes"] = execute_query(resume_sql, (student_id,))
-
-    # 7. Education Documents (10th/12th marksheets & certificates)
-    doc_sql = """
-        SELECT ed.Doc_ID, ed.Document_Type, ed.Board, ed.Percentage_CGPA, ed.Year_of_Passing, ed.File_Link,
-               r.File_Name AS Attached_Resume
-        FROM EDUCATION_DOCUMENT ed
-        JOIN RESUME r ON ed.Resume_ID = r.Resume_ID
-        WHERE r.Student_ID = %s
-        ORDER BY ed.Year_of_Passing ASC
-    """
-    doc_rows = execute_query(doc_sql, (student_id,))
-    for dr in doc_rows:
-        dr["Percentage_CGPA"] = (
-            float(dr["Percentage_CGPA"]) if dr.get("Percentage_CGPA") is not None else None
-        )
-    student["Education_Documents"] = doc_rows
-
-    # 8. Placement Offers (with Recruiting Company details)
+    # 3. Placement Offers (PLACEMENT + COMPANY)
     placements_sql = """
         SELECT p.Placement_ID, p.Role, p.Package, p.Placement_Year, p.Placement_Type,
                p.Is_PPO, p.Joined, p.Offer_Status, p.Interview_Rounds,
@@ -274,70 +200,60 @@ def get_student(student_id: int) -> Dict[str, Any]:
         pl["Package"] = float(pl["Package"])
     student["Placements"] = placements
     student["Placement_Count"] = len(placements)
+    # Check if student joined an offer
+    joined_offer = next((p for p in placements if p["Joined"] == "Yes"), None)
+    student["Joined_Offer"] = joined_offer
+    student["Placed_Company"] = joined_offer["Company_Name"] if joined_offer else None
+    student["Placed_Package"] = joined_offer["Package"] if joined_offer else None
+    student["Is_Placed"] = joined_offer is not None
+    student["Placed"] = "Yes" if student["Is_Placed"] else "No"
 
-    # 9. Internships (Mandatory #1, #2, and Additional with Company details)
+    # 4. Internships (INTERNSHIP + COMPANY)
     internships_sql = """
         SELECT i.Internship_ID, i.Internship_No, i.Internship_Type, i.Role,
                i.Stipend, i.Start_Date, i.End_Date, i.Credits,
                i.Report_Semester, i.Report_Grade, i.Report_Link, i.Certificate_Link,
-               c.Company_ID, c.Company_Name, c.Company_Type,
-               ir.Required_Result_Semester,
-               sr.SGPA AS Prerequisite_Semester_SGPA
+               c.Company_ID, c.Company_Name, c.Company_Type
         FROM INTERNSHIP i
         JOIN COMPANY c ON i.Company_ID = c.Company_ID
-        LEFT JOIN INTERNSHIP_REQUIREMENT ir ON i.Requirement_ID = ir.Requirement_ID
-        LEFT JOIN SEMESTER_RESULT sr ON i.Student_ID = sr.Student_ID 
-                                    AND ir.Required_Result_Semester = sr.Semester
         WHERE i.Student_ID = %s
         ORDER BY i.Internship_No ASC
     """
     internships = execute_query(internships_sql, (student_id,))
     for it in internships:
         it["Stipend"] = float(it["Stipend"])
-        if it.get("Prerequisite_Semester_SGPA") is not None:
-            it["Prerequisite_Semester_SGPA"] = float(it["Prerequisite_Semester_SGPA"])
+        it["Start_Date"] = str(it["Start_Date"])
+        it["End_Date"] = str(it["End_Date"])
         try:
             from services.internship_service import (
                 calculate_internship_duration,
                 determine_internship_status,
             )
-
-            dur = calculate_internship_duration(it.get("Start_Date"), it.get("End_Date"))
+            dur = calculate_internship_duration(it["Start_Date"], it["End_Date"])
+            it["Duration_Days"] = dur["days"]
+            it["Duration_Weeks"] = dur["weeks"]
+            it["Duration_Months"] = dur["months"]
             it["Duration_Str"] = dur["duration_str"]
             it["Status"] = determine_internship_status(
-                it.get("Start_Date"),
-                it.get("End_Date"),
+                it["Start_Date"],
+                it["End_Date"],
                 it.get("Report_Link"),
                 it.get("Report_Grade"),
                 it.get("Certificate_Link"),
             )
         except Exception:
-            it["Duration_Str"] = "N/A"
-            it["Status"] = "Completed"
+            pass
+
     student["Internships"] = internships
-    student["Internship_Count"] = len(internships)
 
-    # Placement Summary & Career Status Classification
-    accepted_or_joined = [p for p in placements if p["Offer_Status"] in ("Accepted", "Joined")]
-    if accepted_or_joined:
-        student["Placement_Status"] = "Placed"
-        student["Placed_Company"] = accepted_or_joined[0]["Company_Name"]
-        student["Placed_Package"] = accepted_or_joined[0]["Package"]
-    elif len(placements) >= 2:
-        student["Placement_Status"] = "Multiple Offers"
-        student["Placed_Company"] = None
-        student["Placed_Package"] = None
-    elif len(placements) == 1:
-        student["Placement_Status"] = "Offered"
-        student["Placed_Company"] = None
-        student["Placed_Package"] = None
-    else:
-        student["Placement_Status"] = "Unplaced"
-        student["Placed_Company"] = None
-        student["Placed_Package"] = None
-
-    # Relationship integrity safety check
-    student["Is_Deletable"] = len(placements) == 0 and len(internships) == 0
+    # Compatibility empty lists for dropped tables
+    student["Registered_Courses"] = []
+    student["Profiles"] = []
+    student["Projects"] = []
+    student["Achievements"] = []
+    student["Semester_Results"] = []
+    student["Resumes"] = []
+    student["Education_Documents"] = []
 
     return student
 
@@ -357,7 +273,9 @@ def list_students(
     offset: int = 0,
     per_page: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Searches and filters students with advanced criteria, server-side sorting, and pagination."""
+    """Lists, searches, and filters students with advanced criteria and pagination.
+    Rule: 'Placed' means Joined = 'Yes'.
+    """
     if per_page is not None:
         try:
             limit = int(per_page)
@@ -367,7 +285,6 @@ def list_students(
     where_clauses = ["1=1"]
     params: List[Any] = []
 
-    # 1. Advanced Search across name, roll number, and email
     if search and str(search).strip():
         search_pattern = f"%{str(search).strip()}%"
         where_clauses.append(
@@ -375,20 +292,17 @@ def list_students(
             "s.Roll_No LIKE %s OR "
             "s.First_Name LIKE %s OR "
             "s.Last_Name LIKE %s OR "
+            "CONCAT(s.First_Name, ' ', COALESCE(s.Last_Name, '')) LIKE %s OR "
             "s.Email LIKE %s OR "
-            "CONCAT(s.First_Name, ' ', COALESCE(s.Last_Name, '')) LIKE %s"
+            "EXISTS (SELECT 1 FROM STUDENT_SKILL ss WHERE ss.Student_ID = s.Student_ID AND ss.Skill LIKE %s)"
             ")"
         )
-        params.extend(
-            [search_pattern, search_pattern, search_pattern, search_pattern, search_pattern]
-        )
+        params.extend([search_pattern] * 6)
 
-    # 2. Branch Filter
     if branch and str(branch).strip() and str(branch).strip().lower() not in ("all", "none"):
         where_clauses.append("s.Branch = %s")
         params.append(str(branch).strip())
 
-    # 3. Batch Year Filter
     if batch_year is not None:
         try:
             by = int(batch_year)
@@ -397,7 +311,6 @@ def list_students(
         except (ValueError, TypeError):
             pass
 
-    # 4. CGPA Range Filter
     if min_cgpa is not None:
         try:
             mc = float(min_cgpa)
@@ -414,7 +327,6 @@ def list_students(
         except (ValueError, TypeError):
             pass
 
-    # 5. Backlogs Filter
     if max_backlogs is not None:
         try:
             mb = int(max_backlogs)
@@ -423,16 +335,16 @@ def list_students(
         except (ValueError, TypeError):
             pass
 
-    # 6. Placement Status Filter (Placed, Unplaced, Multiple)
+    # Placement Status Filter: 'Placed' strictly means Joined = 'Yes'
     if placement_status and str(placement_status).strip().lower() not in ("all", "none"):
         ps = str(placement_status).strip().lower()
         if ps in ("placed", "placed_only"):
             where_clauses.append(
-                "EXISTS (SELECT 1 FROM PLACEMENT pl WHERE pl.Student_ID = s.Student_ID AND pl.Offer_Status IN ('Accepted', 'Joined'))"
+                "EXISTS (SELECT 1 FROM PLACEMENT pl WHERE pl.Student_ID = s.Student_ID AND pl.Joined = 'Yes')"
             )
         elif ps in ("unplaced", "unplaced_only"):
             where_clauses.append(
-                "NOT EXISTS (SELECT 1 FROM PLACEMENT pl WHERE pl.Student_ID = s.Student_ID)"
+                "NOT EXISTS (SELECT 1 FROM PLACEMENT pl WHERE pl.Student_ID = s.Student_ID AND pl.Joined = 'Yes')"
             )
         elif ps in ("multiple", "multiple_offers"):
             where_clauses.append(
@@ -441,12 +353,10 @@ def list_students(
 
     where_sql = " AND ".join(where_clauses)
 
-    # 7. Total count query
     count_sql = f"SELECT COUNT(*) AS total FROM STUDENT s WHERE {where_sql}"
     count_res = execute_one(count_sql, tuple(params))
     total_count = int(count_res["total"] if count_res else 0)
 
-    # 8. Safe sorting mapping
     SORT_MAP = {
         "roll_no": "s.Roll_No",
         "name": "s.First_Name, s.Last_Name",
@@ -465,7 +375,6 @@ def list_students(
     order_col = SORT_MAP.get(sort_key, "s.Roll_No")
     order_dir = "DESC" if str(sort_dir).strip().lower() == "desc" else "ASC"
 
-    # 9. Pagination offset calculation
     if page is not None and int(page) >= 1:
         offset = (int(page) - 1) * int(limit)
 
@@ -476,9 +385,10 @@ def list_students(
             s.Branch, s.Batch_Year, s.Section, s.CGPA, s.Backlogs, s.Email, s.Resume_Link,
             GROUP_CONCAT(DISTINCT sp.Phone_No SEPARATOR ', ') AS Phone_Numbers,
             COUNT(DISTINCT p.Placement_ID) AS Placement_Offers,
-            COUNT(DISTINCT CASE WHEN p.Offer_Status IN ('Accepted', 'Joined') THEN p.Placement_ID END) AS Accepted_Offers,
-            MAX(CASE WHEN p.Offer_Status IN ('Accepted', 'Joined') THEN c.Company_Name END) AS Placed_Company,
-            MAX(CASE WHEN p.Offer_Status IN ('Accepted', 'Joined') THEN p.Package END) AS Placed_Package,
+            COUNT(DISTINCT CASE WHEN p.Offer_Status = 'Accepted' THEN p.Placement_ID END) AS Accepted_Offers,
+            COUNT(DISTINCT CASE WHEN p.Joined = 'Yes' THEN p.Placement_ID END) AS Joined_Offers,
+            MAX(CASE WHEN p.Joined = 'Yes' THEN c.Company_Name END) AS Placed_Company,
+            MAX(CASE WHEN p.Joined = 'Yes' THEN p.Package END) AS Placed_Package,
             COUNT(DISTINCT i.Internship_ID) AS Internships
         FROM STUDENT s
         LEFT JOIN STUDENT_PHONE sp ON s.Student_ID = sp.Student_ID
@@ -498,22 +408,6 @@ def list_students(
         r["Placed_Package"] = (
             float(r["Placed_Package"]) if r.get("Placed_Package") is not None else None
         )
-        r["Phone_Numbers"] = (
-            [p.strip() for p in r["Phone_Numbers"].split(", ") if p.strip()]
-            if r.get("Phone_Numbers")
-            else []
-        )
-        r["Is_Eligible"] = r["Backlogs"] == 0 and r["CGPA"] >= 6.0
-
-        # Placement status label
-        if r.get("Accepted_Offers", 0) > 0:
-            r["Placement_Status"] = "Placed"
-        elif r.get("Placement_Offers", 0) >= 2:
-            r["Placement_Status"] = "Multiple Offers"
-        elif r.get("Placement_Offers", 0) == 1:
-            r["Placement_Status"] = "Offered"
-        else:
-            r["Placement_Status"] = "Unplaced"
 
     total_pages = math.ceil(total_count / limit) if limit > 0 else 1
     current_page = (offset // limit) + 1 if limit > 0 else 1
@@ -541,11 +435,8 @@ def list_students(
 
 
 def update_student(student_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
-    """Updates student profile fields, phones, and skills within an atomic transaction."""
-    existing = execute_one("SELECT * FROM STUDENT WHERE Student_ID = %s", (student_id,))
-    if not existing:
-        raise NotFoundError(f"Student with ID {student_id} not found.")
-
+    """Updates student record and synchronizes multivalued contact numbers and skills."""
+    existing = get_student(student_id)
     validate_student_payload(data, is_update=True)
 
     updatable_fields = [
@@ -596,14 +487,12 @@ def update_student(student_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
             set_clauses.append(f"{field} = %s")
             params.append(val)
 
-    # ATOMIC TRANSACTION: Update master student table + dependent multivalued attributes
     with get_cursor(commit=True) as cursor:
         if set_clauses:
             update_sql = f"UPDATE STUDENT SET {', '.join(set_clauses)} WHERE Student_ID = %s"
             params.append(student_id)
             cursor.execute(update_sql, tuple(params))
 
-        # Synchronize phone numbers
         if "Phone_Numbers" in data and data["Phone_Numbers"] is not None:
             raw_phones = data["Phone_Numbers"]
             if isinstance(raw_phones, str):
@@ -615,7 +504,6 @@ def update_student(student_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
                 phone_tuples = [(student_id, p) for p in set(new_phones)]
                 cursor.executemany(phone_sql, phone_tuples)
 
-        # Synchronize technical skills
         if "Skills" in data and data["Skills"] is not None:
             raw_skills = data["Skills"]
             if isinstance(raw_skills, str):
@@ -633,10 +521,8 @@ def update_student(student_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
 
 def delete_student(student_id: int) -> Dict[str, Any]:
     """Safely deletes a student record ONLY if no placement or internship records exist.
-
     BLOCKS deletion if the student has placement offers or internship history to ensure
     career reporting integrity and prevent destruction of institutional audit trails.
-    Executes deletion inside a single database transaction.
     """
     student = execute_one(
         "SELECT Student_ID, Roll_No, First_Name, Last_Name FROM STUDENT WHERE Student_ID = %s",
@@ -645,7 +531,6 @@ def delete_student(student_id: int) -> Dict[str, Any]:
     if not student:
         raise NotFoundError(f"Student with ID {student_id} not found.")
 
-    # Check placement and internship history
     history_check_sql = """
         SELECT 
             (SELECT COUNT(*) FROM PLACEMENT WHERE Student_ID = %s) AS placement_count,
@@ -670,7 +555,6 @@ def delete_student(student_id: int) -> Dict[str, Any]:
         logger.warning("Blocked student deletion: %s", error_msg)
         raise ProtectedDeleteError(error_msg)
 
-    # ATOMIC TRANSACTION: Safely delete student (cascading dependent tables)
     with get_cursor(commit=True) as cursor:
         cursor.execute("DELETE FROM STUDENT WHERE Student_ID = %s", (student_id,))
 
@@ -683,11 +567,7 @@ def delete_student(student_id: int) -> Dict[str, Any]:
 
 
 def get_student_selector_options() -> List[Dict[str, Any]]:
-    """Retrieves lightweight student identity tuples for dynamic UI dropdown selectors.
-
-    Returns all active students without arbitrary pagination limits.
-    Projected fields: Student_ID, Roll_No, First_Name, Last_Name, Branch, Batch_Year.
-    """
+    """Retrieves lightweight student identity tuples for dynamic UI dropdown selectors."""
     sql = """
         SELECT Student_ID, Roll_No, First_Name, Last_Name, Branch, Batch_Year
         FROM STUDENT
@@ -701,3 +581,89 @@ def get_student_selector_options() -> List[Dict[str, Any]]:
             except (ValueError, TypeError):
                 pass
     return rows
+
+
+# Contact Number Management (STUDENT_PHONE table)
+def list_student_phones(student_id: int) -> List[str]:
+    """Lists all phone numbers recorded for a student."""
+    rows = execute_query(
+        "SELECT Phone_No FROM STUDENT_PHONE WHERE Student_ID = %s ORDER BY Phone_No ASC",
+        (student_id,),
+    )
+    return [r["Phone_No"] for r in rows]
+
+
+def add_student_phone(student_id: int, phone_no: str) -> List[str]:
+    """Adds a phone number to a student's contact roster."""
+    clean_phone = str(phone_no).strip()
+    if not PHONE_REGEX.match(clean_phone):
+        raise ValidationError(f"Invalid phone number format: '{clean_phone}'")
+
+    existing = execute_one(
+        "SELECT Phone_No FROM STUDENT_PHONE WHERE Student_ID = %s AND Phone_No = %s",
+        (student_id, clean_phone),
+    )
+    if existing:
+        raise ConflictError(f"Phone number '{clean_phone}' is already registered for this student.")
+
+    with get_cursor(commit=True) as cursor:
+        cursor.execute(
+            "INSERT INTO STUDENT_PHONE (Student_ID, Phone_No) VALUES (%s, %s)",
+            (student_id, clean_phone),
+        )
+
+    return list_student_phones(student_id)
+
+
+def delete_student_phone(student_id: int, phone_no: str) -> List[str]:
+    """Removes a phone number from a student's contact roster."""
+    clean_phone = str(phone_no).strip()
+    with get_cursor(commit=True) as cursor:
+        cursor.execute(
+            "DELETE FROM STUDENT_PHONE WHERE Student_ID = %s AND Phone_No = %s",
+            (student_id, clean_phone),
+        )
+    return list_student_phones(student_id)
+
+
+# Technical Skill Management (STUDENT_SKILL table)
+def list_student_skills(student_id: int) -> List[str]:
+    """Lists all technical skills recorded for a student."""
+    rows = execute_query(
+        "SELECT Skill FROM STUDENT_SKILL WHERE Student_ID = %s ORDER BY Skill ASC",
+        (student_id,),
+    )
+    return [r["Skill"] for r in rows]
+
+
+def add_student_skill(student_id: int, skill: str) -> List[str]:
+    """Adds a technical skill to a student's skill profile."""
+    clean_skill = str(skill).strip()
+    if not clean_skill:
+        raise ValidationError("Skill cannot be empty.")
+
+    existing = execute_one(
+        "SELECT Skill FROM STUDENT_SKILL WHERE Student_ID = %s AND Skill = %s",
+        (student_id, clean_skill),
+    )
+    if existing:
+        raise ConflictError(f"Skill '{clean_skill}' is already associated with this student.")
+
+    with get_cursor(commit=True) as cursor:
+        cursor.execute(
+            "INSERT INTO STUDENT_SKILL (Student_ID, Skill) VALUES (%s, %s)",
+            (student_id, clean_skill),
+        )
+
+    return list_student_skills(student_id)
+
+
+def delete_student_skill(student_id: int, skill: str) -> List[str]:
+    """Removes a technical skill from a student's profile."""
+    clean_skill = str(skill).strip()
+    with get_cursor(commit=True) as cursor:
+        cursor.execute(
+            "DELETE FROM STUDENT_SKILL WHERE Student_ID = %s AND Skill = %s",
+            (student_id, clean_skill),
+        )
+    return list_student_skills(student_id)

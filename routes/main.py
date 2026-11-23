@@ -11,6 +11,7 @@ from flask import (
     flash,
     jsonify,
     Response,
+    send_file,
     current_app,
 )
 from config import Config
@@ -44,16 +45,12 @@ from services import (
     create_company,
     update_company,
     delete_company,
-    list_drives,
-    get_drive,
-    list_opportunities,
     # Internships
     list_internships,
     get_internship,
     create_internship,
     update_internship,
     delete_internship,
-    list_requirements,
     get_mandatory_internships_with_prerequisite_sgpa,
     get_students_missing_mandatory_internships,
     check_internship_eligibility,
@@ -593,6 +590,71 @@ def student_detail(student_id: int):
     )
 
 
+@main_bp.route("/students/<int:student_id>/export-pdf", methods=["GET"])
+def student_export_pdf(student_id: int):
+    """Generates and streams a complete 360-degree Student Profile PDF."""
+    try:
+        student = get_student(student_id)
+    except NotFoundError:
+        flash(f"Student with ID {student_id} not found.", "warning")
+        return redirect("/students")
+
+    from services.pdf_report_service import generate_student_profile_pdf
+
+    pdf_bytes = generate_student_profile_pdf(student_id)
+    roll = student.get("Roll_No", str(student_id))
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"student_{roll}_profile.pdf",
+    )
+
+
+@main_bp.route("/students/<int:student_id>/internship-compliance-pdf", methods=["GET"])
+@main_bp.route("/internships/<int:student_id>/compliance-pdf", methods=["GET"])
+def student_internship_compliance_pdf(student_id: int):
+    """Generates and streams an individual Mandatory Internship Compliance Verification PDF."""
+    try:
+        student = get_student(student_id)
+    except NotFoundError:
+        flash(f"Student with ID {student_id} not found.", "warning")
+        return redirect("/internships")
+
+    from services.pdf_report_service import generate_individual_compliance_pdf
+
+    pdf_bytes = generate_individual_compliance_pdf(student_id)
+    roll = student.get("Roll_No", str(student_id))
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"internship_compliance_{roll}.pdf",
+    )
+
+
+@main_bp.route("/students/<int:student_id>/internships-history-pdf", methods=["GET"])
+@main_bp.route("/internships/student/<int:student_id>/history-pdf", methods=["GET"])
+def student_internship_history_pdf(student_id: int):
+    """Generates and streams a student's complete internship history PDF."""
+    try:
+        student = get_student(student_id)
+    except NotFoundError:
+        flash(f"Student with ID {student_id} not found.", "warning")
+        return redirect("/internships")
+
+    from services.pdf_report_service import generate_student_internship_history_pdf
+
+    pdf_bytes = generate_student_internship_history_pdf(student_id)
+    roll = student.get("Roll_No", str(student_id))
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"internship_history_{roll}.pdf",
+    )
+
+
 @main_bp.route("/students/<int:student_id>/edit", methods=["GET", "POST"])
 def student_edit(student_id: int):
     """Handles updating student details."""
@@ -695,6 +757,33 @@ def student_phone_delete(student_id: int, phone_no: str):
     return redirect(f"/students/{student_id}")
 
 
+@main_bp.route("/students/<int:student_id>/skills", methods=["POST"])
+def student_skill_add(student_id: int):
+    """Adds a technical skill to a student in the dedicated STUDENT_SKILL table."""
+    skill = request.form.get("skill", "").strip()
+    try:
+        from services import add_student_skill
+        add_student_skill(student_id, skill)
+        flash(f"Added skill '{skill}' successfully.", "success")
+    except (ValidationError, ConflictError, DatabaseError, ServiceError) as err:
+        err_msg = _safe_error_message(err)
+        flash(f"Skill Error: {err_msg}", "danger")
+    return redirect(f"/students/{student_id}")
+
+
+@main_bp.route("/students/<int:student_id>/skills/<string:skill>/delete", methods=["POST"])
+def student_skill_delete(student_id: int, skill: str):
+    """Deletes a skill from the STUDENT_SKILL table."""
+    try:
+        from services import delete_student_skill
+        delete_student_skill(student_id, skill)
+        flash(f"Skill '{skill}' removed successfully.", "success")
+    except (NotFoundError, DatabaseError, ServiceError) as err:
+        err_msg = _safe_error_message(err)
+        flash(f"Skill Removal Failed: {err_msg}", "danger")
+    return redirect(f"/students/{student_id}")
+
+
 # ==============================================================================
 # 3. Corporate Partners & Recruitment Drives Views
 # ==============================================================================
@@ -761,11 +850,12 @@ def company_detail(company_id: int):
         flash(f"Company with ID {company_id} not found.", "warning")
         return redirect("/companies")
 
-    drives = list_drives(company_id=company_id)
+    internships_res = list_internships(company_id=company_id)
+    internships = (
+        internships_res.get("results", []) if isinstance(internships_res, dict) else internships_res
+    )
+    drives = []
     drive_opportunities = {}
-    for d in drives:
-        full_drive = get_drive(d["Drive_ID"])
-        drive_opportunities[d["Drive_ID"]] = full_drive.get("Opportunities", [])
 
     placements_res = list_placement_offers(company_id=company_id)
     placements = (
@@ -779,6 +869,7 @@ def company_detail(company_id: int):
         drives=drives,
         drive_opportunities=drive_opportunities,
         placements=placements,
+        internships=internships,
     )
 
 
@@ -1102,12 +1193,6 @@ def internship_create():
     if request.method == "POST":
         try:
             itype = request.form.get("Internship_Type", "Mandatory").strip()
-            req_id_raw = request.form.get("Requirement_ID")
-            req_id = (
-                parse_int(req_id_raw, "Requirement ID")
-                if (itype == "Mandatory" and req_id_raw)
-                else None
-            )
             internship_no = parse_int(request.form.get("Internship_No", 1), "Internship No", 1)
 
             stipend_val = parse_float(request.form.get("Stipend", 0.0), "Stipend", 0.0)
@@ -1118,14 +1203,13 @@ def internship_create():
             report_sem = (
                 parse_int(report_sem_raw, "Report Semester")
                 if report_sem_raw
-                else (5 if internship_no == 1 else 7 if internship_no == 2 else None)
+                else (5 if internship_no == 1 else 8 if internship_no == 2 else None)
             )
 
             payload = {
                 "Student_ID": parse_int(request.form.get("Student_ID"), "Student"),
                 "Company_ID": parse_int(request.form.get("Company_ID"), "Company"),
                 "Internship_Type": itype,
-                "Requirement_ID": req_id,
                 "Internship_No": internship_no,
                 "Role": request.form.get("Role", "").strip(),
                 "Start_Date": request.form.get("Start_Date", "").strip(),
@@ -1148,7 +1232,7 @@ def internship_create():
 
     students = get_student_selector_options()
     companies = list_companies()
-    requirements = list_requirements()
+    requirements = []
     preselected_student_id = request.args.get("student_id")
 
     return render_template(
@@ -1173,6 +1257,25 @@ def internship_delete(internship_id: int):
         err_msg = _safe_error_message(err)
         flash(f"Internship Deletion Failed: {err_msg}", "danger")
     return redirect("/internships")
+
+
+@main_bp.route("/internships/missing-mandatory-pdf", methods=["GET"])
+def internships_missing_mandatory_pdf():
+    """Generates and streams an institutional Missing Mandatory Internship Audit PDF."""
+    raw_branch = request.args.get("branch", "").strip() or None
+    branch = normalize_branch(raw_branch)
+    raw_batch = request.args.get("batch_year")
+    batch_year = int(raw_batch) if raw_batch and str(raw_batch).isdigit() else None
+
+    from services.pdf_report_service import generate_missing_mandatory_audit_pdf
+
+    pdf_bytes = generate_missing_mandatory_audit_pdf(branch=branch, batch_year=batch_year)
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name="missing_mandatory_audit.pdf",
+    )
 
 
 # ==============================================================================
@@ -1283,7 +1386,7 @@ def placements_list():
     # 6. Modal / Form Auxiliary Data
     all_students = get_student_selector_options()
     all_companies = list_companies()
-    all_opportunities = list_opportunities(opportunity_type="Placement")
+    all_opportunities = []
 
     # 7. Distinct Filter Options
     filter_opts = get_dashboard_filter_options()
@@ -1535,8 +1638,6 @@ def placement_create():
 
     if request.method == "POST":
         try:
-            opp_id_raw = request.form.get("Opportunity_ID")
-            opp_id = parse_int(opp_id_raw, "Opportunity Opening") if opp_id_raw else None
             package = parse_float(request.form.get("Package", 0.0), "Package", min_val=0.01)
             student_id = parse_int(request.form.get("Student_ID"), "Student")
             company_id = parse_int(request.form.get("Company_ID"), "Company")
@@ -1549,7 +1650,6 @@ def placement_create():
             payload = {
                 "Student_ID": student_id,
                 "Company_ID": company_id,
-                "Opportunity_ID": opp_id,
                 "Role": request.form.get("Role", "").strip(),
                 "Package": package,
                 "Placement_Year": parse_int(
@@ -1557,6 +1657,7 @@ def placement_create():
                 ),
                 "Placement_Type": request.form.get("Placement_Type", "On-campus").strip(),
                 "Offer_Status": request.form.get("Offer_Status", "Offered").strip(),
+                "Joined": request.form.get("Joined", "No").strip(),
                 "Is_PPO": request.form.get("Is_PPO", "No").strip(),
                 "Interview_Rounds": parse_int(
                     request.form.get("Interview_Rounds", 1), "Interview Rounds", min_val=0
@@ -1577,7 +1678,7 @@ def placement_create():
     # GET request: render standalone form
     all_students = get_student_selector_options()
     all_companies = list_companies()
-    all_opportunities = list_opportunities(opportunity_type="Placement")
+    all_opportunities = []
 
     return render_template(
         "placements/form.html",
@@ -1636,9 +1737,11 @@ def reports_view():
     """Renders comprehensive institutional reports with multi-criteria filters."""
     raw_branch = request.args.get("branch", "").strip() or None
     branch = normalize_branch(raw_branch)
+    raw_search = request.args.get("search", "").strip() or request.args.get("q", "").strip() or None
 
     filters = {
         "branch": branch,
+        "search": raw_search,
         "placement_status": request.args.get("placement_status", "").strip() or None,
         "internship_status": request.args.get("internship_status", "").strip() or None,
         "min_cgpa": request.args.get("min_cgpa", "").strip() or None,
@@ -1669,9 +1772,11 @@ def reports_export_csv():
     """Generates and streams a CSV export of the filtered cohort report."""
     raw_branch = request.args.get("branch", "").strip() or None
     branch = normalize_branch(raw_branch)
+    raw_search = request.args.get("search", "").strip() or request.args.get("q", "").strip() or None
 
     filters = {
         "branch": branch,
+        "search": raw_search,
         "placement_status": request.args.get("placement_status", "").strip() or None,
         "internship_status": request.args.get("internship_status", "").strip() or None,
         "min_cgpa": request.args.get("min_cgpa", "").strip() or None,
@@ -1702,7 +1807,7 @@ def reports_export_csv():
             "Placed Package (LPA)",
             "Final Status",
             "Mandatory Internship 1 (Sem 3)",
-            "Mandatory Internship 2 (Sem 5)",
+            "Mandatory Internship 2 (8th Sem)",
             "Additional Internships Count",
         ]
     )
@@ -1754,9 +1859,11 @@ def reports_export_pdf():
     """Generates and streams an executive PDF report of the filtered cohort."""
     raw_branch = request.args.get("branch", "").strip() or None
     branch = normalize_branch(raw_branch)
+    raw_search = request.args.get("search", "").strip() or request.args.get("q", "").strip() or None
 
     filters = {
         "branch": branch,
+        "search": raw_search,
         "placement_status": request.args.get("placement_status", "").strip() or None,
         "internship_status": request.args.get("internship_status", "").strip() or None,
         "min_cgpa": request.args.get("min_cgpa", "").strip() or None,

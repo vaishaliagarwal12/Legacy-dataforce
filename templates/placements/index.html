@@ -42,7 +42,7 @@
         <div class="stat-card">
             <span class="stat-label">Placed Students</span>
             <div class="stat-value text-success">{{ analytics.kpis.placed_students }}</div>
-            <span class="stat-subtext">Accepted or joined</span>
+            <span class="stat-subtext">Joined organization</span>
         </div>
     </div>
     <div class="col-6 col-md-4 col-xl-2">
@@ -417,7 +417,7 @@
                 <label class="form-label small fw-semibold text-secondary mb-1">Offer Status</label>
                 <select name="status" class="form-select form-select-sm">
                     <option value="">All Statuses</option>
-                    {% for st in ['Offered', 'Accepted', 'Joined', 'Declined'] %}
+                    {% for st in ['Offered', 'Accepted', 'Declined'] %}
                     <option value="{{ st }}" {% if active_filters.status == st %}selected{% endif %}>{{ st }}</option>
                     {% endfor %}
                 </select>
@@ -519,11 +519,11 @@
                     </td>
                     <td><span class="code-font small text-muted">{{ o.Placement_Year }}</span></td>
                     <td>
-                        <span class="badge {% if o.Offer_Status in ['Accepted', 'Joined'] %}badge-status-success{% elif o.Offer_Status == 'Declined' %}badge-status-danger{% else %}badge-status-primary{% endif %}">
+                        <span class="badge {% if o.Offer_Status == 'Accepted' %}badge-status-success{% elif o.Offer_Status == 'Declined' %}badge-status-danger{% else %}badge-status-primary{% endif %}">
                             {{ o.Offer_Status }}
                         </span>
                         {% if o.Joined == 'Yes' %}
-                            <span class="badge badge-status-success ms-1"><i class="bi bi-check2"></i></span>
+                            <span class="badge badge-status-success ms-1"><i class="bi bi-check2"></i> Joined</span>
                         {% endif %}
                         {% if o.Is_PPO == 'Yes' %}
                             <span class="badge badge-status-warning ms-1">PPO</span>
@@ -533,17 +533,17 @@
                         <!-- Quick Status Action Buttons Enforcing Rules -->
                         <form method="POST" action="/placements/{{ o.Placement_ID }}/status" class="d-inline-flex gap-1">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            {% if o.Offer_Status != 'Accepted' and o.Offer_Status != 'Joined' %}
-                                <button type="submit" name="status" value="Accepted" class="btn btn-xs btn-outline-success py-0 px-2" title="Mark as Accepted (Enforces single accepted offer rule)">
+                            {% if o.Offer_Status != 'Accepted' %}
+                                <button type="submit" name="status" value="Accepted" class="btn btn-xs btn-outline-success py-0 px-2" title="Mark as Accepted">
                                     Accept
                                 </button>
                             {% endif %}
-                            {% if o.Offer_Status == 'Accepted' %}
+                            {% if o.Offer_Status == 'Accepted' and o.Joined != 'Yes' %}
                                 <button type="submit" name="status" value="Joined" class="btn btn-xs btn-outline-primary py-0 px-2" title="Mark as Joined">
                                     Join
                                 </button>
                             {% endif %}
-                            {% if o.Offer_Status != 'Declined' and o.Offer_Status != 'Joined' %}
+                            {% if o.Offer_Status != 'Declined' %}
                                 <button type="submit" name="status" value="Declined" class="btn btn-xs btn-outline-danger py-0 px-2" 
                                         onclick="return confirm('Decline this offer? If previously accepted, student will be able to accept another offer.');"
                                         title="Mark as Declined">

@@ -25,23 +25,22 @@ This document prepares you for project defense and viva voce examinations by pro
 
 ---
 
-### Question 3: "Why did you specify `ON DELETE RESTRICT` for Company, but `ON DELETE CASCADE` for Student child tables?"
+### Question 3: "Why did you specify `ON DELETE RESTRICT` for Company and Student, but `ON DELETE CASCADE` for Phone and Skill tables?"
 
 **Short Answer**:
-> *"Referential actions are designed around business domain semantics:*
-> - *`ON DELETE CASCADE` is applied to dependent student attributes (`STUDENT_PHONE`, `STUDENT_SKILL`, `STUDENT_PROFILE`, `RESUME`) because these records are dependent child entities that have zero meaning once a student record is removed.*
-> - *`ON DELETE RESTRICT` is applied to `COMPANY` because deleting a recruiting partner would corrupt critical institutional audit trails, alumni records, and accreditation placement statistics. If a company has registered drives, placement offers, or hired interns, MySQL error `1451` strictly prevents deletion."*
+> *"Referential actions are designed around business domain semantics:
+> - `ON DELETE CASCADE` is applied to dependent multivalued attributes (`STUDENT_PHONE`, `STUDENT_SKILL`, `PLACEMENT_SKILL`) because contact numbers and evaluated skills are dependent child entities that have zero institutional meaning once the parent student or placement offer is removed.
+> - `ON DELETE RESTRICT` is applied to `COMPANY` and `STUDENT` on `PLACEMENT` and `INTERNSHIP` because deleting an entity with historical career records would destroy critical institutional audit trails, alumni records, and accreditation statistics. If a company has hired graduates or interns, or if a student has registered offers, MySQL error `1451` strictly prevents accidental or malicious deletion."*
 
 ---
 
 ### Question 4: "What Normal Form is your database in, and can you formally prove it?"
 
 **Short Answer**:
-> *"The database satisfies **Boyce-Codd Normal Form (BCNF)** and **Third Normal Form (3NF)**:*
-> - **1NF**: All column values are atomic; no repeating groups (decomposed phones and skills).
-> - **2NF**: It is in 1NF and contains zero partial dependencies on composite keys. In `STUDENT_COURSE(Student_ID, Course_ID)`, course catalog attributes (`Course_Name`, `Credits`) are isolated into `COURSE`, leaving only attributes that depend on the full composite key (`Grade`).
-> - **3NF**: It is in 2NF and contains zero transitive dependencies. In `PLACEMENT`, company attributes (`Company_Name`, `Location`) are not stored directly, eliminating `Placement_ID -> Company_ID -> Company_Name`.
-> - **BCNF**: In every non-trivial functional dependency $X \rightarrow Y$, determinant $X$ is a superkey (e.g., candidate keys in `COURSE` and `STUDENT`)."*
+> *"The canonical 7-table schema is divided into BCNF tables and an intentionally denormalized 1NF table:
+> - **BCNF Tables**: `STUDENT`, `STUDENT_PHONE`, `STUDENT_SKILL`, `COMPANY`, `PLACEMENT`, and `PLACEMENT_SKILL`. Every determinant in non-trivial functional dependencies is a candidate key. For example, in `STUDENT`, keys are `Student_ID`, `Roll_No`, and `Email`; in `COMPANY`, `Company_ID` and `Company_Name`; and `STUDENT_PHONE`, `STUDENT_SKILL`, and `PLACEMENT_SKILL` are all-key relations.
+> - **1NF Table (`INTERNSHIP`)**: Primary key is composite `(Student_ID, Internship_No)`. Institutional rules mandate that `Internship_No = 1` carries 4 credits in Sem 5, while `Internship_No = 2` carries 4 credits in Sem 8 (done in 8th semester, report submitted after the end of 8th semester). The functional dependency `Internship_No -> {Internship_Type, Credits, Report_Semester}` is a **partial dependency** on a proper subset of the primary key, formally violating 2NF, 3NF, and BCNF.
+> - **Engineering Justification**: This intentional 1NF denormalization allows curriculum rules to be enforced directly inside `INTERNSHIP` using the `chk_internship_curriculum` constraint, streamlining the architecture into exactly 7 canonical tables without an auxiliary requirements table."*
 
 ---
 
@@ -49,7 +48,7 @@ This document prepares you for project defense and viva voce examinations by pro
 
 **Short Answer**:
 > *- A **Natural Key** is a business attribute that already exists in the real world (e.g., `Roll_No` like `CS202001`, or `Email`).*
-> - *A **Surrogate Key** is a system-generated unique integer (e.g., `Student_ID INT AUTO_INCREMENT`).*
+> - A **Surrogate Key** is a system-generated unique integer (e.g., `Student_ID INT AUTO_INCREMENT`).*
 >
 > *We intentionally use both: **Surrogate Keys** serve as primary keys because 4-byte integers maximize B-Tree node capacity and execute joins significantly faster than variable-length strings. Simultaneously, we enforce `UNIQUE` constraints on **Natural Keys** (`Roll_No`, `Email`, `Company_Name`) to maintain real-world institutional uniqueness and data integrity."*
 
@@ -76,30 +75,30 @@ This document prepares you for project defense and viva voce examinations by pro
 ### Question 8: "Where did you use an INNER JOIN versus a LEFT OUTER JOIN in your project, and why?"
 
 **Short Answer**:
-> *- **INNER JOIN**: Used when records in both tables must exist. For example, when generating the active placement report (`PLACEMENT` joined with `STUDENT` and `COMPANY`), we only want offers where both the student and company exist.*
+> *- **INNER JOIN**: Used when records in both tables must exist. For example, when generating the active placement detail view (`V_PLACEMENT_DETAIL`), we only want offers where both the student and company exist.*
 > - **LEFT OUTER JOIN**: Used when we must preserve records from the primary table even when no related child record exists. For example, when listing all students and their placement status, a `LEFT JOIN` on `PLACEMENT` returns all students, showing placed students with their package and unplaced students with `NULL`.*
-> - *Similarly, off-campus placement offers have no associated drive (`Opportunity_ID IS NULL`), so `LEFT JOIN OPPORTUNITY` is required to display them without data omission."*
+> - *Crucial Semantics: **'Placed' strictly means `Joined = 'Yes'`**. Students with `Offer_Status = 'Accepted'` but `Joined = 'No'` are tracked under accepted offers, while only joined students are counted as placed."*
 
 ---
 
 ### Question 9: "What constitutes a Weak Entity in your schema, and how is it identified?"
 
 **Short Answer**:
-> *"A Weak Entity is an entity that cannot be uniquely identified by its own attributes alone and relies on an identifying relationship with a parent owner entity.*
+> *"A Weak Entity is an entity that cannot be uniquely identified by its own attributes alone and relies on an identifying relationship with a parent owner entity.
 >
-> *In our schema, **`INTERNSHIP`** and **`SELECTION_PROCESS`** are weak entities:*
-> 1. *`INTERNSHIP` is identified by the composite candidate key `(Student_ID, Internship_No)`. An 'Internship 1' has no independent meaning without the student who completed it.*
-> 2. *`SELECTION_PROCESS` is identified by `(Opportunity_ID, Round_Number)`. 'Round 2' has no independent existence without the recruitment opportunity conducting it.*
->
-> *Both enforce `ON DELETE CASCADE` from their identifying parents."*
+> In our 7-table schema, **`INTERNSHIP`** is a weak entity:
+> - Identified by the composite primary key `(Student_ID, Internship_No)`. 'Internship 1' or 'Internship 2' has no independent existence without the student who completed it.
+> - Similarly, `STUDENT_PHONE` and `STUDENT_SKILL` are weak identifying relations identified by `(Student_ID, Phone_No)` and `(Student_ID, Skill)`."*
 
 ---
 
-### Question 10: "How does the system verify whether a student satisfies the prerequisite SGPA for a Mandatory Summer Internship?"
+### Question 10: "How does the system enforce curriculum rules and the Single-Joined-Offer rule?"
 
 **Short Answer**:
-> *"The system uses a dynamic relational query joining `INTERNSHIP`, `INTERNSHIP_REQUIREMENT`, and `SEMESTER_RESULT`:*
-> 1. *`INTERNSHIP_REQUIREMENT` defines that Mandatory Summer Internship 1 requires completed results for Semester 3 (`Required_Result_Semester = 3`), while Mandatory Summer Internship 2 requires Semester 5 (`Required_Result_Semester = 5`).*
-> 2. *When recording or auditing an internship, the query dynamically joins `SEMESTER_RESULT` on `Student_ID` and `Semester = Required_Result_Semester` to retrieve the student's verified SGPA.*
-> 3. *If the SGPA is below the minimum threshold (e.g. `< 6.00`) or if prerequisite semester results are missing, the system flags a compliance violation or marks the student Ineligible.*
-> 4. *This replaces hard-coded checks with database-driven academic rule evaluation."*
+> *"The system enforces institutional rules directly at the schema layer:
+> 1. **Single-Joined-Offer Rule (`uq_one_joined_offer`)**: Enforced via a generated virtual column `Joined_Student INT GENERATED ALWAYS AS (CASE WHEN Joined = 'Yes' THEN Student_ID ELSE NULL END) STORED` with a `UNIQUE KEY (Joined_Student)`. Multiple `NULL`s are permitted (allowing multiple unjoined offers), but a second `Joined = 'Yes'` produces duplicate `Student_ID`s, triggering a unique key violation.
+> 2. **Joined Status Constraint (`chk_placement_joined_status`)**: `CHECK (Joined = 'No' OR Offer_Status = 'Accepted')` physically guarantees that an offer cannot be marked joined unless it has been officially accepted.
+> 3. **Internship Curriculum Constraint (`chk_internship_curriculum`)**: Enforces:
+>    - Internship 1: Mandatory, 4 credits, evaluated in Semester 5 (done in summer after 2nd year).
+>    - Internship 2: Mandatory, 4 credits, evaluated in Semester 8 (Internship 2: done in 8th semester, report submitted after the end of 8th semester).
+>    - Internship 3+: Additional voluntary internships."*
