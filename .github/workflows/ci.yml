@@ -59,7 +59,7 @@ jobs:
       MYSQL_PASSWORD: ci_test_root_password
       MYSQL_DB: placement_test_db
       MYSQL_TEST_DB: placement_test_db
-      MYSQL_READONLY_USER: ci_test_user
+      MYSQL_READONLY_USER: placement_readonly
       MYSQL_READONLY_PASSWORD: ci_test_password
       CSRF_ENABLED: 0
 
@@ -82,7 +82,7 @@ jobs:
         run: |
           mysql -h 127.0.0.1 -P 3306 -u root -pci_test_root_password placement_test_db < schema.sql
           mysql -h 127.0.0.1 -P 3306 -u root -pci_test_root_password placement_test_db < seed.sql
-          mysql -h 127.0.0.1 -P 3306 -u root -pci_test_root_password placement_test_db -e "GRANT SELECT ON placement_test_db.* TO 'ci_test_user'@'%'; FLUSH PRIVILEGES;"
+          mysql -h 127.0.0.1 -P 3306 -u root -pci_test_root_password placement_test_db -e "CREATE USER IF NOT EXISTS 'placement_readonly'@'%' IDENTIFIED BY 'ci_test_password'; GRANT SELECT ON placement_test_db.* TO 'placement_readonly'@'%'; FLUSH PRIVILEGES;"
 
       - name: Run Pytest Test Suite
         run: |
