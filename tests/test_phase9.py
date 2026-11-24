@@ -46,7 +46,7 @@ class Phase9ScopeATestCase(unittest.TestCase):
         conn.close()
 
         # Load Schema, Sample Data, and Views
-     with open("placement_internship_db.sql", "r", encoding="utf-8") as f:
+        with open("placement_internship_db.sql", "r", encoding="utf-8") as f:
             full_sql = f.read()
 
         setup_sql = full_sql.split("-- PART 4: QUERIES")[0].replace(
