@@ -27,16 +27,16 @@
                         </h1>
                         <small class="text-muted">
                             {% if mode == 'edit' %}
-                                Update role compensation, selection rounds, and evaluated candidate skills.
+                                Update role compensation, selection rounds, joining status, and evaluated skills.
                             {% else %}
-                                Record a corporate campus or off-campus employment offer for an eligible student.
+                                Record a campus or off-campus employment offer for an eligible student.
                             {% endif %}
                         </small>
                     </div>
                 </div>
             </div>
 
-            <form method="POST" action="{% if mode == 'edit' %}/placements/{{ offer.Placement_ID }}/edit{% else %}/placements/new{% endif %}" class="needs-validation" novalidate>
+            <form method="POST" action="{% if mode == 'edit' %}/placements/{{ offer.Placement_ID }}/edit{% else %}/placements/new{% endif %}" class="needs-validation" novalidate id="placementForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div class="card-body p-4">
@@ -80,25 +80,12 @@
                             </select>
                             <div class="invalid-feedback">Please select a recruiting company.</div>
                         </div>
-
-                        <div class="col-12">
-                            <label class="form-label fw-semibold small" for="Opportunity_ID">Opportunity Opening (Must be Placement Type)</label>
-                            <select class="form-select form-select-sm" id="Opportunity_ID" name="Opportunity_ID">
-                                <option value="">None / Direct Campus Drive Allocation</option>
-                                {% for opp in all_opportunities %}
-                                    <option value="{{ opp.Opportunity_ID }}">
-                                        Opp #{{ opp.Opportunity_ID }}: {{ opp.Role }} ({{ opp.Company_Name }} &bull; {{ opp.Package_Stipend }} LPA)
-                                    </option>
-                                {% endfor %}
-                            </select>
-                            <small class="text-muted">Rule: If mapped to an opportunity opening, it must be of type 'Placement'.</small>
-                        </div>
                     </div>
                     {% endif %}
 
                     <!-- Offer Parameters -->
                     <h2 class="h6 fw-bold border-bottom pb-2 mb-3 mt-4 text-primary">
-                        <i class="bi bi-file-earmark-check me-1"></i> Offer Terms & Compensation
+                        <i class="bi bi-file-earmark-check me-1"></i> Offer Terms &amp; Compensation
                     </h2>
 
                     <div class="row g-3">
@@ -115,7 +102,7 @@
                             <input type="number" step="0.01" class="form-control form-control-sm" id="Package" name="Package" 
                                    value="{% if mode == 'edit' %}{{ offer.Package }}{% endif %}" 
                                    placeholder="e.g. 14.50" min="0.01" required>
-                            <div class="invalid-feedback">Package must be > 0 LPA.</div>
+                            <div class="invalid-feedback">Package must be &gt; 0 LPA.</div>
                         </div>
 
                         <div class="col-12 col-md-3">
@@ -134,33 +121,31 @@
                         </div>
 
                         <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold small" for="Offer_Status">Offer Status</label>
-                            <select class="form-select form-select-sm" id="Offer_Status" name="Offer_Status">
-                                <option value="Offered" {% if mode == 'edit' and offer.Offer_Status == 'Offered' %}selected{% endif %}>Offered</option>
+                            <label class="form-label fw-semibold small" for="Offer_Status">Offer Status <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-sm" id="Offer_Status" name="Offer_Status" required>
+                                <option value="Offered" {% if mode == 'edit' and offer.Offer_Status == 'Offered' %}selected{% elif mode != 'edit' %}selected{% endif %}>Offered</option>
                                 <option value="Accepted" {% if mode == 'edit' and offer.Offer_Status == 'Accepted' %}selected{% endif %}>Accepted</option>
-                                <option value="Joined" {% if mode == 'edit' and offer.Offer_Status == 'Joined' %}selected{% endif %}>Joined</option>
                                 <option value="Declined" {% if mode == 'edit' and offer.Offer_Status == 'Declined' %}selected{% endif %}>Declined</option>
                             </select>
-                            <small class="text-muted d-block mt-1">Rule: A student can hold at most ONE Accepted/Joined offer.</small>
+                            <small class="text-muted d-block mt-1">Status: Offered, Accepted, or Declined.</small>
                         </div>
 
                         <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold small" for="Joined">Joined Organization?</label>
+                            <select class="form-select form-select-sm" id="Joined" name="Joined">
+                                <option value="No" {% if not offer or offer.Joined == 'No' %}selected{% endif %}>No (Pending / Not Joined)</option>
+                                <option value="Yes" {% if offer and offer.Joined == 'Yes' %}selected{% endif %}>Yes (Officially Joined)</option>
+                            </select>
+                            <small class="text-muted d-block mt-1">Rule: Joined='Yes' requires Status='Accepted'.</small>
+                        </div>
+
+                        <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold small" for="Is_PPO">Pre-Placement Offer (PPO)?</label>
                             <select class="form-select form-select-sm" id="Is_PPO" name="Is_PPO">
                                 <option value="No" {% if mode == 'edit' and offer.Is_PPO == 'No' %}selected{% endif %}>No (Standard Drive)</option>
                                 <option value="Yes" {% if mode == 'edit' and offer.Is_PPO == 'Yes' %}selected{% endif %}>Yes (Internship Conversion)</option>
                             </select>
                         </div>
-
-                        {% if mode == 'edit' %}
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold small" for="Joined">Joined Organization?</label>
-                            <select class="form-select form-select-sm" id="Joined" name="Joined">
-                                <option value="No" {% if offer.Joined == 'No' %}selected{% endif %}>No (Not yet joined / Pending)</option>
-                                <option value="Yes" {% if offer.Joined == 'Yes' %}selected{% endif %}>Yes (Officially Joined)</option>
-                            </select>
-                        </div>
-                        {% endif %}
 
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold small" for="Interview_Rounds">Selection Rounds Cleared</label>
@@ -171,9 +156,9 @@
                         <div class="col-12">
                             <label class="form-label fw-semibold small" for="Skills">Evaluated Technical Skills (Comma-separated)</label>
                             <input type="text" class="form-control form-control-sm" id="Skills" name="Skills" 
-                                   value="{% if mode == 'edit' %}{{ offer.Skills|join(', ') }}{% endif %}" 
+                                   value="{% if mode == 'edit' and offer.Skills %}{{ offer.Skills|join(', ') }}{% endif %}" 
                                    placeholder="e.g. Python, SQL, Docker, AWS">
-                            <small class="text-muted">Skills evaluated and recorded in the PLACEMENT_SKILL registry.</small>
+                            <small class="text-muted">Skills recorded in the normalized PLACEMENT_SKILL registry.</small>
                         </div>
                     </div>
                 </div>
@@ -190,4 +175,26 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const statusSelect = document.getElementById('Offer_Status');
+    const joinedSelect = document.getElementById('Joined');
+
+    if (statusSelect && joinedSelect) {
+        // If Joined changes to 'Yes', auto-select 'Accepted'
+        joinedSelect.addEventListener('change', function() {
+            if (this.value === 'Yes') {
+                statusSelect.value = 'Accepted';
+            }
+        });
+        // If Offer_Status changes to 'Offered' or 'Declined', force Joined to 'No'
+        statusSelect.addEventListener('change', function() {
+            if (this.value !== 'Accepted') {
+                joinedSelect.value = 'No';
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

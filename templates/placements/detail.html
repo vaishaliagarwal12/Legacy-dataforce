@@ -229,101 +229,57 @@
         </div>
     </div>
 
-    <!-- Right Column: Drive Context, Eligibility & Evaluated Skills -->
+    <!-- Right Column: Placement Specifications & Evaluated Skills -->
     <div class="col-12 col-lg-6">
-        <!-- Recruitment Drive & Opportunity Context -->
-        <div class="table-card mb-4">
-            <div class="table-card-header">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="bi bi-briefcase text-primary fs-5"></i>
-                    <div>
-                        <h2 class="h6 fw-bold mb-0">Recruitment Drive &amp; Opportunity Opening</h2>
-                        <small class="text-muted">Curricular drive scheduling and hiring campaign details</small>
-                    </div>
-                </div>
-            </div>
-            <div class="p-3">
-                <dl class="row mb-0 small">
-                    <dt class="col-sm-5 text-muted">Designated Offer Role</dt>
-                    <dd class="col-sm-7 fw-bold text-dark">{{ offer.Role }}</dd>
-
-                    <dt class="col-sm-5 text-muted">Opportunity Role</dt>
-                    <dd class="col-sm-7">{{ offer.Opportunity_Role or offer.Role }}</dd>
-
-                    <dt class="col-sm-5 text-muted">Drive Campaign Year</dt>
-                    <dd class="col-sm-7">
-                        {% if offer.Drive_Year %}
-                            <span class="badge badge-status-neutral">{{ offer.Drive_Year }} Drive ({{ offer.Season or 'Annual' }})</span>
-                        {% else %}
-                            <span class="text-muted">Direct Campus Allocation</span>
-                        {% endif %}
-                    </dd>
-
-                    <dt class="col-sm-5 text-muted">Drive Event Date</dt>
-                    <dd class="col-sm-7">{{ offer.Drive_Date or 'Scheduled by Placement Cell' }}</dd>
-
-                    <dt class="col-sm-5 text-muted">Opening Package</dt>
-                    <dd class="col-sm-7">
-                        {% if offer.Drive_Package %}
-                            <span class="text-success fw-semibold">{{ offer.Drive_Package }} LPA Baseline</span>
-                        {% else %}
-                            <span class="text-muted">Negotiated Offer</span>
-                        {% endif %}
-                    </dd>
-                </dl>
-            </div>
-        </div>
-
-        <!-- Opportunity Eligibility Criteria & Compliance Assessment -->
+        <!-- Placement Offer Terms & Compliance -->
         <div class="table-card mb-4">
             <div class="table-card-header">
                 <div class="d-flex align-items-center gap-2">
                     <i class="bi bi-shield-check text-primary fs-5"></i>
                     <div>
-                        <h2 class="h6 fw-bold mb-0">Opportunity Eligibility &amp; Compliance Audit</h2>
-                        <small class="text-muted">Institutional eligibility rules at the time of recruitment</small>
+                        <h2 class="h6 fw-bold mb-0">Placement Specifications &amp; Audit</h2>
+                        <small class="text-muted">Institutional constraints &amp; joining status</small>
                     </div>
                 </div>
             </div>
             <div class="p-3">
-                <div class="row g-2 mb-3">
-                    <div class="col-6 col-sm-4">
-                        <div class="p-2 border rounded text-center">
-                            <small class="text-muted d-block">Min CGPA</small>
-                            <strong>{{ "%.2f"|format(offer.Minimum_CGPA or 6.00) }}</strong>
-                        </div>
-                    </div>
-                    <div class="col-6 col-sm-4">
-                        <div class="p-2 border rounded text-center">
-                            <small class="text-muted d-block">Max Backlogs</small>
-                            <strong>{{ offer.Max_Backlogs or 0 }}</strong>
-                        </div>
-                    </div>
-                    <div class="col-12 col-sm-4">
-                        <div class="p-2 border rounded text-center">
-                            <small class="text-muted d-block">Approved Branches</small>
-                            <small class="fw-semibold">{{ offer.Eligible_Branches|join(', ') if offer.Eligible_Branches else 'All Branches' }}</small>
-                        </div>
-                    </div>
-                </div>
+                <dl class="row mb-0 small">
+                    <dt class="col-sm-5 text-muted">Placement Category</dt>
+                    <dd class="col-sm-7 fw-semibold">{{ offer.Placement_Type or 'On-campus' }}</dd>
 
-                {% if offer.Candidate_Eligibility_Met %}
-                    <div class="alert alert-success d-flex align-items-center py-2 px-3 small mb-0">
-                        <i class="bi bi-check-circle-fill me-2 fs-5"></i>
-                        <div>
-                            <strong>Eligibility Verified:</strong> Candidate met all academic and institutional standards for this placement opening.
-                        </div>
-                    </div>
-                {% else %}
-                    <div class="alert alert-warning py-2 px-3 small mb-0">
-                        <div class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>Advisory Notice:</div>
-                        <ul class="mb-0 ps-3">
-                            {% for note in offer.Eligibility_Notes %}
-                                <li>{{ note }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                {% endif %}
+                    <dt class="col-sm-5 text-muted">Pre-Placement Offer (PPO)</dt>
+                    <dd class="col-sm-7">
+                        {% if offer.Is_PPO == 'Yes' %}
+                            <span class="badge badge-status-warning"><i class="bi bi-lightning-charge me-1"></i>PPO (Internship Conversion)</span>
+                        {% else %}
+                            <span class="text-muted">Standard Recruitment Drive</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-5 text-muted">Interview Rounds Cleared</dt>
+                    <dd class="col-sm-7">{{ offer.Interview_Rounds or 1 }} Round(s)</dd>
+
+                    <dt class="col-sm-5 text-muted">Offer Status</dt>
+                    <dd class="col-sm-7">
+                        <span class="badge {% if offer.Offer_Status == 'Accepted' %}badge-status-success{% elif offer.Offer_Status == 'Declined' %}badge-status-danger{% else %}badge-status-primary{% endif %}">
+                            {{ offer.Offer_Status }}
+                        </span>
+                    </dd>
+
+                    <dt class="col-sm-5 text-muted">Officially Joined</dt>
+                    <dd class="col-sm-7">
+                        {% if offer.Joined == 'Yes' %}
+                            <span class="badge badge-status-success"><i class="bi bi-building-check me-1"></i>Joined (Placed)</span>
+                        {% else %}
+                            <span class="badge badge-status-neutral">Not Joined</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-5 text-muted">Institutional Rule</dt>
+                    <dd class="col-sm-7 text-muted">
+                        <small>Enforced by <code>chk_placement_joined_status</code> and <code>uq_one_joined_offer</code> (Single joined offer per candidate).</small>
+                    </dd>
+                </dl>
             </div>
         </div>
 

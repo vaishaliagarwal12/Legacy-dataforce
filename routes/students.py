@@ -9,10 +9,12 @@ from services import (
     add_student_phone,
     list_student_phones,
     delete_student_phone,
+    admin_required,
 )
 
 
 @student_bp.route("", methods=["POST"])
+@admin_required
 def api_create_student():
     """Creates a new student along with multivalued phone numbers."""
     payload = request.get_json() or {}
@@ -24,6 +26,7 @@ def api_create_student():
 
 
 @student_bp.route("", methods=["GET"])
+@admin_required
 def api_list_students():
     """Lists, searches, and filters students with advanced criteria, sorting, and pagination."""
     search = request.args.get("search")
@@ -74,6 +77,7 @@ def api_list_students():
 
 
 @student_bp.route("/<int:student_id>", methods=["GET"])
+@admin_required
 def api_get_student(student_id: int):
     """Retrieves full details of a single student."""
     student = get_student(student_id)
@@ -81,6 +85,7 @@ def api_get_student(student_id: int):
 
 
 @student_bp.route("/<int:student_id>", methods=["PUT"])
+@admin_required
 def api_update_student(student_id: int):
     """Updates student fields and/or contact numbers."""
     payload = request.get_json() or {}
@@ -98,6 +103,7 @@ def api_update_student(student_id: int):
 
 
 @student_bp.route("/<int:student_id>", methods=["DELETE"])
+@admin_required
 def api_delete_student(student_id: int):
     """Safely deletes a student; BLOCKS if placement or internship history exists."""
     result = delete_student(student_id)
@@ -115,6 +121,7 @@ def api_delete_student(student_id: int):
 
 # Multivalued Phone Number Routes
 @student_bp.route("/<int:student_id>/phones", methods=["GET"])
+@admin_required
 def api_list_student_phones(student_id: int):
     """Lists all phone numbers for a student."""
     phones = list_student_phones(student_id)
@@ -122,6 +129,7 @@ def api_list_student_phones(student_id: int):
 
 
 @student_bp.route("/<int:student_id>/phones", methods=["POST"])
+@admin_required
 def api_add_student_phone(student_id: int):
     """Adds a contact number to a student's phone table."""
     payload = request.get_json() or {}
@@ -131,6 +139,7 @@ def api_add_student_phone(student_id: int):
 
 
 @student_bp.route("/<int:student_id>/phones/<path:phone_no>", methods=["DELETE"])
+@admin_required
 def api_delete_student_phone(student_id: int, phone_no: str):
     """Removes a specific phone number from a student's phone table."""
     result = delete_student_phone(student_id, phone_no)

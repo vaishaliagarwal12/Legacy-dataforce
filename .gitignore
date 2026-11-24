@@ -49,3 +49,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+scratch/
+
+!seed.sql

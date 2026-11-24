@@ -12,9 +12,13 @@ from config import TestingConfig
 from db.connection import get_connection, get_cursor, execute_mutation, execute_one, execute_query
 from services.student_service import create_student, delete_student
 from services.company_service import create_company, delete_company
-from services.drive_service import create_drive, delete_drive
-from services.opportunity_service import create_opportunity, delete_opportunity
+from services.placement_service import create_placement_offer, delete_placement_offer
 from services.security import generate_csrf_token
+from werkzeug.security import generate_password_hash
+
+TEST_ADMIN_USERNAME = "test_admin"
+TEST_ADMIN_PASSWORD = "TestAdminPassword2026!"
+TEST_ADMIN_PASSWORD_HASH = generate_password_hash(TEST_ADMIN_PASSWORD)
 
 
 @pytest.fixture(scope="session")
@@ -28,6 +32,9 @@ def app():
             "TESTING": True,
             "WTF_CSRF_ENABLED": False,
             "PRESERVE_CONTEXT_ON_EXCEPTION": False,
+            "ADMIN_USERNAME": TEST_ADMIN_USERNAME,
+            "ADMIN_PASSWORD_HASH": TEST_ADMIN_PASSWORD_HASH,
+            "ADMIN_PASSWORD": None,
         }
     )
 
@@ -39,6 +46,12 @@ def app():
 def client(app):
     """Function-scoped test client for sending HTTP requests."""
     return app.test_client()
+
+
+@pytest.fixture(scope="function")
+def unauthenticated_client(app):
+    """Function-scoped unauthenticated test client with no session."""
+    return app.test_client(auto_login=False)
 
 
 @pytest.fixture(scope="function")
@@ -143,47 +156,32 @@ def clean_test_company(app, synthetic_company_payload):
 
 
 @pytest.fixture(scope="function")
-def clean_test_drive_and_opp(app, clean_test_company):
-    """Creates a recruitment drive and opportunity for testing and tears down cleanly."""
+def clean_test_placement(app, clean_test_student, clean_test_company):
+    """Creates a placement offer for testing and tears down cleanly."""
+    student_id = clean_test_student["Student_ID"]
     company_id = clean_test_company["Company_ID"]
-    drive_payload = {
+    payload = {
+        "Student_ID": student_id,
         "Company_ID": company_id,
-        "Drive_Year": 2026,
-        "Drive_Type": "Placement",
-        "Season": "Autumn",
-        "Drive_Date": "2026-10-15",
+        "Role": "Software Engineer Test",
+        "Package": 12.50,
+        "Placement_Year": 2026,
+        "Placement_Type": "On-campus",
+        "Offer_Status": "Offered",
+        "Joined": "No",
+        "Is_PPO": "No",
+        "Interview_Rounds": 3,
+        "Skills": ["Python", "SQL"],
     }
-    drive = create_drive(drive_payload)
-    drive_id = drive["Drive_ID"]
+    offer = create_placement_offer(payload)
+    offer_id = offer["Placement_ID"]
 
-    opp_payload = {
-        "Drive_ID": drive_id,
-        "Role": "Software Development Engineer Test",
-        "Opportunity_Type": "Placement",
-        "Package_Stipend": 14.50,
-        "Minimum_CGPA": 7.00,
-        "Max_Backlogs": 0,
-        "Eligible_Branches": ["Computer Science", "Information Tech"],
-    }
-    opp = create_opportunity(opp_payload)
-    opp_id = opp["Opportunity_ID"]
-
-    yield {
-        "company": clean_test_company,
-        "drive": drive,
-        "opportunity": opp,
-    }
-
-    # Teardown in correct FK order
-    try:
-        delete_opportunity(opp_id)
-    except Exception:
-        execute_mutation("DELETE FROM OPPORTUNITY WHERE Opportunity_ID = %s", (opp_id,))
+    yield offer
 
     try:
-        delete_drive(drive_id)
+        delete_placement_offer(offer_id)
     except Exception:
-        execute_mutation("DELETE FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (drive_id,))
+        execute_mutation("DELETE FROM PLACEMENT WHERE Placement_ID = %s", (offer_id,))
 
 
 @pytest.fixture(scope="function")

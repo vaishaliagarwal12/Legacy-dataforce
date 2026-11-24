@@ -37,9 +37,6 @@ class InternshipUpgradeTestCase(unittest.TestCase):
             cur.execute(
                 "DELETE FROM INTERNSHIP WHERE Student_ID IN (SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST_INT_STUDENT')"
             )
-            cur.execute(
-                "DELETE FROM SEMESTER_RESULT WHERE Student_ID IN (SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST_INT_STUDENT')"
-            )
             cur.execute("DELETE FROM STUDENT WHERE Roll_No = 'TEST_INT_STUDENT'")
 
     @classmethod
@@ -48,25 +45,24 @@ class InternshipUpgradeTestCase(unittest.TestCase):
             cur.execute(
                 "DELETE FROM INTERNSHIP WHERE Student_ID IN (SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST_INT_STUDENT')"
             )
-            cur.execute(
-                "DELETE FROM SEMESTER_RESULT WHERE Student_ID IN (SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST_INT_STUDENT')"
-            )
             cur.execute("DELETE FROM STUDENT WHERE Roll_No = 'TEST_INT_STUDENT'")
 
-    def _create_test_student(self):
+    def _create_test_student(self, cgpa=8.50, backlogs=0, roll_no="TEST_INT_STUDENT"):
         """Helper to create an isolated test student for eligibility tests."""
         with get_cursor(commit=True) as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 INSERT INTO STUDENT (Roll_No, First_Name, Last_Name, Branch, Batch_Year, CGPA, Backlogs, Email)
-                VALUES ('TEST_INT_STUDENT', 'Academic', 'TestStudent', 'CSE', 2024, 8.50, 0, 'test_int_student@example.com')
-            """)
+                VALUES (%s, 'Academic', 'TestStudent', 'CSE', 2024, %s, %s, %s)
+            """,
+                (roll_no, cgpa, backlogs, f"{roll_no.lower()}@example.com"),
+            )
             return cur.lastrowid
 
     def _cleanup_test_student(self, student_id):
         """Helper to clean up isolated test student and records."""
         with get_cursor(commit=True) as cur:
             cur.execute("DELETE FROM INTERNSHIP WHERE Student_ID = %s", (student_id,))
-            cur.execute("DELETE FROM SEMESTER_RESULT WHERE Student_ID = %s", (student_id,))
             cur.execute("DELETE FROM STUDENT WHERE Student_ID = %s", (student_id,))
 
     # -------------------------------------------------------------------------
@@ -78,8 +74,8 @@ class InternshipUpgradeTestCase(unittest.TestCase):
         self.assertIn("kpis", analytics)
         kpis = analytics["kpis"]
 
-        self.assertEqual(kpis["total_internships"], 62)
-        self.assertEqual(kpis["mandatory_i1_completed"], 29)
+        self.assertEqual(kpis["total_internships"], 63)
+        self.assertEqual(kpis["mandatory_i1_completed"], 30)
         self.assertEqual(kpis["mandatory_i2_completed"], 29)
         self.assertEqual(kpis["additional_internships"], 4)
         self.assertEqual(kpis["total_students"], 30)
@@ -94,7 +90,7 @@ class InternshipUpgradeTestCase(unittest.TestCase):
         self.assertIn("A+", grades)
 
         # Type distribution
-        self.assertEqual(analytics["type_distribution"]["mandatory_1"], 29)
+        self.assertEqual(analytics["type_distribution"]["mandatory_1"], 30)
         self.assertEqual(analytics["type_distribution"]["mandatory_2"], 29)
         self.assertEqual(analytics["type_distribution"]["additional"], 4)
 
@@ -140,7 +136,7 @@ class InternshipUpgradeTestCase(unittest.TestCase):
 
         # 3. By Internship Type (Mandatory vs Additional)
         res_mand = list_internships(internship_type="Mandatory")
-        self.assertEqual(len(res_mand), 58)  # 29 I1 + 29 I2
+        self.assertEqual(len(res_mand), 59)
         self.assertTrue(all(r["Internship_Type"] == "Mandatory" for r in res_mand))
 
         res_add = list_internships(internship_type="Additional")
@@ -178,102 +174,67 @@ class InternshipUpgradeTestCase(unittest.TestCase):
         self.assertEqual(status_upcoming, "Upcoming")
 
     # -------------------------------------------------------------------------
-    # 5. ZERO REDUNDANCY DYNAMIC PREREQUISITE SGPA JOIN
+    # 5. MANDATORY INTERNSHIPS WITH STUDENT ACADEMIC METRICS
     # -------------------------------------------------------------------------
     def test_05_prerequisite_sgpa_dynamic_join_zero_redundancy(self):
-        """Verifies Mandatory I1 uses Sem 3 SGPA and Mandatory I2 uses Sem 5 SGPA dynamically."""
+        """Verifies Mandatory I1 and I2 reflect canonical curriculum rules (I1: Sem 5, 4 cr; I2: Sem 8, 4 cr)."""
         mandatory = get_mandatory_internships_with_prerequisite_sgpa()
         self.assertTrue(len(mandatory) > 0)
 
         for m in mandatory:
             self.assertEqual(m["Internship_Type"], "Mandatory")
+            self.assertIn(m["Internship_No"], (1, 2))
+            self.assertEqual(m["Credits"], 4)
             if m["Internship_No"] == 1:
-                self.assertEqual(m["Required_Result_Semester"], 3)
+                self.assertEqual(m["Report_Semester"], 5)
             elif m["Internship_No"] == 2:
-                self.assertEqual(m["Required_Result_Semester"], 5)
-            self.assertIsNotNone(m["Prerequisite_Semester_SGPA"])
-            self.assertGreater(m["Prerequisite_Semester_SGPA"], 0.0)
+                self.assertEqual(m["Report_Semester"], 8)
+            self.assertGreater(m["CGPA"], 0.0)
 
     # -------------------------------------------------------------------------
     # 6. ACADEMIC RULE: ELIGIBLE SCENARIO
     # -------------------------------------------------------------------------
     def test_06_academic_rule_eligible_scenario(self):
-        """Verifies a candidate with verified Sem 3 SGPA >= 6.00 is evaluated as Eligible for I1."""
-        student_id = self._create_test_student()
+        """Verifies a candidate with CGPA >= 6.00 and zero backlogs is Eligible for I1 and I2."""
+        student_id = self._create_test_student(cgpa=8.50, backlogs=0)
         try:
-            # Record Sem 3 result with SGPA 8.40 for test student
-            with get_cursor(commit=True) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO SEMESTER_RESULT (Student_ID, Semester, SGPA, Year, Total_Credits)
-                    VALUES (%s, 3, 8.40, 2021, 24)
-                """,
-                    (student_id,),
-                )
-
             res_i1 = check_internship_eligibility(student_id, 1, min_sgpa=6.00)
             self.assertTrue(res_i1["is_eligible"])
             self.assertEqual(res_i1["status"], "Eligible")
-            self.assertEqual(res_i1["required_result_semester"], 3)
-            self.assertEqual(res_i1["prerequisite_sgpa"], 8.40)
             self.assertIn("is eligible", res_i1["message"])
-
-            # Also record Sem 5 result with SGPA 8.60 for test student -> Eligible for I2
-            with get_cursor(commit=True) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO SEMESTER_RESULT (Student_ID, Semester, SGPA, Year, Total_Credits)
-                    VALUES (%s, 5, 8.60, 2022, 24)
-                """,
-                    (student_id,),
-                )
 
             res_i2 = check_internship_eligibility(student_id, 2, min_sgpa=6.00)
             self.assertTrue(res_i2["is_eligible"])
             self.assertEqual(res_i2["status"], "Eligible")
-            self.assertEqual(res_i2["required_result_semester"], 5)
-            self.assertEqual(res_i2["prerequisite_sgpa"], 8.60)
+            self.assertIn("is eligible", res_i2["message"])
         finally:
             self._cleanup_test_student(student_id)
 
     # -------------------------------------------------------------------------
-    # 7. ACADEMIC RULE: INELIGIBLE SCENARIO (LOW SGPA)
+    # 7. ACADEMIC RULE: INELIGIBLE SCENARIO (LOW CGPA)
     # -------------------------------------------------------------------------
     def test_07_academic_rule_ineligible_scenario_low_sgpa(self):
-        """Verifies a candidate whose prerequisite semester SGPA is below minimum threshold is Ineligible."""
-        student_id = self._create_test_student()
+        """Verifies a candidate whose CGPA is below the minimum threshold is Ineligible."""
+        student_id = self._create_test_student(cgpa=5.40, backlogs=0)
         try:
-            # Update Sem 3 result to SGPA 5.40 (< 6.00)
-            with get_cursor(commit=True) as cur:
-                cur.execute(
-                    """
-                    INSERT INTO SEMESTER_RESULT (Student_ID, Semester, SGPA, Year, Total_Credits)
-                    VALUES (%s, 3, 5.40, 2021, 24)
-                """,
-                    (student_id,),
-                )
-
             res_low = check_internship_eligibility(student_id, 1, min_sgpa=6.00)
             self.assertFalse(res_low["is_eligible"])
             self.assertEqual(res_low["status"], "Ineligible")
-            self.assertEqual(res_low["prerequisite_sgpa"], 5.40)
-            self.assertIn("below minimum requirement", res_low["message"])
+            self.assertIn("is not eligible", res_low["message"])
         finally:
             self._cleanup_test_student(student_id)
 
     # -------------------------------------------------------------------------
-    # 8. ACADEMIC RULE: INCOMPLETE / MISSING PREREQUISITE SCENARIO
+    # 8. ACADEMIC RULE: INELIGIBLE SCENARIO (ACTIVE BACKLOGS)
     # -------------------------------------------------------------------------
     def test_08_academic_rule_incomplete_missing_prerequisite_scenario(self):
-        """Verifies a candidate with NO recorded prerequisite semester result is flagged as Prerequisite Missing."""
-        student_id = self._create_test_student()
+        """Verifies a candidate with active backlogs is flagged as Ineligible."""
+        student_id = self._create_test_student(cgpa=8.50, backlogs=2)
         try:
-            res_missing = check_internship_eligibility(student_id, 1, min_sgpa=6.00)
-            self.assertFalse(res_missing["is_eligible"])
-            self.assertEqual(res_missing["status"], "Prerequisite Missing")
-            self.assertFalse(res_missing["semester_result_found"])
-            self.assertIsNone(res_missing["prerequisite_sgpa"])
-            self.assertIn("no recorded result for Semester 3", res_missing["message"])
+            res_backlogs = check_internship_eligibility(student_id, 1, min_sgpa=6.00)
+            self.assertFalse(res_backlogs["is_eligible"])
+            self.assertEqual(res_backlogs["status"], "Ineligible")
+            self.assertIn("is not eligible", res_backlogs["message"])
         finally:
             self._cleanup_test_student(student_id)
 
@@ -286,9 +247,9 @@ class InternshipUpgradeTestCase(unittest.TestCase):
         try:
             res_opt = check_internship_eligibility(student_id, 3)
             self.assertTrue(res_opt["is_eligible"])
-            self.assertEqual(res_opt["status"], "Optional")
+            self.assertEqual(res_opt["status"], "Eligible")
             self.assertEqual(res_opt["internship_type"], "Additional")
-            self.assertIsNone(res_opt["required_result_semester"])
+            self.assertIsNone(res_opt.get("required_result_semester"))
             self.assertIn("optional", res_opt["message"])
         finally:
             self._cleanup_test_student(student_id)
@@ -428,7 +389,7 @@ class InternshipUpgradeTestCase(unittest.TestCase):
         self.assertEqual(res_create.status_code, 200)
         html_create = res_create.get_data(as_text=True)
         self.assertIn("Record Student Internship", html_create)
-        self.assertIn("Academic Degree Requirement", html_create)
+        self.assertIn("Curriculum Requirement", html_create)
 
         # 4. Edit Form
         res_edit = self.client.get("/internships/1/edit")

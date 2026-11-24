@@ -171,40 +171,36 @@ document.addEventListener('DOMContentLoaded', () => {
     // 5. Internship Form Dynamic Switcher (Mandatory vs Additional)
     // -------------------------------------------------------------------------
     const internshipTypeSelect = document.getElementById('internship_type_select');
-    const requirementGroup = document.getElementById('requirement_group');
-    const requirementSelect = document.getElementById('requirement_id_select');
     const internshipNoInput = document.getElementById('internship_no_input');
+    const repSemSelect = document.getElementById('Report_Semester');
+    const creditsInput = document.getElementById('Credits');
+    const ruleText = document.getElementById('rule_explanation_text');
 
-    if (internshipTypeSelect && requirementGroup && requirementSelect) {
-        function updateInternshipFields() {
-            const isMandatory = internshipTypeSelect.value === 'Mandatory';
-            if (isMandatory) {
-                requirementGroup.style.display = 'block';
-                requirementSelect.required = true;
-                requirementSelect.disabled = false;
-                const selectedOpt = requirementSelect.options[requirementSelect.selectedIndex];
-                if (selectedOpt && selectedOpt.dataset.reqNo && internshipNoInput) {
-                    internshipNoInput.value = selectedOpt.dataset.reqNo;
+    if (internshipTypeSelect && internshipNoInput) {
+        function syncCurriculumRules() {
+            const itype = internshipTypeSelect.value;
+            const num = parseInt(internshipNoInput.value || '1', 10);
+
+            if (itype === 'Mandatory') {
+                if (num === 1) {
+                    if (repSemSelect) repSemSelect.value = '5';
+                    if (creditsInput) creditsInput.value = '4';
+                    if (ruleText) ruleText.textContent = "Internship 1: Done in summer vacation after 2nd year; report submitted in semester 5, 4 credits.";
+                } else if (num === 2) {
+                    if (repSemSelect) repSemSelect.value = '8';
+                    if (creditsInput) creditsInput.value = '4';
+                    if (ruleText) ruleText.textContent = "Internship 2: done in 8th semester, report submitted after the end of 8th semester, 4 credits.";
                 }
             } else {
-                requirementGroup.style.display = 'none';
-                requirementSelect.required = false;
-                requirementSelect.disabled = true;
-                requirementSelect.value = '';
-                if (internshipNoInput && (!internshipNoInput.value || internshipNoInput.value <= 2)) {
+                if (num < 3) {
                     internshipNoInput.value = '3';
                 }
+                if (ruleText) ruleText.textContent = "Additional Internship: Optional / voluntary industry engagement.";
             }
         }
 
-        internshipTypeSelect.addEventListener('change', updateInternshipFields);
-        requirementSelect.addEventListener('change', () => {
-            const selectedOpt = requirementSelect.options[requirementSelect.selectedIndex];
-            if (selectedOpt && selectedOpt.dataset.reqNo && internshipNoInput) {
-                internshipNoInput.value = selectedOpt.dataset.reqNo;
-            }
-        });
-        updateInternshipFields();
+        internshipTypeSelect.addEventListener('change', syncCurriculumRules);
+        internshipNoInput.addEventListener('input', syncCurriculumRules);
     }
 
     // -------------------------------------------------------------------------
@@ -224,9 +220,19 @@ document.addEventListener('DOMContentLoaded', () => {
         let currentPage = 1;
         let visibleRows = [...allRows];
 
-        // Search input connector
+        // Search input connector (by ID on wrapper or data-table-search on input)
         const searchInputId = tableWrapper.getAttribute('data-search-input');
-        const searchInput = searchInputId ? document.getElementById(searchInputId) : null;
+        let searchInput = searchInputId ? document.getElementById(searchInputId) : null;
+        if (!searchInput && table.id) {
+            searchInput = tableWrapper.querySelector(`input[data-table-search="${table.id}"]`) ||
+                          document.querySelector(`input[data-table-search="${table.id}"]`);
+        }
+
+        // Apply initial search query if input already has a value
+        if (searchInput && searchInput.value.trim()) {
+            const initialQuery = searchInput.value.toLowerCase().trim();
+            visibleRows = allRows.filter(row => row.textContent.toLowerCase().includes(initialQuery));
+        }
 
         // Create pagination footer if not already present
         let footer = tableWrapper.querySelector('.table-pagination-footer');
@@ -319,6 +325,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize all tables marked for pagination
     document.querySelectorAll('.table-card[data-paginate="true"]').forEach(wrapper => {
         initPaginatedTable(wrapper);
+    });
+
+    // Standalone / unpaginated tables with data-table-search
+    document.querySelectorAll('input[data-table-search]').forEach(input => {
+        const targetId = input.getAttribute('data-table-search');
+        const targetTable = document.getElementById(targetId);
+        if (!targetTable) return;
+        const wrapper = targetTable.closest('.table-card');
+        if (wrapper && wrapper.getAttribute('data-paginate') === 'true') {
+            return; // Handled by initPaginatedTable
+        }
+        input.addEventListener('input', () => {
+            const query = input.value.toLowerCase().trim();
+            const rows = targetTable.querySelectorAll('tbody tr:not(.no-filter)');
+            rows.forEach(r => {
+                const match = !query || r.textContent.toLowerCase().includes(query);
+                r.style.display = match ? '' : 'none';
+            });
+        });
     });
 
     // Initialize fetch-based export download interceptors

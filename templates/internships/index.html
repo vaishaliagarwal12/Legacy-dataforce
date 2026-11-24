@@ -211,12 +211,12 @@
 <!-- TAB CONTENT SECTIONS -->
 
 {% if active_tab == 'Mandatory' %}
-<!-- Tab 1: Mandatory Internships with Dynamic Prerequisite SGPA -->
+<!-- Tab 1: Mandatory Internships -->
 <div class="table-card mb-4">
     <div class="table-card-header">
         <div>
-            <h2 class="h5 fw-bold mb-0">Mandatory Internships & Dynamic 3NF Prerequisite SGPAs</h2>
-            <small class="text-muted">Demonstrates <code>INTERNSHIP &rarr; REQUIREMENT &rarr; SEMESTER_RESULT</code> join with zero duplicated SGPA storage.</small>
+            <h2 class="h5 fw-bold mb-0">Mandatory Internships & Academic Progress</h2>
+            <small class="text-muted">Mandatory internships (Internship 1 in Sem 5, Internship 2 in Sem 8) linked with Student and Company.</small>
         </div>
         <div class="d-flex gap-2">
             <input type="text" class="form-control form-control-sm" placeholder="Search table..." data-table-search="mandatoryTable">
@@ -230,9 +230,9 @@
                     <th>Roll No</th>
                     <th>Branch</th>
                     <th>Internship #</th>
-                    <th>Academic Requirement</th>
-                    <th>Required Sem</th>
-                    <th>Prerequisite SGPA (Dynamic)</th>
+                    <th>Curriculum Requirement</th>
+                    <th>Report Sem</th>
+                    <th>Student CGPA</th>
                     <th>Company & Role</th>
                     <th>Duration & Stipend</th>
                     <th>Status</th>
@@ -252,20 +252,14 @@
                     <td><span class="badge bg-light text-dark border">{{ item.Branch }}</span></td>
                     <td><span class="badge badge-status-primary">Mandatory #{{ item.Internship_No }}</span></td>
                     <td>
-                        <strong>{{ item.Prescribed_Period }}</strong><br>
-                        <small class="text-muted">Report in Sem {{ 5 if item.Internship_No == 1 else 7 }} ({{ item.Credits or 4 }} Credits)</small>
+                        <strong>{% if item.Internship_No == 1 %}Summer after 2nd yr{% elif item.Internship_No == 2 %}During 8th semester{% else %}Additional{% endif %}</strong><br>
+                        <small class="text-muted">Report in Sem {{ item.Report_Semester or (5 if item.Internship_No == 1 else 8) }} ({{ item.Credits or 4 }} Credits)</small>
                     </td>
-                    <td><span class="badge bg-secondary-subtle text-secondary">Semester {{ item.Required_Result_Semester }}</span></td>
+                    <td><span class="badge bg-secondary-subtle text-secondary">Semester {{ item.Report_Semester or (5 if item.Internship_No == 1 else 8) }}</span></td>
                     <td>
-                        <!-- Dynamically fetched prerequisite SGPA -->
-                        {% if item.Prerequisite_Semester_SGPA is not none %}
-                            <span class="badge badge-status-success fw-bold fs-6">
-                                <i class="bi bi-link-45deg me-1"></i>{{ "%.2f"|format(item.Prerequisite_Semester_SGPA) }} SGPA
-                            </span>
-                            <div class="small text-muted">{{ item.Prerequisite_Credits or 24 }} Credits</div>
-                        {% else %}
-                            <span class="badge badge-status-warning small">Result Pending</span>
-                        {% endif %}
+                        <span class="badge badge-status-success fw-bold fs-6">
+                            <i class="bi bi-mortarboard me-1"></i>{{ "%.2f"|format(item.CGPA) }} CGPA
+                        </span>
                     </td>
                     <td>
                         <strong>{{ item.Company_Name }}</strong><br>
@@ -340,7 +334,7 @@
     <div class="table-card-header">
         <div>
             <h2 class="h5 fw-bold mb-0">Additional Voluntary Internships</h2>
-            <small class="text-muted">Extracurricular industry experience (Requirement_ID is NULL by schema domain rule).</small>
+            <small class="text-muted">Extracurricular industry experience (Internship_No &ge; 3, voluntary industry training).</small>
         </div>
         <div class="d-flex gap-2">
             <input type="text" class="form-control form-control-sm" placeholder="Search table..." data-table-search="additionalTable">
@@ -528,11 +522,14 @@
     <div class="table-card-header bg-danger-subtle border-danger-subtle">
         <div>
             <h2 class="h5 fw-bold mb-0 text-danger">
-                <i class="bi bi-shield-slash me-2"></i>Graduation Clearance Audit: Missing Mandatory Internships
+                <i class="bi bi-shield-slash me-2"></i>Institutional Missing Mandatory Internship Audit
             </h2>
-            <small class="text-muted">Active students currently missing Mandatory Internship #1 (Summer after 2nd yr) or Mandatory Internship #2 (Summer after 3rd yr).</small>
+            <small class="text-muted">Students whose records indicate that Mandatory Internship #1 (Summer after 2nd year) or Mandatory Internship #2 (8th semester) is missing.</small>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 align-items-center">
+            <a href="/internships/missing-mandatory-pdf" class="btn btn-danger btn-sm text-nowrap" target="_blank">
+                <i class="bi bi-file-earmark-pdf me-1"></i> Missing Audit PDF
+            </a>
             <input type="text" class="form-control form-control-sm" placeholder="Search missing students..." data-table-search="missingTable">
         </div>
     </div>
@@ -546,7 +543,7 @@
                     <th>Graduation Batch</th>
                     <th>CGPA</th>
                     <th>Mandatory #1 (Summer 2nd Yr)</th>
-                    <th>Mandatory #2 (Summer 3rd Yr)</th>
+                    <th>Mandatory #2 (8th Semester)</th>
                     <th class="text-end">Action</th>
                 </tr>
             </thead>
@@ -878,7 +875,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {% else %}
 <!-- Tab 7: All Internships Overview -->
-<div class="table-card mb-4">
+<div class="table-card mb-4" data-paginate="true" data-page-size="10">
     <div class="table-card-header">
         <div>
             <h2 class="h5 fw-bold mb-0">All Student Internships</h2>
@@ -937,9 +934,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="small text-muted">{{ item.Credits or 4 }} Credits</div>
                     </td>
                     <td>
-                        {% if item.Requirement_ID %}
-                            <span class="badge bg-info-subtle text-info border">Requirement #{{ item.Requirement_ID }}</span>
-                            <small class="d-block text-muted">Sem {{ item.Required_Result_Semester }} SGPA</small>
+                        {% if item.Internship_Type == 'Mandatory' %}
+                            <span class="badge bg-info-subtle text-info border">Mandatory #{{ item.Internship_No }}</span>
+                            <small class="d-block text-muted">Sem {{ item.Report_Semester or (5 if item.Internship_No == 1 else 8) }} Report</small>
                         {% else %}
                             <span class="text-muted small">&mdash; Voluntary &mdash;</span>
                         {% endif %}
@@ -1020,9 +1017,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <span class="badge bg-primary text-white" style="background-color: var(--brand-indigo, #6610f2);">Requirement #2</span>
                 <h6 class="mb-0 fw-bold">Second Mandatory Internship</h6>
             </div>
-            <p class="small text-secondary mb-2">Undertaken in the third-year summer break, after <strong>Semester 5</strong>. Requires verified academic performance in <strong>Semester 5 (Prerequisite SGPA)</strong>.</p>
+            <p class="small text-secondary mb-2">Internship 2: done in 8th semester, report submitted after the end of 8th semester. Requires verified academic performance in <strong>Semester 7 (Prerequisite SGPA)</strong>.</p>
             <div class="small text-muted">
-                <span>Evaluation Defense: <strong>Semester 7</strong></span> &bull; 
+                <span>Evaluation Defense: <strong>After end of 8th Semester</strong></span> &bull; 
                 <span>Curricular Weightage: <strong>4 Academic Credits</strong></span>
             </div>
         </div>

@@ -85,34 +85,34 @@
 
 
 <section class="docs-section" style="margin-bottom: 2rem;">
-    <h3>Phase 4 Active REST Modules & Safe Deletion Policy</h3>
+    <h3>Canonical 7-Table REST Modules & Safe Deletion Policy</h3>
     <div class="metrics-grid" style="margin-top: 1rem;">
         <div class="metric-item">
             <span class="metric-label">Students Module</span>
             <span class="metric-value">/api/students</span>
             <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                CRUD, Roll/Email uniqueness, phone numbers via separate table, multi-field search, branch & CGPA filters.
+                Demographics, Roll/Email uniqueness, phone numbers (STUDENT_PHONE), technical skills (STUDENT_SKILL).
             </p>
         </div>
         <div class="metric-item">
-            <span class="metric-label">Courses Module</span>
-            <span class="metric-value">/api/courses</span>
+            <span class="metric-label">Companies Module</span>
+            <span class="metric-value">/api/companies</span>
             <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                Catalog CRUD, semester & credits validation, enrolled students listing, protected delete if students registered.
+                Recruiting partner directory, tier classification, industry profiling, and hiring engagement statistics.
             </p>
         </div>
         <div class="metric-item">
-            <span class="metric-label">Registrations Module</span>
-            <span class="metric-value">/api/registrations</span>
+            <span class="metric-label">Placements Module</span>
+            <span class="metric-value">/api/placements</span>
             <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                M:N student-course enrollment, year & grade updates, duplicate enrollment prevention, safe unenrollment.
+                Placement offers, package tracking, single-joined offer rule, and evaluated technical skills (PLACEMENT_SKILL).
             </p>
         </div>
         <div class="metric-item">
-            <span class="metric-label">Profiles & Phones</span>
-            <span class="metric-value">/api/profiles & phones</span>
+            <span class="metric-label">Internships Module</span>
+            <span class="metric-value">/api/internships</span>
             <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                Projects, hackathons, certifications, coding profiles, dedicated separate-table phone management.
+                Curriculum internships (Mandatory 1 in Sem 5, Mandatory 2 in Sem 8) and voluntary additional industrial training.
             </p>
         </div>
     </div>
@@ -125,27 +125,27 @@
 </section>
 
 <section class="docs-section" style="margin-bottom: 2rem;">
-    <h3>Phase 7 Academic & Internship Policy Engine</h3>
+    <h3>Curriculum Compliance & Analytics Engine</h3>
     <div class="metrics-grid" style="margin-top: 1rem;">
         <div class="metric-item">
-            <span class="metric-label">Semester Results</span>
-            <span class="metric-value">/api/semester-results</span>
+            <span class="metric-label">SQL Reports Console</span>
+            <span class="metric-value">/reports/sql</span>
             <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                Official academic records (SGPA, total/earned credits) enforced with <code>UNIQUE(Student_ID, Semester)</code>.
+                Curated saved DBMS queries and sandboxed read-only custom SQL query terminal with 500-row limits.
             </p>
         </div>
         <div class="metric-item">
             <span class="metric-label">Internship Requirements</span>
             <span class="metric-value">/api/internships/requirements</span>
             <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                Requirement 1: Sem 3 SGPA (Summer after 2nd yr); Requirement 2: Sem 5 SGPA (Summer after 3rd yr).
+                Internship 1: Sem 5 Report, 4 Credits (Summer after 2nd yr); Internship 2: done in 8th semester, report submitted after the end of 8th semester (Sem 8 Report, 4 Credits).
             </p>
         </div>
         <div class="metric-item">
-            <span class="metric-label">Prerequisite SGPA Join</span>
+            <span class="metric-label">Mandatory Internship Audit</span>
             <span class="metric-value">/api/internships/analytics/prerequisite-sgpa</span>
             <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                Dynamically joins <code>INTERNSHIP &rarr; REQUIREMENT &rarr; SEMESTER_RESULT</code>. Zero redundant SGPA storage (3NF).
+                Relational join <code>INTERNSHIP &rarr; STUDENT &rarr; COMPANY</code> enforcing curriculum compliance with zero redundancy.
             </p>
         </div>
         <div class="metric-item">

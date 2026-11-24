@@ -1,25 +1,25 @@
 import os
 import time
 import logging
-from flask import Flask, jsonify, request, flash, redirect, render_template
+from flask import Flask, jsonify, request, flash, redirect, render_template, session
+from flask.testing import FlaskClient
 from config import config_by_name, Config
 from db.connection import DatabaseError
 from routes import (
+    auth_bp,
     health_bp,
     main_bp,
     student_bp,
-    course_bp,
-    registration_bp,
-    profile_bp,
     company_bp,
-    drive_bp,
-    opportunity_bp,
-    round_bp,
     placement_bp,
-    semester_result_bp,
     internship_bp,
 )
-from services import ServiceError, generate_csrf_token, verify_csrf_token
+from services import (
+    ServiceError,
+    generate_csrf_token,
+    verify_csrf_token,
+    is_admin_authenticated,
+)
 
 # Configure logging format
 logging.basicConfig(
@@ -27,6 +27,20 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("legacy_dataforce")
+
+
+class AutoAuthTestClient(FlaskClient):
+    """Test client supporting auto-authenticated testing while allowing unauthenticated tests."""
+
+    def __init__(self, *args, **kwargs):
+        auto_login = kwargs.pop("auto_login", True)
+        super().__init__(*args, **kwargs)
+        if auto_login and getattr(self.application, "config", {}).get(
+            "AUTO_AUTH_TEST_CLIENT", True
+        ):
+            with self.session_transaction() as sess:
+                sess["admin_logged_in"] = True
+                sess["admin_user"] = self.application.config.get("ADMIN_USERNAME", "admin")
 
 
 def create_app(config_name: str = None) -> Flask:
@@ -37,20 +51,15 @@ def create_app(config_name: str = None) -> Flask:
     app = Flask(__name__)
     selected_config = config_by_name.get(config_name, Config)
     app.config.from_object(selected_config)
+    app.test_client_class = AutoAuthTestClient
 
-    # Register Route Blueprints
+    # Register Route Blueprints (Canonical 7-Table Schema)
+    app.register_blueprint(auth_bp)
     app.register_blueprint(health_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(student_bp)
-    app.register_blueprint(course_bp)
-    app.register_blueprint(registration_bp)
-    app.register_blueprint(profile_bp)
     app.register_blueprint(company_bp)
-    app.register_blueprint(drive_bp)
-    app.register_blueprint(opportunity_bp)
-    app.register_blueprint(round_bp)
     app.register_blueprint(placement_bp)
-    app.register_blueprint(semester_result_bp)
     app.register_blueprint(internship_bp)
 
     # Cached database health indicator for lightweight non-blocking template rendering
@@ -60,7 +69,6 @@ def create_app(config_name: str = None) -> Flask:
     @app.context_processor
     def inject_template_context():
         now = time.time()
-        # Query MySQL at most once per cache_ttl to avoid per-render database overhead
         cache_ttl = float(
             app.config.get("DB_HEALTH_CACHE_TTL", getattr(Config, "DB_HEALTH_CACHE_TTL", 10.0))
         )
@@ -77,23 +85,24 @@ def create_app(config_name: str = None) -> Flask:
         return {
             "csrf_token": generate_csrf_token,
             "is_db_connected": _db_health_cache["is_connected"],
+            "is_admin_logged_in": is_admin_authenticated(),
+            "admin_username": session.get("admin_user", app.config.get("ADMIN_USERNAME", "admin")),
         }
 
     # State-Changing Request Security & CSRF Enforcement
     @app.before_request
     def check_csrf_protection():
         if request.method in ("POST", "PUT", "PATCH", "DELETE"):
-            # Check if CSRF enforcement is active
+            # When unauthenticated on a non-login route, defer to @admin_required
+            if not is_admin_authenticated() and request.path != "/login":
+                return
             if not app.config.get("CSRF_ENABLED", True):
                 return
-            # In testing mode, bypass CSRF unless explicitly enabled (e.g. WTF_CSRF_ENABLED)
             if app.config.get("TESTING", False) and not app.config.get("WTF_CSRF_ENABLED", False):
                 return
-            # Allow purely stateless /api/ requests unless originating from form or cookie session
             if request.path.startswith("/api/"):
                 return
 
-            # Validate CSRF token from Form data or HTTP Request Headers
             token = (
                 request.form.get("csrf_token")
                 or request.headers.get("X-CSRFToken")
@@ -129,15 +138,6 @@ def create_app(config_name: str = None) -> Flask:
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         return response
 
-    def _is_browser_html_request() -> bool:
-        """Determines if an incoming HTTP request is from a browser expecting HTML."""
-        if request.path.startswith("/api/"):
-            return False
-        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return False
-        accept = request.headers.get("Accept", "")
-        return "text/html" in accept and not request.is_json
-
     # Custom Service Domain Error Handlers
     @app.errorhandler(ServiceError)
     def handle_service_error(error: ServiceError):
@@ -153,19 +153,15 @@ def create_app(config_name: str = None) -> Flask:
             error.status_code,
         )
 
-    # Database Error Handler - Never leaks internal query syntax or database connection strings
     @app.errorhandler(DatabaseError)
     def handle_database_error(error: DatabaseError):
-        logger.error("Internal database error: %s", error)
-        _db_health_cache["is_connected"] = False
-        _db_health_cache["last_check"] = time.time()
-        if _is_browser_html_request():
+        logger.error("Database error intercepted: %s", error)
+        if request.accept_mimetypes.accept_html and not request.path.startswith("/api/"):
             return (
                 render_template(
                     "errors/500.html",
                     error_title="500 - Database Connection Error",
-                    error_message="A database communication error occurred. Internal connection details are protected.",
-                    status_code=500,
+                    error_message="A database error occurred. Internal details have been logged securely.",
                     is_db_connected=False,
                 ),
                 500,
@@ -181,53 +177,38 @@ def create_app(config_name: str = None) -> Flask:
             500,
         )
 
-    # Global HTTP Error Handlers
-    @app.errorhandler(400)
-    def handle_bad_request(error):
-        return jsonify({"status": "fail", "message": "Bad request", "code": 400}), 400
-
-    @app.errorhandler(404)
-    def handle_not_found(error):
-        if _is_browser_html_request():
-            return render_template("errors/404.html"), 404
-        return jsonify({"status": "error", "message": "Endpoint not found", "code": 404}), 404
-
     @app.errorhandler(405)
-    def handle_method_not_allowed(error):
+    def method_not_allowed(error):
         return (
-            jsonify(
-                {"status": "fail", "message": "Method not allowed for requested URL", "code": 405}
-            ),
+            jsonify({"status": "fail", "message": "Method not allowed", "code": 405}),
             405,
         )
 
+    @app.errorhandler(404)
+    def not_found(error):
+        if request.path.startswith("/api/"):
+            return jsonify({"status": "fail", "message": "Resource not found", "code": 404}), 404
+        return render_template("errors/404.html"), 404
+
     @app.errorhandler(500)
-    def handle_server_error(error):
-        logger.error("Unhandled internal server error: %s", error)
-        if _is_browser_html_request():
+    def server_error(error):
+        logger.error("Internal Server Error: %s", error)
+        if request.path.startswith("/api/"):
             return (
-                render_template(
-                    "errors/500.html",
-                    error_title="500 - Internal Server Error",
-                    error_message="An unexpected server error occurred while processing your request.",
-                    status_code=500,
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": "Internal server processing failure",
+                        "code": 500,
+                    }
                 ),
                 500,
             )
-        return jsonify({"status": "error", "message": "Internal server error", "code": 500}), 500
+        return render_template("errors/500.html"), 500
 
-    logger.info(
-        "Flask application initialized under '%s' mode with all blueprints registered.", config_name
-    )
     return app
 
 
-app = create_app()
-
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5000))
-    debug_mode = app.config.get("DEBUG", False)
-    logger.info(
-        "Starting Flask application server on http://localhost:%s (debug=%s)", port, debug_mode
-    )
-    app.run(host="0.0.0.0", port=port, debug=debug_mode)
+    flask_app = create_app()
+    flask_app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)), debug=True)

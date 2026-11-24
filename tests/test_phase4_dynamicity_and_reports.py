@@ -37,9 +37,9 @@ class TestPhase4SqlReportDynamicity:
         for q in SAVED_QUERIES:
             for p in q.get("params", []):
                 default_val = p.get("default")
-                assert default_val not in forbidden_demo_defaults, (
-                    f"Query '{q['id']}' param '{p['name']}' still has hardcoded demo default '{default_val}'"
-                )
+                assert (
+                    default_val not in forbidden_demo_defaults
+                ), f"Query '{q['id']}' param '{p['name']}' still has hardcoded demo default '{default_val}'"
 
     def test_saved_queries_preserve_helpful_placeholders(self):
         """Task 1: Explanatory placeholders must remain present for UI guidance without acting as hidden query values."""
@@ -168,9 +168,7 @@ class TestPhase4SqlReportDynamicity:
 
         # Invalid batch_year (out of bounds)
         with pytest.raises(ValidationError) as exc3:
-            execute_saved_query(
-                "students_branch_batch", {"branch": "CSE", "batch_year": 1850}
-            )
+            execute_saved_query("students_branch_batch", {"branch": "CSE", "batch_year": 1850})
         assert "between 2000 and 2100" in str(exc3.value)
 
         # Invalid date format
@@ -191,9 +189,7 @@ class TestPhase4SqlReportDynamicity:
 
     def test_execute_saved_query_success_with_valid_parameters(self, app):
         """Verify saved queries execute correctly when supplied with legitimate parameters."""
-        res = execute_saved_query(
-            "students_branch_batch", {"branch": "CSE", "batch_year": 2024}
-        )
+        res = execute_saved_query("students_branch_batch", {"branch": "CSE", "batch_year": 2024})
         assert res["id"] == "students_branch_batch"
         assert res["params_used"] == ["CSE", 2024]
         assert "rows" in res

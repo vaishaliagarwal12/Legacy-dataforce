@@ -10,13 +10,15 @@ from services import (
     get_students_with_multiple_offers,
     get_offer_distribution_summary,
     get_placement_analytics,
-    check_candidate_eligibility_for_opportunity,
+    check_candidate_placement_eligibility,
+    admin_required,
 )
 
 
 @placement_bp.route("", methods=["POST"])
+@admin_required
 def api_create_placement():
-    """Records a new placement offer, enforcing duplicate blocking, single-acceptance, and opportunity type rules."""
+    """Records a new placement offer, enforcing duplicate blocking and single-joined offer rules."""
     payload = request.get_json() or {}
     offer = create_placement_offer(payload)
     return (
@@ -28,11 +30,11 @@ def api_create_placement():
 
 
 @placement_bp.route("", methods=["GET"])
+@admin_required
 def api_list_placements():
     """Lists, searches, and filters placement offers."""
     student_id = request.args.get("student_id", type=int)
     company_id = request.args.get("company_id", type=int)
-    opportunity_id = request.args.get("opportunity_id", type=int)
     placement_year = request.args.get("placement_year", type=int)
     batch_year = request.args.get("batch_year", type=int)
     branch = request.args.get("branch")
@@ -53,7 +55,6 @@ def api_list_placements():
     result = list_placement_offers(
         student_id=student_id,
         company_id=company_id,
-        opportunity_id=opportunity_id,
         placement_year=placement_year,
         batch_year=batch_year,
         branch=branch,
@@ -91,6 +92,7 @@ def api_list_placements():
 
 
 @placement_bp.route("/analytics", methods=["GET"])
+@admin_required
 def api_placement_analytics():
     """Returns comprehensive placement analytics, KPI cards, and breakdowns."""
     placement_year = request.args.get("placement_year", type=int)
@@ -108,26 +110,27 @@ def api_placement_analytics():
 
 
 @placement_bp.route("/check-eligibility", methods=["GET"])
+@admin_required
 def api_check_eligibility():
-    """Evaluates candidate eligibility against an opportunity opening."""
+    """Evaluates candidate eligibility based on student academic record (CGPA and backlogs)."""
     student_id = request.args.get("student_id", type=int)
-    opportunity_id = request.args.get("opportunity_id", type=int)
-    if not student_id or not opportunity_id:
+    if not student_id:
         return (
             jsonify(
                 {
                     "status": "error",
-                    "message": "Both student_id and opportunity_id query parameters are required.",
+                    "message": "student_id query parameter is required.",
                 }
             ),
             400,
         )
 
-    res = check_candidate_eligibility_for_opportunity(student_id, opportunity_id)
+    res = check_candidate_placement_eligibility(student_id)
     return jsonify({"status": "success", "data": res}), 200
 
 
 @placement_bp.route("/<int:placement_id>", methods=["GET"])
+@admin_required
 def api_get_placement(placement_id: int):
     """Retrieves single placement offer with related student, company, and evaluated skills."""
     offer = get_placement_offer(placement_id)
@@ -135,6 +138,7 @@ def api_get_placement(placement_id: int):
 
 
 @placement_bp.route("/<int:placement_id>/status", methods=["PATCH", "PUT"])
+@admin_required
 def api_update_offer_status(placement_id: int):
     """Updates offer status (Offered -> Accepted / Declined / Joined) enforcing the single-acceptance rule."""
     payload = request.get_json() or {}
@@ -154,6 +158,7 @@ def api_update_offer_status(placement_id: int):
 
 
 @placement_bp.route("/<int:placement_id>", methods=["PUT"])
+@admin_required
 def api_update_placement(placement_id: int):
     """Full update of placement offer fields."""
     payload = request.get_json() or {}
@@ -171,6 +176,7 @@ def api_update_placement(placement_id: int):
 
 
 @placement_bp.route("/<int:placement_id>", methods=["DELETE"])
+@admin_required
 def api_delete_placement(placement_id: int):
     """Deletes a placement offer."""
     result = delete_placement_offer(placement_id)
@@ -192,6 +198,7 @@ def api_delete_placement(placement_id: int):
 
 
 @placement_bp.route("/analytics/multiple-offers", methods=["GET"])
+@admin_required
 def api_students_with_multiple_offers():
     """Returns all students holding multiple (2 or more) placement offers."""
     min_offers = request.args.get("min_offers", default=2, type=int)
@@ -209,6 +216,7 @@ def api_students_with_multiple_offers():
 
 
 @placement_bp.route("/analytics/distribution", methods=["GET"])
+@admin_required
 def api_offer_distribution():
     """Returns distribution summary: students with 0, 1, or multiple placement offers."""
     summary = get_offer_distribution_summary()

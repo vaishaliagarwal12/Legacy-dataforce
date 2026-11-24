@@ -32,7 +32,7 @@ def calculate_internship_duration(start_date: Any, end_date: Any) -> Dict[str, A
             if days < 0:
                 days = 0
             weeks = round(days / 7.0, 1)
-            months = round(days / 30.4, 1)
+            months = round(days / 30.44, 1)
             if weeks >= 1:
                 duration_str = f"{weeks:.1f} weeks ({days} days)"
             else:
@@ -61,12 +61,7 @@ def determine_internship_status(
     report_grade: Optional[str] = None,
     cert_link: Optional[str] = None,
 ) -> str:
-    """Determines internship operational and compliance status:
-    - 'Upcoming': Start_Date > today
-    - 'In Progress': Start_Date <= today <= End_Date
-    - 'Completed': End_Date < today AND (Report_Link or Report_Grade)
-    - 'Pending Report': End_Date < today AND (not Report_Link or Report_Grade in (None, '', 'Pending'))
-    """
+    """Determines internship operational and compliance status."""
     today = datetime.date.today()
     try:
         s_date = datetime.date.fromisoformat(str(start_date).strip()) if start_date else None
@@ -100,16 +95,7 @@ def check_internship_eligibility(
     internship_no: int,
     min_sgpa: float = 6.00,
 ) -> Dict[str, Any]:
-    """Calculates student academic eligibility for an internship using actual SEMESTER_RESULT records.
-
-    Academic Rules:
-    - Mandatory Internship 1: Completed during 2nd year summer break after Sem 4.
-      Eligibility is governed by Semester 3 SGPA.
-    - Mandatory Internship 2: Completed during 3rd year summer break after Sem 5.
-      Eligibility is governed by Semester 5 SGPA.
-    - Additional Internships (No >= 3): Optional extracurricular engagements.
-      No prerequisite semester SGPA required.
-    """
+    """Calculates student academic eligibility for an internship from STUDENT record."""
     student = execute_one(
         "SELECT Student_ID, Roll_No, First_Name, Last_Name, Branch, Batch_Year, CGPA, Backlogs FROM STUDENT WHERE Student_ID = %s",
         (student_id,),
@@ -118,66 +104,21 @@ def check_internship_eligibility(
         raise NotFoundError(f"Student with ID {student_id} not found.")
 
     student_name = f"{student['First_Name']} {student.get('Last_Name') or ''}".strip()
+    cgpa = float(student["CGPA"])
+    backlogs = int(student["Backlogs"])
+    is_eligible = backlogs == 0 and cgpa >= min_sgpa
 
-    if internship_no not in (1, 2):
-        return {
-            "is_eligible": True,
-            "student_id": student_id,
-            "roll_no": student["Roll_No"],
-            "student_name": student_name,
-            "internship_no": internship_no,
-            "internship_type": "Additional",
-            "required_result_semester": None,
-            "prerequisite_sgpa": None,
-            "min_required_sgpa": min_sgpa,
-            "semester_result_found": True,
-            "status": "Optional",
-            "message": "Additional internships are optional and have no mandatory prerequisite semester SGPA constraint.",
-        }
-
-    # Fetch requirement for this mandatory internship
-    req = execute_one(
-        "SELECT Requirement_ID, Internship_No, Required_Result_Semester, Report_Submission_Semester, Credits, Prescribed_Period FROM INTERNSHIP_REQUIREMENT WHERE Internship_No = %s",
-        (internship_no,),
-    )
-    req_sem = req["Required_Result_Semester"] if req else (3 if internship_no == 1 else 5)
-    prescribed_period = (
-        req["Prescribed_Period"] if req else f"Mandatory Summer Internship #{internship_no}"
-    )
-
-    # Query student's verified semester result
-    sem_res = execute_one(
-        "SELECT Result_ID, Semester, SGPA, Total_Credits FROM SEMESTER_RESULT WHERE Student_ID = %s AND Semester = %s",
-        (student_id, req_sem),
-    )
-
-    if not sem_res:
-        return {
-            "is_eligible": False,
-            "student_id": student_id,
-            "roll_no": student["Roll_No"],
-            "student_name": student_name,
-            "internship_no": internship_no,
-            "internship_type": "Mandatory",
-            "required_result_semester": req_sem,
-            "prerequisite_sgpa": None,
-            "min_required_sgpa": min_sgpa,
-            "semester_result_found": False,
-            "status": "Prerequisite Missing",
-            "prescribed_period": prescribed_period,
-            "message": f"Candidate has no recorded result for Semester {req_sem}. Semester {req_sem} SGPA is required to verify eligibility.",
-        }
-
-    sgpa = float(sem_res["SGPA"])
-    credits = int(sem_res["Total_Credits"])
-    is_eligible = sgpa >= min_sgpa
-
-    if is_eligible:
-        status = "Eligible"
-        msg = f"Candidate is eligible for Mandatory Internship #{internship_no}. Verified Semester {req_sem} SGPA: {sgpa:.2f} (Required: >= {min_sgpa:.2f})."
+    if internship_no == 1:
+        prescribed_period = "Summer Vacation after 2nd Year (Semester 5 report, 4 credits)"
+        msg = f"Candidate {'is' if is_eligible else 'is not'} eligible for Mandatory Internship #1 (CGPA: {cgpa:.2f}, Backlogs: {backlogs})."
+    elif internship_no == 2:
+        prescribed_period = (
+            "During 8th semester; report submitted after the end of 8th semester (4 credits)"
+        )
+        msg = f"Candidate {'is' if is_eligible else 'is not'} eligible for Mandatory Internship #2 (CGPA: {cgpa:.2f}, Backlogs: {backlogs})."
     else:
-        status = "Ineligible"
-        msg = f"Candidate is ineligible for Mandatory Internship #{internship_no}. Verified Semester {req_sem} SGPA: {sgpa:.2f} is below minimum requirement of {min_sgpa:.2f}."
+        prescribed_period = "Optional Extracurricular / Voluntary"
+        msg = "Additional internships are optional and have no mandatory prerequisite constraints."
 
     return {
         "is_eligible": is_eligible,
@@ -185,20 +126,16 @@ def check_internship_eligibility(
         "roll_no": student["Roll_No"],
         "student_name": student_name,
         "internship_no": internship_no,
-        "internship_type": "Mandatory",
-        "required_result_semester": req_sem,
-        "prerequisite_sgpa": sgpa,
-        "prerequisite_credits": credits,
-        "min_required_sgpa": min_sgpa,
-        "semester_result_found": True,
-        "status": status,
+        "internship_type": "Mandatory" if internship_no in (1, 2) else "Additional",
         "prescribed_period": prescribed_period,
+        "min_required_sgpa": min_sgpa,
+        "status": "Eligible" if is_eligible else "Ineligible",
         "message": msg,
     }
 
 
 def validate_internship_payload(data: Dict[str, Any], is_update: bool = False) -> None:
-    """Validates internship fields, dates, and mandatory/additional requirement constraints."""
+    """Validates internship fields, dates, and curriculum constraints (chk_internship_curriculum)."""
     if not is_update:
         required = [
             "Student_ID",
@@ -227,7 +164,7 @@ def validate_internship_payload(data: Dict[str, Any], is_update: bool = False) -
         except (ValueError, TypeError):
             raise ValidationError("Internship_No must be an integer >= 1")
 
-    # Date ordering check
+    # Date ordering check (chk_internship_dates)
     if "Start_Date" in data and "End_Date" in data and data["Start_Date"] and data["End_Date"]:
         start_str = str(data["Start_Date"]).strip()
         end_str = str(data["End_Date"]).strip()
@@ -244,61 +181,100 @@ def validate_internship_payload(data: Dict[str, Any], is_update: bool = False) -
         except (ValueError, TypeError):
             raise ValidationError("Stipend must be a non-negative number (>= 0)")
 
+    # Enforce curriculum constraint (chk_internship_curriculum)
+    if "Internship_No" in data and data["Internship_No"] is not None:
+        ino = int(data["Internship_No"])
+        itype = str(data.get("Internship_Type") or "").strip()
+        cred = (
+            int(data["Credits"])
+            if data.get("Credits") is not None and str(data["Credits"]).strip() != ""
+            else None
+        )
+        rsem = (
+            int(data["Report_Semester"])
+            if data.get("Report_Semester") is not None
+            and str(data["Report_Semester"]).strip() != ""
+            else None
+        )
+
+        if ino == 1:
+            if itype and itype != "Mandatory":
+                raise ValidationError("Internship #1 must be of type 'Mandatory'.")
+            if cred is not None and cred != 4:
+                raise ValidationError("Internship #1 must carry exactly 4 credits.")
+            if rsem is not None and rsem != 5:
+                raise ValidationError(
+                    "Internship #1 report must be submitted in Semester 5 (Report_Semester = 5)."
+                )
+        elif ino == 2:
+            if itype and itype != "Mandatory":
+                raise ValidationError("Internship #2 must be of type 'Mandatory'.")
+            if cred is not None and cred != 4:
+                raise ValidationError("Internship #2 must carry exactly 4 credits.")
+            if rsem is not None and rsem != 8:
+                raise ValidationError(
+                    "Internship #2 report must be submitted after the end of the 8th semester (Report_Semester = 8)."
+                )
+        elif ino >= 3:
+            if itype and itype != "Additional":
+                raise ValidationError(f"Internship #{ino} must be of type 'Additional'.")
+
 
 def create_internship(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Records an internship experience, strictly enforcing requirement linkage constraints.
-
-    Academic Policy Constraints Enforced:
-    1. Mandatory Internships:
-       - MUST link to an existing INTERNSHIP_REQUIREMENT record (Requirement_ID != None).
-       - MUST match the exact requirement number (Requirement 1 <-> Internship 1, Requirement 2 <-> Internship 2).
-    2. Additional Internships:
-       - MUST NOT link to any requirement (Requirement_ID must be None).
-    3. Temporal: End_Date >= Start_Date.
-    4. Relational: (Student_ID, Internship_No) must be unique.
-    """
+    """Records an internship experience enforcing institutional curriculum rules."""
     validate_internship_payload(data, is_update=False)
 
     student_id = int(data["Student_ID"])
     company_id = int(data["Company_ID"])
-    opp_id = int(data["Opportunity_ID"]) if data.get("Opportunity_ID") else None
-    req_id = int(data["Requirement_ID"]) if data.get("Requirement_ID") else None
     internship_no = int(data["Internship_No"])
     internship_type = str(data["Internship_Type"]).strip()
-    role = str(data.get("Role", "") or "").strip() or None
+    role = str(data.get("Role", "") or "Intern").strip() or "Intern"
     rounds = int(data.get("Interview_Rounds", 1) or 1)
     stipend = round(float(data.get("Stipend", 0.0) or 0.0), 2)
     start_date = str(data["Start_Date"]).strip()
     end_date = str(data["End_Date"]).strip()
-    credits = (
-        int(data["Credits"])
-        if data.get("Credits") is not None
-        else (4 if internship_type == "Mandatory" else 0)
-    )
-    report_sem = (
-        int(data["Report_Semester"])
-        if data.get("Report_Semester") is not None
-        else (5 if internship_no == 1 else 7 if internship_no == 2 else None)
-    )
+
+    if internship_no == 1:
+        internship_type = "Mandatory"
+        credits = 4
+        report_sem = 5
+    elif internship_no == 2:
+        internship_type = "Mandatory"
+        credits = 4
+        report_sem = 8
+    else:
+        internship_type = "Additional"
+        credits = (
+            int(data["Credits"])
+            if data.get("Credits") is not None and str(data["Credits"]).strip() != ""
+            else None
+        )
+        report_sem = (
+            int(data["Report_Semester"])
+            if data.get("Report_Semester") is not None
+            and str(data["Report_Semester"]).strip() != ""
+            else None
+        )
+
     report_link = str(data.get("Report_Link", "") or "").strip() or None
     report_grade = str(data.get("Report_Grade", "") or "").strip() or None
     cert_link = str(data.get("Certificate_Link", "") or "").strip() or None
 
-    # 1. Verify Student exists
+    # Verify Student exists
     student = execute_one(
         "SELECT Student_ID, Roll_No FROM STUDENT WHERE Student_ID = %s", (student_id,)
     )
     if not student:
         raise NotFoundError(f"Student with ID {student_id} does not exist.")
 
-    # 2. Verify Company exists
+    # Verify Company exists
     company = execute_one(
         "SELECT Company_ID, Company_Name FROM COMPANY WHERE Company_ID = %s", (company_id,)
     )
     if not company:
         raise NotFoundError(f"Company with ID {company_id} does not exist.")
 
-    # 3. Unique (Student_ID, Internship_No) check
+    # Unique (Student_ID, Internship_No) primary key constraint
     existing_no = execute_one(
         "SELECT Internship_ID, Internship_Type, Role FROM INTERNSHIP WHERE Student_ID = %s AND Internship_No = %s",
         (student_id, internship_no),
@@ -309,38 +285,12 @@ def create_internship(data: Dict[str, Any]) -> Dict[str, Any]:
             f"('{existing_no['Role']}' - Type: {existing_no['Internship_Type']})."
         )
 
-    # 4. Mandatory vs Additional Requirement Constraints
-    if internship_type == "Mandatory":
-        if not req_id:
-            raise ValidationError(
-                f"Mandatory Internship #{internship_no} must link to a valid INTERNSHIP_REQUIREMENT (Requirement_ID cannot be null)."
-            )
-        requirement = execute_one(
-            "SELECT Requirement_ID, Internship_No, Mandatory, Required_Result_Semester FROM INTERNSHIP_REQUIREMENT WHERE Requirement_ID = %s",
-            (req_id,),
-        )
-        if not requirement:
-            raise NotFoundError(f"Internship Requirement with ID {req_id} does not exist.")
-
-        # Enforce exact requirement number match
-        if requirement["Internship_No"] != internship_no:
-            raise ValidationError(
-                f"Requirement number mismatch: Mandatory Internship #{internship_no} cannot link to Requirement #{requirement['Internship_No']} "
-                f"(Requirement ID {req_id}). Internship #{internship_no} must link to Requirement #{internship_no}."
-            )
-    else:
-        # Additional Internship
-        if req_id is not None:
-            raise ValidationError(
-                f"Additional internships cannot be linked to mandatory academic requirements. Requirement_ID must be null (received {req_id})."
-            )
-
     insert_sql = """
         INSERT INTO INTERNSHIP (
-            Student_ID, Company_ID, Opportunity_ID, Requirement_ID, Internship_No,
+            Student_ID, Company_ID, Internship_No,
             Internship_Type, Role, Interview_Rounds, Stipend, Start_Date, End_Date,
             Credits, Report_Semester, Report_Link, Report_Grade, Certificate_Link
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
     with get_cursor(commit=True) as cursor:
         cursor.execute(
@@ -348,8 +298,6 @@ def create_internship(data: Dict[str, Any]) -> Dict[str, Any]:
             (
                 student_id,
                 company_id,
-                opp_id,
-                req_id,
                 internship_no,
                 internship_type,
                 role,
@@ -377,24 +325,16 @@ def create_internship(data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def get_internship(internship_id: int) -> Dict[str, Any]:
-    """Retrieves full internship details with dynamic 3NF joins, duration, status, and eligibility."""
+    """Retrieves full internship details with joined student and company metadata."""
     sql = """
         SELECT i.Internship_ID, i.Student_ID, s.Roll_No, s.First_Name, s.Last_Name, s.Branch, s.Batch_Year, s.CGPA, s.Email,
                i.Company_ID, c.Company_Name, c.Company_Type, c.Location AS Company_Location, c.Website AS Company_Website,
-               i.Opportunity_ID, o.Role AS Opportunity_Role, o.Opportunity_Type,
-               i.Requirement_ID, ir.Prescribed_Period, ir.Required_Result_Semester, ir.Report_Submission_Semester,
                i.Internship_No, i.Internship_Type, i.Role, i.Interview_Rounds, i.Stipend,
                i.Start_Date, i.End_Date, i.Credits, i.Report_Semester, i.Report_Link,
-               i.Report_Grade, i.Certificate_Link,
-               sr.SGPA AS Prerequisite_Semester_SGPA,
-               sr.Total_Credits AS Prerequisite_Credits
+               i.Report_Grade, i.Certificate_Link
         FROM INTERNSHIP i
         JOIN STUDENT s ON i.Student_ID = s.Student_ID
         JOIN COMPANY c ON i.Company_ID = c.Company_ID
-        LEFT JOIN OPPORTUNITY o ON i.Opportunity_ID = o.Opportunity_ID
-        LEFT JOIN INTERNSHIP_REQUIREMENT ir ON i.Requirement_ID = ir.Requirement_ID
-        LEFT JOIN SEMESTER_RESULT sr ON i.Student_ID = sr.Student_ID 
-                                    AND ir.Required_Result_Semester = sr.Semester
         WHERE i.Internship_ID = %s
     """
     row = execute_one(sql, (internship_id,))
@@ -406,10 +346,7 @@ def get_internship(internship_id: int) -> Dict[str, Any]:
     row["Start_Date"] = str(row["Start_Date"])
     row["End_Date"] = str(row["End_Date"])
     row["Student_Name"] = f"{row['First_Name']} {row.get('Last_Name') or ''}".strip()
-    if row.get("Prerequisite_Semester_SGPA") is not None:
-        row["Prerequisite_Semester_SGPA"] = float(row["Prerequisite_Semester_SGPA"])
 
-    # Computed fields
     duration = calculate_internship_duration(row["Start_Date"], row["End_Date"])
     row["Duration_Days"] = duration["days"]
     row["Duration_Weeks"] = duration["weeks"]
@@ -450,8 +387,9 @@ def list_internships(
     limit: Optional[int] = None,
     offset: Optional[int] = None,
     as_dict: bool = False,
+    **kwargs: Any,
 ) -> Any:
-    """Lists, filters, and searches student internships with comprehensive analytical attributes."""
+    """Lists, filters, and searches student internships with canonical 7-table schema."""
     where_clauses = ["1=1"]
     params: List[Any] = []
 
@@ -524,7 +462,6 @@ def list_internships(
 
     where_sql = " AND ".join(where_clauses)
 
-    # Sorting
     SORT_MAP = {
         "student_id": "i.Student_ID",
         "roll_no": "s.Roll_No",
@@ -545,7 +482,6 @@ def list_internships(
     dir_sql = "DESC" if sort_dir.lower() == "desc" else "ASC"
     order_sql = f"{col_sql} {dir_sql}, i.Internship_No ASC"
 
-    # Count total matching rows
     count_sql = f"""
         SELECT COUNT(*) AS total
         FROM INTERNSHIP i
@@ -555,7 +491,6 @@ def list_internships(
     """
     total_count = int((execute_one(count_sql, tuple(params)) or {}).get("total") or 0)
 
-    # Pagination calculation
     pagination = None
     limit_clause = ""
     if page is not None and per_page is not None:
@@ -581,20 +516,12 @@ def list_internships(
     query_sql = f"""
         SELECT i.Internship_ID, i.Student_ID, s.Roll_No, s.First_Name, s.Last_Name, s.Branch, s.Batch_Year, s.CGPA, s.Email,
                i.Company_ID, c.Company_Name, c.Company_Type,
-               i.Opportunity_ID, o.Role AS Opportunity_Role,
-               i.Requirement_ID, ir.Prescribed_Period, ir.Required_Result_Semester, ir.Report_Submission_Semester,
                i.Internship_No, i.Internship_Type, i.Role, i.Interview_Rounds, i.Stipend,
                i.Start_Date, i.End_Date, i.Credits, i.Report_Semester, i.Report_Link,
-               i.Report_Grade, i.Certificate_Link,
-               sr.SGPA AS Prerequisite_Semester_SGPA,
-               sr.Total_Credits AS Prerequisite_Credits
+               i.Report_Grade, i.Certificate_Link
         FROM INTERNSHIP i
         JOIN STUDENT s ON i.Student_ID = s.Student_ID
         JOIN COMPANY c ON i.Company_ID = c.Company_ID
-        LEFT JOIN OPPORTUNITY o ON i.Opportunity_ID = o.Opportunity_ID
-        LEFT JOIN INTERNSHIP_REQUIREMENT ir ON i.Requirement_ID = ir.Requirement_ID
-        LEFT JOIN SEMESTER_RESULT sr ON i.Student_ID = sr.Student_ID 
-                                    AND ir.Required_Result_Semester = sr.Semester
         WHERE {where_sql}
         ORDER BY {order_sql}
         {limit_clause}
@@ -606,8 +533,6 @@ def list_internships(
         r["Start_Date"] = str(r["Start_Date"])
         r["End_Date"] = str(r["End_Date"])
         r["Student_Name"] = f"{r['First_Name']} {r.get('Last_Name') or ''}".strip()
-        if r.get("Prerequisite_Semester_SGPA") is not None:
-            r["Prerequisite_Semester_SGPA"] = float(r["Prerequisite_Semester_SGPA"])
 
         duration = calculate_internship_duration(r["Start_Date"], r["End_Date"])
         r["Duration_Days"] = duration["days"]
@@ -622,17 +547,8 @@ def list_internships(
             r.get("Report_Grade"),
             r.get("Certificate_Link"),
         )
-
-        # Eligibility check using joined prerequisite SGPA (zero extra queries)
-        if r["Internship_Type"] == "Additional":
-            r["Is_Eligible"] = True
-            r["Eligibility_Status"] = "Optional"
-        elif r.get("Prerequisite_Semester_SGPA") is not None:
-            r["Is_Eligible"] = float(r["Prerequisite_Semester_SGPA"]) >= 6.00
-            r["Eligibility_Status"] = "Eligible" if r["Is_Eligible"] else "Ineligible"
-        else:
-            r["Is_Eligible"] = False
-            r["Eligibility_Status"] = "Prerequisite Missing"
+        r["Is_Eligible"] = r["CGPA"] >= 6.00
+        r["Eligibility_Status"] = "Eligible" if r["Is_Eligible"] else "Ineligible"
 
     if as_dict:
         return {
@@ -655,36 +571,12 @@ def list_internships(
 
 
 def update_internship(internship_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
-    """Updates internship attributes with constraint validation."""
+    """Updates internship attributes with curriculum constraint validation."""
     existing = get_internship(internship_id)
     validate_internship_payload(data, is_update=True)
 
-    itype = data.get("Internship_Type", existing["Internship_Type"])
-    req_id = data.get("Requirement_ID", existing["Requirement_ID"])
-    internship_no = data.get("Internship_No", existing["Internship_No"])
-
-    if itype == "Mandatory":
-        if not req_id:
-            raise ValidationError("Mandatory internships must link to an INTERNSHIP_REQUIREMENT.")
-        req = execute_one(
-            "SELECT Internship_No FROM INTERNSHIP_REQUIREMENT WHERE Requirement_ID = %s", (req_id,)
-        )
-        if not req:
-            raise NotFoundError(f"Requirement ID {req_id} does not exist.")
-        if req["Internship_No"] != internship_no:
-            raise ValidationError(
-                f"Mismatch: Mandatory Internship #{internship_no} must link to Requirement #{internship_no}."
-            )
-    else:
-        if req_id is not None:
-            raise ValidationError(
-                "Additional internships cannot link to a requirement (Requirement_ID must be null)."
-            )
-
     updatable = [
         "Company_ID",
-        "Opportunity_ID",
-        "Requirement_ID",
         "Internship_No",
         "Internship_Type",
         "Role",
@@ -710,8 +602,6 @@ def update_internship(internship_id: int, data: Dict[str, Any]) -> Dict[str, Any
                 field
                 in (
                     "Company_ID",
-                    "Opportunity_ID",
-                    "Requirement_ID",
                     "Internship_No",
                     "Interview_Rounds",
                     "Credits",
@@ -761,16 +651,7 @@ def delete_internship(internship_id: int) -> Dict[str, Any]:
 
 
 def get_mandatory_internships_with_prerequisite_sgpa() -> List[Dict[str, Any]]:
-    """Demonstrates 3NF normalization:
-
-    Semester 3 SGPA (for Internship 1) and Semester 5 SGPA (for Internship 2) are dynamically
-    fetched by joining:
-        INTERNSHIP i
-        -> INTERNSHIP_REQUIREMENT ir (on Requirement_ID)
-        -> SEMESTER_RESULT sr (on Student_ID AND sr.Semester = ir.Required_Result_Semester)
-
-    Zero redundant SGPA columns stored in the INTERNSHIP table!
-    """
+    """Retrieves mandatory internships joined with Student and Company."""
     sql = """
         SELECT 
             i.Internship_ID,
@@ -779,6 +660,7 @@ def get_mandatory_internships_with_prerequisite_sgpa() -> List[Dict[str, Any]]:
             CONCAT(s.First_Name, ' ', COALESCE(s.Last_Name, '')) AS Student_Name,
             s.Branch,
             s.Batch_Year,
+            s.CGPA,
             c.Company_Name,
             i.Internship_No,
             i.Internship_Type,
@@ -790,27 +672,19 @@ def get_mandatory_internships_with_prerequisite_sgpa() -> List[Dict[str, Any]]:
             i.Report_Semester,
             i.Report_Link,
             i.Certificate_Link,
-            ir.Prescribed_Period,
-            ir.Required_Result_Semester,
-            sr.SGPA AS Prerequisite_Semester_SGPA,
-            sr.Total_Credits AS Prerequisite_Credits,
             i.Report_Grade
         FROM INTERNSHIP i
         JOIN STUDENT s ON i.Student_ID = s.Student_ID
         JOIN COMPANY c ON i.Company_ID = c.Company_ID
-        JOIN INTERNSHIP_REQUIREMENT ir ON i.Requirement_ID = ir.Requirement_ID
-        LEFT JOIN SEMESTER_RESULT sr ON i.Student_ID = sr.Student_ID 
-                                    AND ir.Required_Result_Semester = sr.Semester
         WHERE i.Internship_Type = 'Mandatory'
-        ORDER BY i.Internship_No ASC, sr.SGPA DESC;
+        ORDER BY i.Internship_No ASC, s.CGPA DESC;
     """
     rows = execute_query(sql)
     for r in rows:
         r["Stipend"] = float(r["Stipend"])
+        r["CGPA"] = float(r["CGPA"])
         r["Start_Date"] = str(r["Start_Date"])
         r["End_Date"] = str(r["End_Date"])
-        if r.get("Prerequisite_Semester_SGPA") is not None:
-            r["Prerequisite_Semester_SGPA"] = float(r["Prerequisite_Semester_SGPA"])
 
         duration = calculate_internship_duration(r["Start_Date"], r["End_Date"])
         r["Duration_Days"] = duration["days"]
@@ -825,18 +699,8 @@ def get_mandatory_internships_with_prerequisite_sgpa() -> List[Dict[str, Any]]:
             r.get("Report_Grade"),
             r.get("Certificate_Link"),
         )
-
-        prereq_sgpa = r.get("Prerequisite_Semester_SGPA")
-        if prereq_sgpa is not None:
-            if prereq_sgpa >= 6.00:
-                r["Is_Eligible"] = True
-                r["Eligibility_Status"] = "Eligible"
-            else:
-                r["Is_Eligible"] = False
-                r["Eligibility_Status"] = "Ineligible"
-        else:
-            r["Is_Eligible"] = False
-            r["Eligibility_Status"] = "Prerequisite Missing"
+        r["Is_Eligible"] = r["CGPA"] >= 6.00
+        r["Eligibility_Status"] = "Eligible" if r["Is_Eligible"] else "Ineligible"
 
     return rows
 
@@ -915,7 +779,6 @@ def get_branch_internship_statistics() -> List[Dict[str, Any]]:
     """
     rows = execute_query(sql)
 
-    # Students who completed both mandatory internships per branch
     both_sql = """
         SELECT s.Branch, COUNT(DISTINCT s.Student_ID) AS both_completed
         FROM STUDENT s
@@ -1025,7 +888,6 @@ def get_pending_internship_reports() -> List[Dict[str, Any]]:
 
 def get_internship_dashboard_analytics() -> Dict[str, Any]:
     """Computes comprehensive executive analytics for the Internship Management Dashboard."""
-    # 1. Total records
     tot_res = (
         execute_one(
             "SELECT COUNT(*) AS total_internships, ROUND(COALESCE(AVG(Stipend), 0), 2) AS avg_stipend, ROUND(COALESCE(MAX(Stipend), 0), 2) AS max_stipend FROM INTERNSHIP"
@@ -1036,7 +898,6 @@ def get_internship_dashboard_analytics() -> Dict[str, Any]:
     avg_stipend = float(tot_res.get("avg_stipend") or 0.0)
     max_stipend = float(tot_res.get("max_stipend") or 0.0)
 
-    # 2. Mandatory I1 and I2 counts
     m_res = execute_one("""
         SELECT 
             COUNT(CASE WHEN Internship_No = 1 AND Internship_Type = 'Mandatory' THEN 1 END) AS i1_count,
@@ -1048,7 +909,6 @@ def get_internship_dashboard_analytics() -> Dict[str, Any]:
     i2_count = int(m_res.get("i2_count") or 0)
     additional_count = int(m_res.get("additional_count") or 0)
 
-    # 3. Overall students and compliance
     stud_count_res = execute_one("SELECT COUNT(*) AS total_students FROM STUDENT") or {}
     total_students = int(stud_count_res.get("total_students") or 0)
 
@@ -1064,14 +924,12 @@ def get_internship_dashboard_analytics() -> Dict[str, Any]:
         round((fully_compliant / total_students * 100), 1) if total_students > 0 else 0.0
     )
 
-    # 4. Pending reports
     pending_sql = """
         SELECT COUNT(*) AS pending_count FROM INTERNSHIP
         WHERE End_Date <= CURDATE() AND (Report_Link IS NULL OR Report_Grade IS NULL OR Report_Grade = 'Pending')
     """
     pending_count = int((execute_one(pending_sql) or {}).get("pending_count") or 0)
 
-    # 5. Report Grade Distribution
     grade_sql = """
         SELECT COALESCE(Report_Grade, 'Ungraded') AS grade, COUNT(*) AS count
         FROM INTERNSHIP
@@ -1080,11 +938,9 @@ def get_internship_dashboard_analytics() -> Dict[str, Any]:
     """
     grade_distribution = execute_query(grade_sql)
 
-    # 6. Branch Statistics and Batch Reports
     branch_stats = get_branch_internship_statistics()
     batch_reports = get_batch_compliance_reports()
 
-    # 7. Status distribution
     status_counts = {"Completed": 0, "In Progress": 0, "Pending Report": 0, "Upcoming": 0}
     status_sql = """
         SELECT 

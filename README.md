@@ -4,10 +4,10 @@
 [![Python Version](https://img.shields.io/badge/Python-3.13-blue.svg)](https://www.python.org/)
 [![Database](https://img.shields.io/badge/MySQL-8.0%20(InnoDB)-orange.svg)](https://www.mysql.com/)
 [![Framework](https://img.shields.io/badge/Flask-3.1.2-black.svg)](https://flask.palletsprojects.com/)
-[![Tests](https://img.shields.io/badge/Tests-246%20Passed%20(100%25)-brightgreen.svg)](https://docs.pytest.org/)
+[![Tests](https://img.shields.io/badge/Tests-241%20Passed%20(100%25)-brightgreen.svg)](https://docs.pytest.org/)
 [![Code Style](https://img.shields.io/badge/Code%20Style-Black%20%7C%20Ruff-000000.svg)](https://github.com/psf/black)
 
-An enterprise-grade, relational database management and accreditation compliance system engineered for university placement cells and academic career departments. Built with **Python 3.13**, **Flask 3.1**, and **MySQL 8.0 (InnoDB)**, Legacy DataForce enforces strict First through Boyce-Codd Normal Forms (1NF–BCNF), atomic multi-table transactions, institutional recruitment policies, dynamic prerequisite SGPA evaluations, and automated NIRF/NAAC accreditation SQL reporting.
+An enterprise-grade, relational database management and accreditation compliance system engineered for university placement cells and academic career departments. Built with **Python 3.13**, **Flask 3.1**, and **MySQL 8.0 (InnoDB)**, Legacy DataForce enforces strict First through Boyce-Codd Normal Forms (1NF–BCNF), atomic multi-table transactions, institutional recruitment policies, dynamic duration calculations, and automated NIRF/NAAC accreditation SQL reporting across a canonical **7-table schema**.
 
 ---
 
@@ -50,7 +50,7 @@ Higher education institutions face systemic data integrity, policy enforcement, 
 
 1. **Unnormalized Data & Anomalies**: Contact numbers, skills, and certifications stored in comma-separated strings violate 1NF, producing severe update, insertion, and deletion anomalies.
 2. **Offer Hoarding (Policy Violation)**: High-performing students often hoard multiple preliminary job offers without administrative visibility, blocking eligible peers from securing opportunities.
-3. **Complex Academic Prerequisites**: Verifying degree-mandated summer internships against verified semester SGPAs (e.g., Semester 3 SGPA for Internship 1; Semester 5 SGPA for Internship 2) is conventionally manual and error-prone.
+3. **Complex Academic Prerequisites**: Verifying degree-mandated internships against verified semester SGPAs (e.g., Semester 3 SGPA for Internship 1; Semester 7 SGPA for Internship 2: done in 8th semester, report submitted after the end of 8th semester) is conventionally manual and error-prone.
 4. **Accreditation Reporting Overhead**: Compiling NAAC, NBA, and NIRF regulatory placement audits requires complex multi-table joins, CTE aggregations, and window functions that manual spreadsheets cannot reliably deliver.
 5. **Security Deficits**: Unsanitized user inputs, missing CSRF tokens, unparameterized database queries, and exposed database credentials jeopardize institutional record confidentiality.
 
@@ -58,22 +58,22 @@ Higher education institutions face systemic data integrity, policy enforcement, 
 
 ## 3. Project Objectives
 
-- **Relational Integrity**: Architect a normalized schema satisfying Boyce-Codd Normal Form (BCNF) and Third Normal Form (3NF) across 20 relational base tables.
-- **Institutional Governance**: Enforce the **Single-Accepted-Offer Rule**—allowing students to hold multiple preliminary offers while strictly limiting each candidate to at most one accepted or joined placement.
-- **Academic Compliance**: Dynamically evaluate prerequisite semester SGPAs from verified semester results without redundant data storage.
+- **Relational Integrity**: Architect a streamlined, normalized schema comprising **exactly 7 canonical base tables** and **2 views**.
+- **Institutional Governance**: Enforce the **Single-Joined-Offer Rule** (`uq_one_joined_offer`)—allowing students to hold multiple preliminary offers while strictly limiting each candidate to at most one joined placement (`Joined = 'Yes'`).
+- **Academic Compliance**: Enforce degree-mandated curriculum internships directly via MySQL `CHECK` constraints (`chk_internship_curriculum`) and service layer validation.
 - **Advanced SQL Analytics**: Implement 10 advanced institutional reports using Common Table Expressions (CTEs), Window Functions (`RANK()`, `DENSE_RANK()`, `ROW_NUMBER()`), and conditional aggregations.
-- **Enterprise User Experience**: Deliver an accessible, light-theme interface featuring an Emerald Green (`#059669`) academic accent, responsive sidebar navigation, interactive Chart.js visualizations, CSV exports, and binary PDF reports.
-- **Engineering Reliability**: Guarantee code quality with **246 automated tests passing at 100%**, strict Ruff linting, Black formatting, and continuous integration via GitHub Actions.
+- **Enterprise User Experience**: Deliver an accessible, light-theme interface featuring responsive sidebar navigation, interactive Chart.js visualizations, CSV exports, and binary PDF reports.
+- **Engineering Reliability**: Guarantee code quality with **241 automated tests passing at 100%**, strict Ruff linting, Black formatting, and continuous integration via GitHub Actions.
 
 ---
 
 ## 4. Main Features
 
 - **Executive KPI Dashboard**: 8 real-time metric cards and 6 interactive Chart.js charts with multi-criteria batch, branch, and placement year filtering.
-- **Comprehensive Student Management**: Search, filter, and paginate student cohorts; complete profile view featuring 9 distinct academic and career sections; atomic multi-table updates; RFC 4180 CSV export.
-- **Recruiter & Drive Management**: Catalog corporate partners by tier (`Product`, `Service`, `Startup`) and industry; hierarchical view of drives, opportunities, eligibility criteria, and selection rounds.
-- **Placement Offer Lifecycle Governance**: Real-time offer tracking (`Offered`, `Accepted`, `Joined`, `Declined`), multi-offer candidate analysis, CTC package tier breakdowns, and duplicate offer prevention.
-- **Academic Internship Management**: Differentiates degree-fulfilling Mandatory Internships (with dynamic prerequisite SGPA verification) from voluntary Additional internships; duration and status computation; compliance audits.
+- **Comprehensive Student Management**: Search, filter, and paginate student cohorts; complete profile view featuring 4 canonical sections (Profile & Academics, Technical Skills, Internships, Placements); atomic multi-table updates; RFC 4180 CSV export.
+- **Recruiter & Company Catalog**: Categorize corporate partners by tier (`Product`, `Service`, `Startup`) and industry; view placement hires and student internships.
+- **Placement Offer Lifecycle Governance**: Real-time offer tracking (`Offered`, `Accepted`, `Declined`), separate joining confirmation (`Joined`), multi-offer candidate analysis, CTC package tier breakdowns, and single joined offer enforcement.
+- **Academic Internship Management**: Differentiates degree-fulfilling Mandatory Internships (Internship 1 in Sem 5, Internship 2 in Sem 8) from voluntary Additional internships; duration and status computation; graduation compliance audits.
 - **Accreditation & SQL Reporting Centre**: Comprehensive audit reports for NIRF/NAAC accreditation; interactive SQL Console operating under a dedicated read-only user (`placement_readonly`) with execution timeouts and row caps.
 - **Binary PDF & CSV Document Exports**: Generate printable executive PDF reports using ReportLab and downloadable CSV datasets for all primary modules.
 
@@ -148,34 +148,21 @@ Legacy dataforce/
 ├── routes/
 │   ├── __init__.py                    # Blueprint instantiation and export
 │   ├── main.py                        # Web UI view controllers (Dashboard, Lists, Details, Exports)
-│   ├── students.py                    # Student REST API
-│   ├── companies.py                   # Company REST API
-│   ├── drives.py                      # Recruitment Drive REST API
-│   ├── opportunities.py               # Opportunity & Eligibility REST API
-│   ├── rounds.py                      # Selection Process Rounds REST API
-│   ├── placements.py                  # Placement Offers & Status REST API
-│   ├── internships.py                 # Internships REST API
-│   ├── courses.py                     # Academic Courses REST API
-│   ├── registrations.py               # Student Course Registration REST API
-│   ├── profiles.py                    # Student Extracurricular Profiles REST API
-│   ├── semester_results.py            # Academic Semester Results REST API
+│   ├── students.py                    # Student REST API (STUDENT, STUDENT_PHONE, STUDENT_SKILL)
+│   ├── companies.py                   # Company REST API (COMPANY)
+│   ├── placements.py                  # Placement Offers & Status REST API (PLACEMENT, PLACEMENT_SKILL)
+│   ├── internships.py                 # Internships & Compliance REST API (INTERNSHIP)
 │   └── health.py                      # Health diagnostics & DB ping endpoint
 ├── services/
 │   ├── __init__.py                    # Service exports and CSRF helper bindings
 │   ├── student_service.py             # Student management, profile assembly, search/filters
-│   ├── company_service.py             # Corporate recruiter management
-│   ├── drive_service.py               # Seasonal recruitment drive scheduling
-│   ├── opportunity_service.py         # Job roles, packages, and eligibility criteria
-│   ├── round_service.py               # Selection rounds configuration
-│   ├── placement_service.py           # Offer lifecycle, single-accepted rule, analytics
-│   ├── internship_service.py          # Mandatory/additional internships & prerequisite SGPA joins
-│   ├── internship_requirement_service.py # Curricular internship degree policies
-│   ├── course_service.py              # Academic course catalog operations
-│   ├── registration_service.py        # Student course enrollment operations
-│   ├── profile_service.py             # Portfolios, projects, and certifications
-│   ├── semester_result_service.py     # Verified semester SGPA ledger operations
+│   ├── company_service.py             # Corporate recruiter management & analytics
+│   ├── placement_service.py           # Offer lifecycle, single-joined rule, package analytics
+│   ├── internship_service.py          # Mandatory/additional internships & curriculum audits
 │   ├── dashboard_service.py           # Executive analytics & Chart.js data aggregation
 │   ├── sql_report_service.py          # Accreditation queries, SQL Console & safety validator
+│   ├── pdf_report_service.py          # High-fidelity ReportLab PDF export generation
+│   ├── pagination.py                  # Standardized cursor & offset pagination helper
 │   ├── security.py                    # URL validation, CSRF verification, and OWASP helpers
 │   ├── exceptions.py                  # Custom domain exceptions (Validation, Conflict, NotFound)
 │   └── health_service.py              # Database latency and connectivity diagnostics
@@ -232,37 +219,17 @@ Legacy dataforce/
 ## 8. Approved ER Diagram
 
 > [!IMPORTANT]
-> The following Entity-Relationship diagram reflects the professor-approved schema design and relational architecture.
+> The following Entity-Relationship diagram reflects the professor-approved 7-table schema design and relational architecture.
 
 ```mermaid
 erDiagram
-    UNIVERSITY ||--o{ COURSE : offers
-    UNIVERSITY {
-        int University_ID PK
-        varchar University_Name UK
-        varchar Location
-        int Established_Year
-    }
-
-    COURSE ||--o{ STUDENT_COURSE : enrolls
-    COURSE {
-        int Course_ID PK
-        int University_ID FK
-        varchar Course_Name
-        varchar Department
-        int Semester
-        int Credits
-        varchar Course_Type
-    }
-
-    STUDENT ||--o{ STUDENT_COURSE : registers
-    STUDENT ||--o{ STUDENT_PHONE : has
-    STUDENT ||--o{ STUDENT_SKILL : possesses
-    STUDENT ||--o{ STUDENT_PROFILE : showcases
-    STUDENT ||--o{ RESUME : uploads
-    STUDENT ||--o{ SEMESTER_RESULT : achieves
-    STUDENT ||--o{ PLACEMENT : receives
-    STUDENT ||--o{ INTERNSHIP : completes
+    STUDENT ||--o{ STUDENT_PHONE : "has phone numbers"
+    STUDENT ||--o{ STUDENT_SKILL : "possesses skills"
+    STUDENT ||--o{ PLACEMENT : "receives offers"
+    STUDENT ||--o{ INTERNSHIP : "undertakes training"
+    COMPANY ||--o{ PLACEMENT : "hires graduates"
+    COMPANY ||--o{ INTERNSHIP : "hosts interns"
+    PLACEMENT ||--o{ PLACEMENT_SKILL : "evaluates skills"
 
     STUDENT {
         int Student_ID PK
@@ -271,7 +238,6 @@ erDiagram
         varchar Last_Name
         varchar Branch
         int Batch_Year
-        varchar Section
         decimal CGPA
         int Backlogs
         varchar Email UK
@@ -279,133 +245,45 @@ erDiagram
     }
 
     STUDENT_PHONE {
-        int Student_ID PK,FK
+        int Student_ID PK, FK
         varchar Phone_No PK
     }
 
     STUDENT_SKILL {
-        int Student_ID PK,FK
+        int Student_ID PK, FK
         varchar Skill PK
     }
 
-    STUDENT_COURSE {
-        int Student_ID PK,FK
-        int Course_ID PK,FK
-        int Enrollment_Year
-        varchar Grade
-    }
-
-    STUDENT_PROFILE {
-        int Profile_ID PK
-        int Student_ID FK
-        varchar Profile_Type
-        varchar Title
-        text Description
-        varchar Link
-        int Year
-        varchar Proficiency_Level
-    }
-
-    RESUME ||--o{ EDUCATION_DOCUMENT : contains
-    RESUME {
-        int Resume_ID PK
-        int Student_ID FK
-        varchar File_Name
-        varchar File_Link
-        date Upload_Date
-        int Resume_Year
-    }
-
-    EDUCATION_DOCUMENT {
-        int Doc_ID PK
-        int Resume_ID FK
-        varchar Document_Type
-        decimal Percentage_CGPA
-        varchar Board
-        int Year_of_Passing
-        varchar File_Link
-    }
-
-    SEMESTER_RESULT {
-        int Result_ID PK
-        int Student_ID FK
-        int Semester
-        decimal SGPA
-        int Year
-        int Total_Credits
-    }
-
-    COMPANY ||--o{ RECRUITMENT_DRIVE : organizes
-    COMPANY ||--o{ PLACEMENT : hires
-    COMPANY ||--o{ INTERNSHIP : contracts
     COMPANY {
         int Company_ID PK
         varchar Company_Name UK
         varchar Company_Type
-        varchar Industry
+        varchar Sector
         varchar Location
         varchar Website
     }
 
-    RECRUITMENT_DRIVE ||--o{ OPPORTUNITY : features
-    RECRUITMENT_DRIVE {
-        int Drive_ID PK
+    PLACEMENT {
+        int Placement_ID PK
+        int Student_ID FK
         int Company_ID FK
-        int Drive_Year
-        varchar Drive_Type
-        varchar Season
-        date Drive_Date
-    }
-
-    OPPORTUNITY ||--|| ELIGIBILITY : requires
-    OPPORTUNITY ||--o{ SELECTION_PROCESS : conducts
-    OPPORTUNITY ||--o{ PLACEMENT : yields
-    OPPORTUNITY ||--o{ INTERNSHIP : yields
-    OPPORTUNITY {
-        int Opportunity_ID PK
-        int Drive_ID FK
         varchar Role
-        varchar Opportunity_Type
-        decimal Package_Stipend
-        int Duration_Months
+        decimal Package
+        int Placement_Year
+        varchar Offer_Status
+        varchar Joined
+        int Joined_Student UK "Generated Column"
     }
 
-    ELIGIBILITY {
-        int Eligibility_ID PK
-        int Opportunity_ID UK,FK
-        decimal Minimum_CGPA
-        varchar Eligible_Branch
-        int Max_Backlogs
-        text Other_Criteria
-    }
-
-    SELECTION_PROCESS {
-        int Round_ID PK
-        int Opportunity_ID FK
-        int Round_Number
-        varchar Round_Type
-        text Description
-    }
-
-    INTERNSHIP_REQUIREMENT ||--o{ INTERNSHIP : dictates
-    INTERNSHIP_REQUIREMENT {
-        int Requirement_ID PK
-        int Internship_No UK
-        varchar Mandatory
-        varchar Prescribed_Period
-        int Required_Result_Semester
-        int Report_Submission_Semester
-        int Credits
-        text Description
+    PLACEMENT_SKILL {
+        int Placement_ID PK, FK
+        varchar Skill PK
     }
 
     INTERNSHIP {
-        int Internship_ID PK
-        int Student_ID FK
+        int Student_ID PK, FK
+        int Internship_No PK
         int Company_ID FK
-        int Opportunity_ID FK
-        int Requirement_ID FK
-        int Internship_No
         varchar Internship_Type
         varchar Role
         decimal Stipend
@@ -413,27 +291,9 @@ erDiagram
         date End_Date
         int Credits
         int Report_Semester
-    }
-
-    PLACEMENT ||--o{ PLACEMENT_SKILL : evaluates
-    PLACEMENT {
-        int Placement_ID PK
-        int Student_ID FK
-        int Company_ID FK
-        int Opportunity_ID FK
-        varchar Role
-        decimal Package
-        int Placement_Year
-        varchar Placement_Type
-        varchar Is_PPO
-        varchar Joined
-        varchar Offer_Status
-        int Interview_Rounds
-    }
-
-    PLACEMENT_SKILL {
-        int Placement_ID PK,FK
-        varchar Skill PK
+        varchar Report_Grade
+        varchar Report_Link
+        varchar Certificate_Link
     }
 ```
 
@@ -441,37 +301,26 @@ erDiagram
 
 ## 9. Database Schema & Relationships
 
-The database comprises **20 relational base tables** and **2 views**, organized into three core domains:
+The database comprises **exactly 7 canonical relational base tables** and **2 views**:
 
-### Academic & Student Master Domain
-1. **`UNIVERSITY`**: Academic institutions with unique name constraint.
-2. **`COURSE`**: Curriculum subjects with semester bounds (1–8) and credit constraints (`Credits >= 1`).
-3. **`STUDENT`**: Central student entity with decomposed atomic names (`First_Name`, `Last_Name`), candidate key `Roll_No`, and `CHECK` constraints on CGPA (0.00–10.00) and backlogs (`>= 0`).
-4. **`STUDENT_PHONE`**: Multivalued phone decomposition table ensuring 1NF; composite PK `(Student_ID, Phone_No)`.
-5. **`STUDENT_SKILL`**: Multivalued student skills; composite PK `(Student_ID, Skill)`.
-6. **`STUDENT_COURSE`**: Associative table for M:N course enrollments with grade tracking.
-7. **`STUDENT_PROFILE`**: Extracurricular portfolio, hackathons, and certifications.
-8. **`RESUME`**: Student resume versions uploaded across academic cycles.
-9. **`EDUCATION_DOCUMENT`**: Secondary education credentials (10th, 12th, Diploma) linked to resumes.
-10. **`SEMESTER_RESULT`**: Verified semester ledger tracking SGPA and earned credits per semester; composite unique key on `(Student_ID, Semester)`.
+### The 7 Canonical Base Tables
+1. **`STUDENT`**: Central student master entity with decomposed atomic names (`First_Name`, `Last_Name`), unique candidate key `Roll_No`, unique `Email`, and `CHECK` constraints on CGPA (0.00–10.00) and backlogs (`>= 0`). BCNF.
+2. **`STUDENT_PHONE`**: Multivalued phone decomposition table ensuring 1NF; composite PK `(Student_ID, Phone_No)`. All-key BCNF.
+3. **`STUDENT_SKILL`**: Multivalued technical skills per student; composite PK `(Student_ID, Skill)`. All-key BCNF.
+4. **`COMPANY`**: Corporate recruiting partners categorized by type (`Product`, `Service`, `Startup`). BCNF.
+5. **`PLACEMENT`**: Full-time employment offers with compensation package in LPA, offer lifecycle tracking (`Offered`, `Accepted`, `Declined`), and separate joining indicator `Joined` (`Yes`, `No`). BCNF.
+6. **`PLACEMENT_SKILL`**: Technical skills evaluated during placement rounds; composite PK `(Placement_ID, Skill)`. All-key BCNF.
+7. **`INTERNSHIP`**: Student practical training distinguishing Mandatory (degree-fulfilling) from Additional (voluntary); weak entity identified by composite PK `(Student_ID, Internship_No)`. 1NF (Intentional Curriculum Denormalization).
 
-### Corporate Recruitment Domain
-11. **`COMPANY`**: Corporate recruiting partners categorized by type (`Product`, `Service`, `Startup`, `Other`).
-12. **`RECRUITMENT_DRIVE`**: Seasonal campus hiring drives per company and batch year.
-13. **`OPPORTUNITY`**: Specific designations opened during a drive, distinguishing `Placement` from `Internship`.
-14. **`ELIGIBILITY`**: 1:1 eligibility constraint rule per opportunity specifying minimum CGPA, eligible branches, and max backlogs.
-15. **`ELIGIBILITY_BRANCH`**: Decomposed intersection relation mapping opportunities to eligible branches.
-16. **`SELECTION_PROCESS`**: Multi-round selection stages (Aptitude, Coding, Technical, HR) per opportunity.
+### The 2 Relational Views
+- **`V_PLACEMENT_DETAIL`**: Joins `PLACEMENT`, `STUDENT`, and `COMPANY` with evaluated skills aggregated via `GROUP_CONCAT` from `PLACEMENT_SKILL`.
+- **`V_INTERNSHIP_DETAIL`**: Joins `INTERNSHIP`, `STUDENT`, and `COMPANY`, calculating dynamic duration in months via `ROUND(DATEDIFF(End_Date, Start_Date) / 30.44, 1)`.
 
-### Career Outcome & Compliance Domain
-17. **`INTERNSHIP_REQUIREMENT`**: Curricular policies prescribing mandatory summer internships, prerequisite semesters, and report submission deadlines.
-18. **`INTERNSHIP`**: Student internships distinguishing Mandatory (degree-fulfilling) from Additional (voluntary); weak entity identified by `(Student_ID, Internship_No)`.
-19. **`PLACEMENT`**: Final employment offers with compensation package in LPA and offer lifecycle tracking (`Offered`, `Accepted`, `Joined`, `Declined`).
-20. **`PLACEMENT_SKILL`**: Technical skills evaluated during placement rounds; composite PK `(Placement_ID, Skill)`.
-
-### Relational Views
-- **`V_PLACEMENT_DETAIL`**: Joins `PLACEMENT`, `STUDENT`, and `COMPANY` into an denormalized view for analytics.
-- **`V_INTERNSHIP_DETAIL`**: Computes dynamic duration in months via `DATEDIFF` alongside student and company details.
+### Core Database Integrity Constraints
+- **Single Joined Offer Rule (`uq_one_joined_offer`)**: Enforced via generated virtual column `Joined_Student` with `UNIQUE KEY (Joined_Student)`. Students may receive multiple offers, but can join at most one organization.
+- **Joined Status Rule (`chk_placement_joined_status`)**: `CHECK (Joined = 'No' OR Offer_Status = 'Accepted')` guarantees an offer cannot be marked joined unless accepted.
+- **Curriculum Rule (`chk_internship_curriculum`)**: Internship 1 requires 4 credits in Sem 5; Internship 2 is done in 8th semester, report submitted after the end of 8th semester (`Report_Semester = 8`, 4 credits); Internship 3+ are Additional.
+- **Date Chronology (`chk_internship_dates`)**: `CHECK (End_Date >= Start_Date)`.
 
 ---
 
@@ -603,11 +452,11 @@ The web application will initialize at:
 
 ### 3. Corporate Partners & Drives (`/companies`)
 - Corporate directory categorized by industry and organization model.
-- Hierarchical company detail views listing campus recruitment drives, open opportunities, eligibility constraints, and multi-stage selection rounds.
+- Comprehensive company detail views listing recruitment engagement, industry profile, placement records, and corporate internships.
 
 ### 4. Placement Management (`/placements`)
-- Complete offer ledger tracking designations, packages, offer statuses, and interview rounds.
-- Strict enforcement of the **Single-Accepted-Offer Rule**: accepting an offer blocks other offers from being accepted (`HTTP 409 Conflict`).
+- Complete offer ledger tracking designations, packages, offer statuses, and evaluated skills.
+- Strict enforcement of the **Single-Joined-Offer Rule**: a student can join at most one placement offer (enforced by generated column `Joined_Student` and unique key `uq_one_joined_offer`).
 - Star Performers view showcasing students holding multiple placement offers.
 
 ### 5. Internship Management (`/internships`)
@@ -634,14 +483,15 @@ The system implements advanced SQL analytics utilizing MySQL 8.0 modern relation
    - `AVG(Package) OVER (PARTITION BY Branch)`: Computes moving and departmental benchmarks.
 3. **Conditional Aggregation**:
    - Computes placement rates, PPO conversion percentages, and internship compliance tallies using `SUM(CASE WHEN ... THEN 1 ELSE 0 END)`.
-4. **Dynamic Prerequisite Joins**:
-   - Evaluates Mandatory Internship eligibility by joining `SEMESTER_RESULT` on `Student_ID` and `Semester = Required_Result_Semester` on the fly, eliminating redundant SGPA columns.
+4. **Dynamic Duration & Curriculum Integrity**:
+   - Computes internship duration dynamically via view `V_INTERNSHIP_DETAIL` using `ROUND(DATEDIFF(End_Date, Start_Date) / 30.44, 1)` with zero stored redundancy.
+   - Enforces curriculum degree compliance via `chk_internship_curriculum` and single joined offer rule via `uq_one_joined_offer`.
 
 ---
 
 ## 16. Testing Instructions
 
-The repository features an automated test suite of **246 tests** covering unit, integration, constraint, transaction, error handling, and security domains.
+The repository features an automated test suite of **241 tests** covering unit, integration, constraint, transaction, error handling, and security domains.
 
 ### Running Tests with Pytest
 

@@ -11,6 +11,7 @@ from flask import (
     flash,
     jsonify,
     Response,
+    send_file,
     current_app,
 )
 from config import Config
@@ -18,6 +19,7 @@ from db.connection import DatabaseError
 from . import main_bp
 from services import (
     check_system_health,
+    admin_required,
     ServiceError,
     ValidationError,
     NotFoundError,
@@ -44,16 +46,12 @@ from services import (
     create_company,
     update_company,
     delete_company,
-    list_drives,
-    get_drive,
-    list_opportunities,
     # Internships
     list_internships,
     get_internship,
     create_internship,
     update_internship,
     delete_internship,
-    list_requirements,
     get_mandatory_internships_with_prerequisite_sgpa,
     get_students_missing_mandatory_internships,
     check_internship_eligibility,
@@ -220,6 +218,7 @@ def _safe_error_message(err: Exception, default_msg: str = "A database error occ
 
 
 @main_bp.route("/", methods=["GET"])
+@admin_required
 def index():
     """Renders the executive dashboard with KPI cards, Chart.js visual charts, and recent activity."""
     health_info, status_code = check_system_health()
@@ -283,6 +282,7 @@ def index():
 
 
 @main_bp.route("/students", methods=["GET"])
+@admin_required
 def students_list():
     """Displays searchable, filterable, sortable, and paginated directory of students."""
     search = request.args.get("search", "").strip() or None
@@ -368,6 +368,7 @@ def students_list():
 
 @main_bp.route("/students/export-csv", methods=["GET"])
 @main_bp.route("/students/export", methods=["GET"])
+@admin_required
 def students_export_csv():
     """Generates and downloads a CSV export of filtered student records."""
     search = request.args.get("search", "").strip() or None
@@ -493,6 +494,7 @@ def students_export_csv():
 
 
 @main_bp.route("/students/new", methods=["GET", "POST"])
+@admin_required
 def student_create():
     """Handles adding a new student to the institution directory."""
     filter_opts = get_dashboard_filter_options()
@@ -555,8 +557,9 @@ def student_create():
 
 
 @main_bp.route("/students/<int:student_id>", methods=["GET"])
+@admin_required
 def student_detail(student_id: int):
-    """Displays comprehensive student profile across all 9 academic & career sections."""
+    """Displays comprehensive student profile across canonical 7-table schema sections."""
     try:
         student = get_student(student_id)
     except NotFoundError:
@@ -564,15 +567,8 @@ def student_detail(student_id: int):
         return redirect("/students")
 
     phones = student.get("Phone_Numbers", [])
-    profiles = student.get("Profiles", [])
-    projects = student.get("Projects", [])
-    achievements = student.get("Achievements", [])
-    semester_results = student.get("Semester_Results", [])
-    registrations = student.get("Registered_Courses", [])
     placements = student.get("Placements", [])
     internships = student.get("Internships", [])
-    resumes = student.get("Resumes", [])
-    education_docs = student.get("Education_Documents", [])
     skills = student.get("Skills", [])
 
     return render_template(
@@ -580,20 +576,82 @@ def student_detail(student_id: int):
         active_page="students",
         student=student,
         phones=phones,
-        profiles=profiles,
-        projects=projects,
-        achievements=achievements,
-        semester_results=semester_results,
-        registrations=registrations,
         placements=placements,
         internships=internships,
-        resumes=resumes,
-        education_docs=education_docs,
         skills=skills,
     )
 
 
+@main_bp.route("/students/<int:student_id>/export-pdf", methods=["GET"])
+@admin_required
+def student_export_pdf(student_id: int):
+    """Generates and streams a complete 360-degree Student Profile PDF."""
+    try:
+        student = get_student(student_id)
+    except NotFoundError:
+        flash(f"Student with ID {student_id} not found.", "warning")
+        return redirect("/students")
+
+    from services.pdf_report_service import generate_student_profile_pdf
+
+    pdf_bytes = generate_student_profile_pdf(student_id)
+    roll = student.get("Roll_No", str(student_id))
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"student_{roll}_profile.pdf",
+    )
+
+
+@main_bp.route("/students/<int:student_id>/internship-compliance-pdf", methods=["GET"])
+@main_bp.route("/internships/<int:student_id>/compliance-pdf", methods=["GET"])
+@admin_required
+def student_internship_compliance_pdf(student_id: int):
+    """Generates and streams an individual Mandatory Internship Compliance Verification PDF."""
+    try:
+        student = get_student(student_id)
+    except NotFoundError:
+        flash(f"Student with ID {student_id} not found.", "warning")
+        return redirect("/internships")
+
+    from services.pdf_report_service import generate_individual_compliance_pdf
+
+    pdf_bytes = generate_individual_compliance_pdf(student_id)
+    roll = student.get("Roll_No", str(student_id))
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"internship_compliance_{roll}.pdf",
+    )
+
+
+@main_bp.route("/students/<int:student_id>/internships-history-pdf", methods=["GET"])
+@main_bp.route("/internships/student/<int:student_id>/history-pdf", methods=["GET"])
+@admin_required
+def student_internship_history_pdf(student_id: int):
+    """Generates and streams a student's complete internship history PDF."""
+    try:
+        student = get_student(student_id)
+    except NotFoundError:
+        flash(f"Student with ID {student_id} not found.", "warning")
+        return redirect("/internships")
+
+    from services.pdf_report_service import generate_student_internship_history_pdf
+
+    pdf_bytes = generate_student_internship_history_pdf(student_id)
+    roll = student.get("Roll_No", str(student_id))
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"internship_history_{roll}.pdf",
+    )
+
+
 @main_bp.route("/students/<int:student_id>/edit", methods=["GET", "POST"])
+@admin_required
 def student_edit(student_id: int):
     """Handles updating student details."""
     try:
@@ -657,6 +715,7 @@ def student_edit(student_id: int):
 
 
 @main_bp.route("/students/<int:student_id>/delete", methods=["POST"])
+@admin_required
 def student_delete(student_id: int):
     """Safely deletes student, respecting institutional career history protection."""
     try:
@@ -671,6 +730,7 @@ def student_delete(student_id: int):
 
 
 @main_bp.route("/students/<int:student_id>/phones", methods=["POST"])
+@admin_required
 def student_phone_add(student_id: int):
     """Adds a phone number to a student in the dedicated phone table."""
     phone_number = request.form.get("phone_number", "").strip()
@@ -684,6 +744,7 @@ def student_phone_add(student_id: int):
 
 
 @main_bp.route("/students/<int:student_id>/phones/<string:phone_no>/delete", methods=["POST"])
+@admin_required
 def student_phone_delete(student_id: int, phone_no: str):
     """Deletes a phone number from the separate phone table."""
     try:
@@ -695,12 +756,44 @@ def student_phone_delete(student_id: int, phone_no: str):
     return redirect(f"/students/{student_id}")
 
 
+@main_bp.route("/students/<int:student_id>/skills", methods=["POST"])
+@admin_required
+def student_skill_add(student_id: int):
+    """Adds a technical skill to a student in the dedicated STUDENT_SKILL table."""
+    skill = request.form.get("skill", "").strip()
+    try:
+        from services import add_student_skill
+
+        add_student_skill(student_id, skill)
+        flash(f"Added skill '{skill}' successfully.", "success")
+    except (ValidationError, ConflictError, DatabaseError, ServiceError) as err:
+        err_msg = _safe_error_message(err)
+        flash(f"Skill Error: {err_msg}", "danger")
+    return redirect(f"/students/{student_id}")
+
+
+@main_bp.route("/students/<int:student_id>/skills/<string:skill>/delete", methods=["POST"])
+@admin_required
+def student_skill_delete(student_id: int, skill: str):
+    """Deletes a skill from the STUDENT_SKILL table."""
+    try:
+        from services import delete_student_skill
+
+        delete_student_skill(student_id, skill)
+        flash(f"Skill '{skill}' removed successfully.", "success")
+    except (NotFoundError, DatabaseError, ServiceError) as err:
+        err_msg = _safe_error_message(err)
+        flash(f"Skill Removal Failed: {err_msg}", "danger")
+    return redirect(f"/students/{student_id}")
+
+
 # ==============================================================================
 # 3. Corporate Partners & Recruitment Drives Views
 # ==============================================================================
 
 
 @main_bp.route("/companies", methods=["GET"])
+@admin_required
 def companies_list():
     """Displays searchable and filterable company partners."""
     search = request.args.get("search", "").strip() or None
@@ -724,6 +817,7 @@ def companies_list():
 
 
 @main_bp.route("/companies/new", methods=["GET", "POST"])
+@admin_required
 def company_create():
     """Registers a new corporate partner."""
     if request.method == "POST":
@@ -753,6 +847,7 @@ def company_create():
 
 
 @main_bp.route("/companies/<int:company_id>", methods=["GET"])
+@admin_required
 def company_detail(company_id: int):
     """Displays company profile, recruitment drives, opportunities, and recruited students."""
     try:
@@ -761,11 +856,12 @@ def company_detail(company_id: int):
         flash(f"Company with ID {company_id} not found.", "warning")
         return redirect("/companies")
 
-    drives = list_drives(company_id=company_id)
+    internships_res = list_internships(company_id=company_id)
+    internships = (
+        internships_res.get("results", []) if isinstance(internships_res, dict) else internships_res
+    )
+    drives = []
     drive_opportunities = {}
-    for d in drives:
-        full_drive = get_drive(d["Drive_ID"])
-        drive_opportunities[d["Drive_ID"]] = full_drive.get("Opportunities", [])
 
     placements_res = list_placement_offers(company_id=company_id)
     placements = (
@@ -779,10 +875,12 @@ def company_detail(company_id: int):
         drives=drives,
         drive_opportunities=drive_opportunities,
         placements=placements,
+        internships=internships,
     )
 
 
 @main_bp.route("/companies/<int:company_id>/edit", methods=["GET", "POST"])
+@admin_required
 def company_edit(company_id: int):
     """Handles updating company details."""
     try:
@@ -825,6 +923,7 @@ def company_edit(company_id: int):
 
 
 @main_bp.route("/companies/<int:company_id>/delete", methods=["POST"])
+@admin_required
 def company_delete(company_id: int):
     """Handles company deletion with relationship integrity protection."""
     try:
@@ -844,6 +943,7 @@ def company_delete(company_id: int):
 
 
 @main_bp.route("/internships", methods=["GET"])
+@admin_required
 def internships_list():
     """Displays internships with comprehensive dashboard, filtering, search, and compliance audit tabs."""
     active_tab = request.args.get("type", "All").strip()
@@ -924,6 +1024,7 @@ def internships_list():
 
 @main_bp.route("/internships/export-csv", methods=["GET"])
 @main_bp.route("/internships/export", methods=["GET"])
+@admin_required
 def internships_export_csv():
     """Generates and streams a downloadable RFC 4180 CSV export of filtered internship records."""
     search = request.args.get("q") or request.args.get("search")
@@ -1020,9 +1121,9 @@ def internships_export_csv():
         "X-Export-Count": str(len(internships)),
         "X-Export-Limit": str(export_limit),
         "X-Export-Limited": "true" if is_truncated else "false",
-        "X-Export-Status": "limited"
-        if is_truncated
-        else ("empty" if not internships else "complete"),
+        "X-Export-Status": (
+            "limited" if is_truncated else ("empty" if not internships else "complete")
+        ),
     }
     if is_truncated:
         headers["X-Export-Warning"] = f"Export capped at {export_limit} records."
@@ -1034,6 +1135,7 @@ def internships_export_csv():
 
 
 @main_bp.route("/internships/<int:internship_id>", methods=["GET"])
+@admin_required
 def internship_detail(internship_id: int):
     """Displays comprehensive internship dossier view."""
     try:
@@ -1054,6 +1156,7 @@ def internship_detail(internship_id: int):
 
 
 @main_bp.route("/internships/<int:internship_id>/edit", methods=["GET", "POST"])
+@admin_required
 def internship_edit(internship_id: int):
     """Handles updating an existing internship record."""
     try:
@@ -1097,17 +1200,12 @@ def internship_edit(internship_id: int):
 
 
 @main_bp.route("/internships/new", methods=["GET", "POST"])
+@admin_required
 def internship_create():
     """Handles recording a student internship enforcing academic policy constraints."""
     if request.method == "POST":
         try:
             itype = request.form.get("Internship_Type", "Mandatory").strip()
-            req_id_raw = request.form.get("Requirement_ID")
-            req_id = (
-                parse_int(req_id_raw, "Requirement ID")
-                if (itype == "Mandatory" and req_id_raw)
-                else None
-            )
             internship_no = parse_int(request.form.get("Internship_No", 1), "Internship No", 1)
 
             stipend_val = parse_float(request.form.get("Stipend", 0.0), "Stipend", 0.0)
@@ -1118,14 +1216,13 @@ def internship_create():
             report_sem = (
                 parse_int(report_sem_raw, "Report Semester")
                 if report_sem_raw
-                else (5 if internship_no == 1 else 7 if internship_no == 2 else None)
+                else (5 if internship_no == 1 else 8 if internship_no == 2 else None)
             )
 
             payload = {
                 "Student_ID": parse_int(request.form.get("Student_ID"), "Student"),
                 "Company_ID": parse_int(request.form.get("Company_ID"), "Company"),
                 "Internship_Type": itype,
-                "Requirement_ID": req_id,
                 "Internship_No": internship_no,
                 "Role": request.form.get("Role", "").strip(),
                 "Start_Date": request.form.get("Start_Date", "").strip(),
@@ -1148,7 +1245,7 @@ def internship_create():
 
     students = get_student_selector_options()
     companies = list_companies()
-    requirements = list_requirements()
+    requirements = []
     preselected_student_id = request.args.get("student_id")
 
     return render_template(
@@ -1164,6 +1261,7 @@ def internship_create():
 
 
 @main_bp.route("/internships/<int:internship_id>/delete", methods=["POST"])
+@admin_required
 def internship_delete(internship_id: int):
     """Deletes an internship record."""
     try:
@@ -1175,12 +1273,33 @@ def internship_delete(internship_id: int):
     return redirect("/internships")
 
 
+@main_bp.route("/internships/missing-mandatory-pdf", methods=["GET"])
+@admin_required
+def internships_missing_mandatory_pdf():
+    """Generates and streams an institutional Missing Mandatory Internship Audit PDF."""
+    raw_branch = request.args.get("branch", "").strip() or None
+    branch = normalize_branch(raw_branch)
+    raw_batch = request.args.get("batch_year")
+    batch_year = int(raw_batch) if raw_batch and str(raw_batch).isdigit() else None
+
+    from services.pdf_report_service import generate_missing_mandatory_audit_pdf
+
+    pdf_bytes = generate_missing_mandatory_audit_pdf(branch=branch, batch_year=batch_year)
+    return send_file(
+        io.BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name="missing_mandatory_audit.pdf",
+    )
+
+
 # ==============================================================================
 # 5. Placements & Offer Management Views
 # ==============================================================================
 
 
 @main_bp.route("/placements", methods=["GET"])
+@admin_required
 def placements_list():
     """Displays placement directory with advanced search, multi-filters, dynamic sorting, server-side pagination, KPI cards, and star performers view."""
     view_type = request.args.get("view", "all").strip().lower()
@@ -1283,7 +1402,7 @@ def placements_list():
     # 6. Modal / Form Auxiliary Data
     all_students = get_student_selector_options()
     all_companies = list_companies()
-    all_opportunities = list_opportunities(opportunity_type="Placement")
+    all_opportunities = []
 
     # 7. Distinct Filter Options
     filter_opts = get_dashboard_filter_options()
@@ -1330,6 +1449,7 @@ def placements_list():
 
 @main_bp.route("/placements/export-csv", methods=["GET"])
 @main_bp.route("/placements/export", methods=["GET"])
+@admin_required
 def placements_export_csv():
     """Generates and streams a downloadable CSV of filtered placement offer records."""
     search = request.args.get("search", "").strip() or None
@@ -1462,8 +1582,9 @@ def placements_export_csv():
 
 
 @main_bp.route("/placements/<int:placement_id>", methods=["GET"])
+@admin_required
 def placement_detail(placement_id: int):
-    """Displays comprehensive placement offer details including student, company, drive, and eligibility compliance."""
+    """Displays comprehensive placement offer details including student, company, and evaluated skills."""
     try:
         offer = get_placement_offer(placement_id)
     except NotFoundError:
@@ -1478,6 +1599,7 @@ def placement_detail(placement_id: int):
 
 
 @main_bp.route("/placements/<int:placement_id>/edit", methods=["GET", "POST"])
+@admin_required
 def placement_edit(placement_id: int):
     """Handles updating a placement offer's details and evaluated skills."""
     try:
@@ -1529,14 +1651,13 @@ def placement_edit(placement_id: int):
 
 
 @main_bp.route("/placements/new", methods=["GET", "POST"])
+@admin_required
 def placement_create():
-    """Handles issuing a placement offer enforcing no duplicates, opportunity type, and single-accepted offer rules."""
+    """Handles issuing a placement offer enforcing no duplicates and single-joined offer rules."""
     current_year = datetime.date.today().year
 
     if request.method == "POST":
         try:
-            opp_id_raw = request.form.get("Opportunity_ID")
-            opp_id = parse_int(opp_id_raw, "Opportunity Opening") if opp_id_raw else None
             package = parse_float(request.form.get("Package", 0.0), "Package", min_val=0.01)
             student_id = parse_int(request.form.get("Student_ID"), "Student")
             company_id = parse_int(request.form.get("Company_ID"), "Company")
@@ -1549,7 +1670,6 @@ def placement_create():
             payload = {
                 "Student_ID": student_id,
                 "Company_ID": company_id,
-                "Opportunity_ID": opp_id,
                 "Role": request.form.get("Role", "").strip(),
                 "Package": package,
                 "Placement_Year": parse_int(
@@ -1557,6 +1677,7 @@ def placement_create():
                 ),
                 "Placement_Type": request.form.get("Placement_Type", "On-campus").strip(),
                 "Offer_Status": request.form.get("Offer_Status", "Offered").strip(),
+                "Joined": request.form.get("Joined", "No").strip(),
                 "Is_PPO": request.form.get("Is_PPO", "No").strip(),
                 "Interview_Rounds": parse_int(
                     request.form.get("Interview_Rounds", 1), "Interview Rounds", min_val=0
@@ -1577,7 +1698,7 @@ def placement_create():
     # GET request: render standalone form
     all_students = get_student_selector_options()
     all_companies = list_companies()
-    all_opportunities = list_opportunities(opportunity_type="Placement")
+    all_opportunities = []
 
     return render_template(
         "placements/form.html",
@@ -1592,6 +1713,7 @@ def placement_create():
 
 
 @main_bp.route("/placements/<int:placement_id>/status", methods=["POST"])
+@admin_required
 def placement_status_update(placement_id: int):
     """Updates an offer's status (Accept, Decline, Joined), enforcing the single accepted offer constraint."""
     new_status = request.form.get("status", "").strip()
@@ -1615,6 +1737,7 @@ def placement_status_update(placement_id: int):
 
 
 @main_bp.route("/placements/<int:placement_id>/delete", methods=["POST"])
+@admin_required
 def placement_delete(placement_id: int):
     """Deletes a placement offer record."""
     try:
@@ -1632,13 +1755,16 @@ def placement_delete(placement_id: int):
 
 
 @main_bp.route("/reports", methods=["GET"])
+@admin_required
 def reports_view():
     """Renders comprehensive institutional reports with multi-criteria filters."""
     raw_branch = request.args.get("branch", "").strip() or None
     branch = normalize_branch(raw_branch)
+    raw_search = request.args.get("search", "").strip() or request.args.get("q", "").strip() or None
 
     filters = {
         "branch": branch,
+        "search": raw_search,
         "placement_status": request.args.get("placement_status", "").strip() or None,
         "internship_status": request.args.get("internship_status", "").strip() or None,
         "min_cgpa": request.args.get("min_cgpa", "").strip() or None,
@@ -1665,13 +1791,16 @@ def reports_view():
 
 
 @main_bp.route("/reports/export", methods=["GET"])
+@admin_required
 def reports_export_csv():
     """Generates and streams a CSV export of the filtered cohort report."""
     raw_branch = request.args.get("branch", "").strip() or None
     branch = normalize_branch(raw_branch)
+    raw_search = request.args.get("search", "").strip() or request.args.get("q", "").strip() or None
 
     filters = {
         "branch": branch,
+        "search": raw_search,
         "placement_status": request.args.get("placement_status", "").strip() or None,
         "internship_status": request.args.get("internship_status", "").strip() or None,
         "min_cgpa": request.args.get("min_cgpa", "").strip() or None,
@@ -1702,7 +1831,7 @@ def reports_export_csv():
             "Placed Package (LPA)",
             "Final Status",
             "Mandatory Internship 1 (Sem 3)",
-            "Mandatory Internship 2 (Sem 5)",
+            "Mandatory Internship 2 (8th Sem)",
             "Additional Internships Count",
         ]
     )
@@ -1750,13 +1879,16 @@ def reports_export_csv():
 
 
 @main_bp.route("/reports/export-pdf", methods=["GET"])
+@admin_required
 def reports_export_pdf():
     """Generates and streams an executive PDF report of the filtered cohort."""
     raw_branch = request.args.get("branch", "").strip() or None
     branch = normalize_branch(raw_branch)
+    raw_search = request.args.get("search", "").strip() or request.args.get("q", "").strip() or None
 
     filters = {
         "branch": branch,
+        "search": raw_search,
         "placement_status": request.args.get("placement_status", "").strip() or None,
         "internship_status": request.args.get("internship_status", "").strip() or None,
         "min_cgpa": request.args.get("min_cgpa", "").strip() or None,
@@ -1925,9 +2057,9 @@ def reports_export_pdf():
             "X-Export-Count": str(len(rows)),
             "X-Export-Limit": str(pdf_limit),
             "X-Export-Limited": "true" if is_truncated else "false",
-            "X-Export-Status": "limited"
-            if is_truncated
-            else ("empty" if not all_rows else "complete"),
+            "X-Export-Status": (
+                "limited" if is_truncated else ("empty" if not all_rows else "complete")
+            ),
         }
         if is_truncated:
             headers["X-Export-Warning"] = (
@@ -1951,6 +2083,7 @@ def reports_export_pdf():
 
 
 @main_bp.route("/api/analytics/dashboard", methods=["GET"])
+@admin_required
 def api_dashboard_stats():
     """Returns aggregated enterprise dashboard statistics and charts JSON."""
     raw_batch = request.args.get("batch_year")
@@ -1977,6 +2110,7 @@ def api_dashboard_stats():
 
 
 @main_bp.route("/api/analytics/charts/yearwise", methods=["GET"])
+@admin_required
 def api_chart_yearwise():
     """Returns year-wise placement trends JSON."""
     raw_branch = request.args.get("branch", "").strip() or None
@@ -1993,6 +2127,7 @@ def api_chart_yearwise():
 
 
 @main_bp.route("/api/analytics/charts/branchwise", methods=["GET"])
+@admin_required
 def api_chart_branchwise():
     """Returns branch-wise distribution JSON."""
     raw_batch = request.args.get("batch_year")
@@ -2017,6 +2152,7 @@ def api_chart_branchwise():
 
 
 @main_bp.route("/sql-reports", methods=["GET"])
+@admin_required
 def sql_reports_view():
     """Displays the two-part SQL Reports page:
     Part 1: Saved queries from placement_internship_db.sql and Phase 9 DBMS demo.
@@ -2031,6 +2167,7 @@ def sql_reports_view():
 
 
 @main_bp.route("/api/sql-reports/run-saved", methods=["POST"])
+@admin_required
 def api_run_saved_query():
     """Executes a parameterized saved query and returns table data as JSON."""
     data = request.get_json(silent=True) or request.form.to_dict()
@@ -2070,12 +2207,15 @@ def api_run_saved_query():
 
 
 @main_bp.route("/sql-reports/export-saved", methods=["GET"])
+@admin_required
 def export_saved_query_csv():
     """Exports the execution results of a saved query as a downloadable CSV file."""
     query_id = request.args.get("query_id")
     if not query_id:
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return Response("Cannot export: query_id is required.", status=400, mimetype="text/plain")
+            return Response(
+                "Cannot export: query_id is required.", status=400, mimetype="text/plain"
+            )
         flash("Cannot export: query_id is required.", "danger")
         return redirect(url_for("main_bp.sql_reports_view"))
 
@@ -2122,18 +2262,25 @@ def export_saved_query_csv():
     except ValidationError as ve:
         logger.warning("Saved query export validation error: %s", ve)
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return Response(f"Export Validation Error: {ve.message}", status=400, mimetype="text/plain")
+            return Response(
+                f"Export Validation Error: {ve.message}", status=400, mimetype="text/plain"
+            )
         flash(f"Export Validation Error: {ve.message}", "danger")
         return redirect(url_for("main_bp.sql_reports_view"))
     except Exception as exc:
         logger.error("Failed to export saved query CSV: %s", exc)
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return Response("CSV Export Failed due to an internal processing error.", status=500, mimetype="text/plain")
+            return Response(
+                "CSV Export Failed due to an internal processing error.",
+                status=500,
+                mimetype="text/plain",
+            )
         flash("CSV Export Failed due to an internal processing error.", "danger")
         return redirect(url_for("main_bp.sql_reports_view"))
 
 
 @main_bp.route("/api/sql-reports/run-custom", methods=["POST"])
+@admin_required
 def api_run_custom_query():
     """Validates and executes user-provided SQL under read-only MySQL permissions and 500-row limit."""
     data = request.get_json(silent=True) or request.form.to_dict()
@@ -2200,12 +2347,15 @@ def api_run_custom_query():
 
 
 @main_bp.route("/sql-reports/export-custom", methods=["POST"])
+@admin_required
 def export_custom_query_csv():
     """Exports custom SQL execution results as a downloadable CSV."""
     raw_sql = request.form.get("sql", "").strip()
     if not raw_sql:
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return Response("Cannot export: SQL query cannot be empty.", status=400, mimetype="text/plain")
+            return Response(
+                "Cannot export: SQL query cannot be empty.", status=400, mimetype="text/plain"
+            )
         flash("Cannot export: SQL query cannot be empty.", "warning")
         return redirect(url_for("main_bp.sql_reports_view"))
 
@@ -2255,12 +2405,18 @@ def export_custom_query_csv():
         )
     except ValidationError as ve:
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return Response(f"SQL Validation Error: {ve.message}", status=400, mimetype="text/plain")
+            return Response(
+                f"SQL Validation Error: {ve.message}", status=400, mimetype="text/plain"
+            )
         flash(f"SQL Validation Error: {ve.message}", "danger")
         return redirect(url_for("main_bp.sql_reports_view"))
     except Exception as exc:
         logger.error("Failed to export custom SQL CSV: %s", exc)
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return Response("Custom CSV Export Failed due to an internal server error.", status=500, mimetype="text/plain")
+            return Response(
+                "Custom CSV Export Failed due to an internal server error.",
+                status=500,
+                mimetype="text/plain",
+            )
         flash("Custom CSV Export Failed due to an internal server error.", "danger")
         return redirect(url_for("main_bp.sql_reports_view"))

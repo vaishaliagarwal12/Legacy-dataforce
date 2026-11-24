@@ -187,7 +187,7 @@ class PlacementUpgradeTestCase(unittest.TestCase):
         html = res.get_data(as_text=True)
         self.assertIn("Candidate Profile", html)
         self.assertIn("Recruiting Organization", html)
-        self.assertIn("Recruitment Drive", html)
+        self.assertIn("Placement Specifications", html)
 
     # -------------------------------------------------------------------------
     # 6. CSV EXPORT
@@ -221,26 +221,15 @@ class PlacementUpgradeTestCase(unittest.TestCase):
             self.assertIn(col, header)
 
     # -------------------------------------------------------------------------
-    # 7. BUSINESS RULES: MULTIPLE OFFERS & SINGLE ACCEPTED OFFER
+    # 7. BUSINESS RULES: MULTIPLE OFFERS & SINGLE JOINED OFFER (uq_one_joined_offer)
     # -------------------------------------------------------------------------
     def test_07_multiple_offers_and_single_accepted_rule(self):
-        """Verifies students may receive multiple offers, but can accept only ONE offer at a time."""
-        # Find 2 distinct placement opportunities
-        opps = execute_query(
-            "SELECT Opportunity_ID, Drive_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Placement' LIMIT 2"
-        )
-        self.assertEqual(len(opps), 2)
-        opp1 = opps[0]
-        opp2 = opps[1]
+        """Verifies students may receive multiple offers, but can join at most ONE offer (uq_one_joined_offer)."""
+        comps = execute_query("SELECT Company_ID FROM COMPANY ORDER BY Company_ID ASC LIMIT 2")
+        self.assertEqual(len(comps), 2)
+        c1 = comps[0]["Company_ID"]
+        c2 = comps[1]["Company_ID"]
 
-        drive1 = execute_one(
-            "SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (opp1["Drive_ID"],)
-        )
-        drive2 = execute_one(
-            "SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (opp2["Drive_ID"],)
-        )
-
-        # Use isolated test candidate
         candidate_id = self.test_student_id
         execute_mutation("DELETE FROM PLACEMENT WHERE Student_ID = %s", (candidate_id,))
 
@@ -248,26 +237,26 @@ class PlacementUpgradeTestCase(unittest.TestCase):
         o1 = create_placement_offer(
             {
                 "Student_ID": candidate_id,
-                "Company_ID": drive1["Company_ID"],
-                "Opportunity_ID": opp1["Opportunity_ID"],
+                "Company_ID": c1,
                 "Role": "Cloud Architect Associate",
                 "Package": 15.00,
                 "Placement_Year": 2024,
                 "Offer_Status": "Offered",
+                "Joined": "No",
             }
         )
         self.assertEqual(o1["Offer_Status"], "Offered")
 
-        # 2. Issue second distinct offer (preserves multiple separate offers)
+        # 2. Issue second distinct offer
         o2 = create_placement_offer(
             {
                 "Student_ID": candidate_id,
-                "Company_ID": drive2["Company_ID"],
-                "Opportunity_ID": opp2["Opportunity_ID"],
+                "Company_ID": c2,
                 "Role": "Systems Analyst",
                 "Package": 12.50,
                 "Placement_Year": 2024,
                 "Offer_Status": "Offered",
+                "Joined": "No",
             }
         )
         self.assertEqual(o2["Offer_Status"], "Offered")
@@ -278,121 +267,100 @@ class PlacementUpgradeTestCase(unittest.TestCase):
         )
         self.assertEqual(len(student_offers), 2)
 
-        # 3. Accept first offer
-        up1 = update_offer_status(o1["Placement_ID"], "Accepted")
+        # 3. Accept and Join first offer
+        up1 = update_placement_offer(
+            o1["Placement_ID"], {"Offer_Status": "Accepted", "Joined": "Yes"}
+        )
         self.assertEqual(up1["Offer_Status"], "Accepted")
+        self.assertEqual(up1["Joined"], "Yes")
 
-        # 4. Attempt to accept second offer while first is accepted -> MUST FAIL (ConflictError)
-        with self.assertRaises(ConflictError) as ctx:
-            update_offer_status(o2["Placement_ID"], "Accepted")
-        self.assertIn("already has an accepted offer", str(ctx.exception))
+        # 4. Attempt to join second offer while first is joined -> MUST FAIL (ConflictError / uq_one_joined_offer)
+        with self.assertRaises((ConflictError, ValidationError)) as ctx:
+            update_placement_offer(
+                o2["Placement_ID"], {"Offer_Status": "Accepted", "Joined": "Yes"}
+            )
+        self.assertTrue(
+            "joined offer" in str(ctx.exception).lower()
+            or "uq_one_joined_offer" in str(ctx.exception).lower()
+        )
 
-        # 5. Decline first offer -> Now accepting second offer must succeed
-        update_offer_status(o1["Placement_ID"], "Declined")
-        up2 = update_offer_status(o2["Placement_ID"], "Accepted")
-        self.assertEqual(up2["Offer_Status"], "Accepted")
+        # 5. Unjoin first offer -> Now joining second offer must succeed
+        update_placement_offer(o1["Placement_ID"], {"Joined": "No"})
+        up2 = update_placement_offer(
+            o2["Placement_ID"], {"Offer_Status": "Accepted", "Joined": "Yes"}
+        )
+        self.assertEqual(up2["Joined"], "Yes")
 
         # Cleanup test records
         delete_placement_offer(o1["Placement_ID"])
         delete_placement_offer(o2["Placement_ID"])
 
     # -------------------------------------------------------------------------
-    # 8. BUSINESS RULE: PREVENT DUPLICATE OFFERS FOR SAME OPPORTUNITY
+    # 8. BUSINESS RULE: OFFER STATUS & JOINED STATUS ENFORCEMENT
     # -------------------------------------------------------------------------
-    def test_08_duplicate_offer_for_same_opportunity_rejected(self):
-        """Verifies duplicate placement offer for the same opportunity is rejected with ConflictError."""
-        opp = execute_one(
-            "SELECT Opportunity_ID, Drive_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Placement' LIMIT 1"
-        )
-        drive = execute_one(
-            "SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (opp["Drive_ID"],)
-        )
-
-        # Dedicated test student
+    def test_08_joined_status_requires_accepted_status(self):
+        """Verifies Joined = 'Yes' requires Offer_Status = 'Accepted' (chk_placement_joined_status)."""
+        comps = execute_query("SELECT Company_ID FROM COMPANY ORDER BY Company_ID ASC LIMIT 1")
+        c1 = comps[0]["Company_ID"]
         candidate_id = self.test_student_id
         execute_mutation("DELETE FROM PLACEMENT WHERE Student_ID = %s", (candidate_id,))
 
-        create_placement_offer(
-            {
-                "Student_ID": candidate_id,
-                "Company_ID": drive["Company_ID"],
-                "Opportunity_ID": opp["Opportunity_ID"],
-                "Role": "Test Engineer",
-                "Package": 10.00,
-                "Placement_Year": 2024,
-                "Offer_Status": "Offered",
-            }
-        )
-
-        # Duplicate attempt
-        with self.assertRaises(ConflictError) as ctx:
+        # Attempt to create offer with Joined='Yes' but Offer_Status='Offered'
+        with self.assertRaises(ValidationError) as ctx:
             create_placement_offer(
                 {
                     "Student_ID": candidate_id,
-                    "Company_ID": drive["Company_ID"],
-                    "Opportunity_ID": opp["Opportunity_ID"],
+                    "Company_ID": c1,
                     "Role": "Test Engineer",
                     "Package": 10.00,
                     "Placement_Year": 2024,
                     "Offer_Status": "Offered",
+                    "Joined": "Yes",
                 }
             )
-        self.assertIn("Duplicate offer rejected", str(ctx.exception))
+        self.assertIn("Joined can only be 'Yes' if Offer_Status is 'Accepted'", str(ctx.exception))
 
         # Cleanup
         execute_mutation("DELETE FROM PLACEMENT WHERE Student_ID = %s", (candidate_id,))
 
     # -------------------------------------------------------------------------
-    # 9. BUSINESS RULE: OPPORTUNITY TYPE ENFORCEMENT
+    # 9. BUSINESS RULE: OFFER STATUS ENFORCEMENT
     # -------------------------------------------------------------------------
-    def test_09_opportunity_type_enforcement(self):
-        """Verifies placement offers cannot be issued for Internship opportunities."""
-        intern_opp = execute_one(
-            "SELECT Opportunity_ID, Drive_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Internship' LIMIT 1"
-        )
-        if intern_opp:
-            drive = execute_one(
-                "SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s",
-                (intern_opp["Drive_ID"],),
+    def test_09_invalid_offer_status_rejected(self):
+        """Verifies placement offer rejects 'Joined' as an Offer_Status value."""
+        comps = execute_query("SELECT Company_ID FROM COMPANY ORDER BY Company_ID ASC LIMIT 1")
+        c1 = comps[0]["Company_ID"]
+        with self.assertRaises(ValidationError) as ctx:
+            create_placement_offer(
+                {
+                    "Student_ID": self.test_student_id,
+                    "Company_ID": c1,
+                    "Role": "Engineer",
+                    "Package": 6.00,
+                    "Placement_Year": 2024,
+                    "Offer_Status": "Joined",  # Removed value
+                }
             )
-            with self.assertRaises(ValidationError) as ctx:
-                create_placement_offer(
-                    {
-                        "Student_ID": self.test_student_id,
-                        "Company_ID": drive["Company_ID"],
-                        "Opportunity_ID": intern_opp["Opportunity_ID"],
-                        "Role": "Intern Role",
-                        "Package": 6.00,
-                        "Placement_Year": 2024,
-                    }
-                )
-            self.assertIn("is of type 'Internship'", str(ctx.exception))
+        self.assertIn("Offer_Status must be one of", str(ctx.exception))
 
     # -------------------------------------------------------------------------
     # 10. CANDIDATE ELIGIBILITY CHECKER
     # -------------------------------------------------------------------------
     def test_10_candidate_eligibility_checker(self):
         """Verifies check_candidate_eligibility_for_opportunity correctly evaluates candidate standards."""
-        opp = execute_one(
-            "SELECT Opportunity_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Placement' LIMIT 1"
-        )
         # Student 1 has CGPA > 9.0 and 0 backlogs
-        res = check_candidate_eligibility_for_opportunity(1, opp["Opportunity_ID"])
+        res = check_candidate_eligibility_for_opportunity(1)
         self.assertIn("is_eligible", res)
-        self.assertIn("criteria", res)
         self.assertIn("student", res)
+        self.assertTrue(res["is_eligible"])
 
     # -------------------------------------------------------------------------
     # 11. ATOMIC UPDATE AND SKILLS SYNCHRONIZATION
     # -------------------------------------------------------------------------
     def test_11_offer_update_and_skill_sync(self):
         """Verifies updating an offer updates fields and synchronizes PLACEMENT_SKILL in an atomic transaction."""
-        opp = execute_one(
-            "SELECT Opportunity_ID, Drive_ID FROM OPPORTUNITY WHERE Opportunity_Type = 'Placement' LIMIT 1"
-        )
-        drive = execute_one(
-            "SELECT Company_ID FROM RECRUITMENT_DRIVE WHERE Drive_ID = %s", (opp["Drive_ID"],)
-        )
+        comps = execute_query("SELECT Company_ID FROM COMPANY ORDER BY Company_ID ASC LIMIT 1")
+        c1 = comps[0]["Company_ID"]
 
         candidate_id = self.test_student_id
         execute_mutation("DELETE FROM PLACEMENT WHERE Student_ID = %s", (candidate_id,))
@@ -400,8 +368,7 @@ class PlacementUpgradeTestCase(unittest.TestCase):
         created = create_placement_offer(
             {
                 "Student_ID": candidate_id,
-                "Company_ID": drive["Company_ID"],
-                "Opportunity_ID": opp["Opportunity_ID"],
+                "Company_ID": c1,
                 "Role": "Junior Analyst",
                 "Package": 9.50,
                 "Placement_Year": 2024,
