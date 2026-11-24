@@ -47,6 +47,7 @@ class Phase9ScopeATestCase(unittest.TestCase):
 
         # Load Schema, Sample Data, and Views
        with open("db/placement_internship_db.sql", "r", encoding="utf-8") as f:
+            full_sql = f.read()
 
         setup_sql = full_sql.split("-- PART 4: QUERIES")[0].replace(
             "placement_db", "placement_scope_a"
