@@ -6,10 +6,12 @@ from services import (
     list_companies,
     update_company,
     delete_company,
+    admin_required,
 )
 
 
 @company_bp.route("", methods=["POST"])
+@admin_required
 def api_create_company():
     """Creates a recruiting organization."""
     payload = request.get_json() or {}
@@ -21,6 +23,7 @@ def api_create_company():
 
 
 @company_bp.route("", methods=["GET"])
+@admin_required
 def api_list_companies():
     """Lists, searches, and filters recruiting companies."""
     search = request.args.get("search")
@@ -38,6 +41,7 @@ def api_list_companies():
 
 
 @company_bp.route("/<int:company_id>", methods=["GET"])
+@admin_required
 def api_get_company(company_id: int):
     """Company detail view listing all its recruitment drives and opportunities."""
     company = get_company(company_id)
@@ -45,6 +49,7 @@ def api_get_company(company_id: int):
 
 
 @company_bp.route("/<int:company_id>", methods=["PUT"])
+@admin_required
 def api_update_company(company_id: int):
     """Updates company details."""
     payload = request.get_json() or {}
@@ -56,6 +61,7 @@ def api_update_company(company_id: int):
 
 
 @company_bp.route("/<int:company_id>", methods=["DELETE"])
+@admin_required
 def api_delete_company(company_id: int):
     """Safely deletes a company; blocks if drives or placements depend on it."""
     result = delete_company(company_id)

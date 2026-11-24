@@ -676,20 +676,6 @@
                             <div class="invalid-feedback">Company is required.</div>
                         </div>
 
-                        <!-- Associated Opportunity (Enforces Placement Type) -->
-                        <div class="col-12">
-                            <label class="form-label fw-semibold small" for="modal_Opportunity_ID">Opportunity Opening (Must be Placement Type)</label>
-                            <select class="form-select form-select-sm" id="modal_Opportunity_ID" name="Opportunity_ID">
-                                <option value="">None / Direct Campus Drive Allocation</option>
-                                {% for opp in all_opportunities %}
-                                    <option value="{{ opp.Opportunity_ID }}">
-                                        Opp #{{ opp.Opportunity_ID }}: {{ opp.Role }} ({{ opp.Company_Name }} &bull; {{ opp.Package_Stipend }} LPA)
-                                    </option>
-                                {% endfor %}
-                            </select>
-                            <small class="text-muted d-block mt-1">Rule: If linked to an opening, it must be of type 'Placement'. Internship opportunities are rejected.</small>
-                        </div>
-
                         <!-- Role Title -->
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold small" for="modal_Role">Offer Designation / Role <span class="text-danger">*</span></label>

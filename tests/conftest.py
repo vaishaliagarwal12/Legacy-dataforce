@@ -41,6 +41,12 @@ def client(app):
 
 
 @pytest.fixture(scope="function")
+def unauthenticated_client(app):
+    """Function-scoped unauthenticated test client with no session."""
+    return app.test_client(auto_login=False)
+
+
+@pytest.fixture(scope="function")
 def runner(app):
     """Function-scoped test CLI runner."""
     return app.test_cli_runner()

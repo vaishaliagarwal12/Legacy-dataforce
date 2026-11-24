@@ -291,7 +291,7 @@ class PlacementUpgradeTestCase(unittest.TestCase):
     # -------------------------------------------------------------------------
     # 8. BUSINESS RULE: OFFER STATUS & JOINED STATUS ENFORCEMENT
     # -------------------------------------------------------------------------
-    def test_08_duplicate_offer_for_same_opportunity_rejected(self):
+    def test_08_joined_status_requires_accepted_status(self):
         """Verifies Joined = 'Yes' requires Offer_Status = 'Accepted' (chk_placement_joined_status)."""
         comps = execute_query("SELECT Company_ID FROM COMPANY ORDER BY Company_ID ASC LIMIT 1")
         c1 = comps[0]["Company_ID"]
@@ -319,7 +319,7 @@ class PlacementUpgradeTestCase(unittest.TestCase):
     # -------------------------------------------------------------------------
     # 9. BUSINESS RULE: OFFER STATUS ENFORCEMENT
     # -------------------------------------------------------------------------
-    def test_09_opportunity_type_enforcement(self):
+    def test_09_invalid_offer_status_rejected(self):
         """Verifies placement offer rejects 'Joined' as an Offer_Status value."""
         comps = execute_query("SELECT Company_ID FROM COMPANY ORDER BY Company_ID ASC LIMIT 1")
         c1 = comps[0]["Company_ID"]

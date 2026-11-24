@@ -35,983 +35,952 @@ def get_sql_report_limits() -> Tuple[int, int]:
 # ==============================================================================
 
 SAVED_QUERIES: List[Dict[str, Any]] = [
-    # -------------------------------------------------------------------------
-    # 1. STUDENTS
-    # -------------------------------------------------------------------------
+
+    # ----------------------------------------------------------------------
+    # CATEGORY: STUDENTS
+    # ----------------------------------------------------------------------
     {
-        "id": "students_all",
-        "title": "A1. List All Registered Students",
-        "group": "Students",
-        "dbms_concept": "Relational projection (π) and lexicographical multi-attribute ordering (ORDER BY Batch_Year, Branch, Student_Name).",
+        "id": 'students_all',
+        "title": 'A1. List All Registered Students',
+        "group": 'Students',
+        "dbms_concept": 'Relational projection (π) and lexicographical multi-attribute ordering (ORDER BY Batch_Year, Branch, Student_Name).',
         "sql": """SELECT Student_ID, Roll_No, CONCAT_WS(' ', First_Name, Last_Name) AS Student_Name,
-       Branch, Batch_Year, CGPA, Backlogs
-FROM STUDENT
-ORDER BY Batch_Year, Branch, Student_Name;""",
+               Branch, Batch_Year, CGPA, Backlogs
+        FROM STUDENT
+        ORDER BY Batch_Year, Branch, Student_Name;
+""",
         "params": [],
     },
     {
-        "id": "students_branch_batch",
-        "title": "A2. Students of Specific Branch and Batch",
-        "group": "Students",
-        "dbms_concept": "Equality selection (σ) on composite index (Branch, Batch_Year) with descending sort on continuous numeric CGPA.",
+        "id": 'students_branch_batch',
+        "title": 'A2. Students of Specific Branch and Batch',
+        "group": 'Students',
+        "dbms_concept": 'Equality selection (σ) on composite index (Branch, Batch_Year) with descending sort on continuous numeric CGPA.',
         "sql": """SELECT Roll_No, CONCAT_WS(' ', First_Name, Last_Name) AS Student_Name, Branch, Batch_Year, CGPA
-FROM STUDENT
-WHERE Branch = %s AND Batch_Year = %s
-ORDER BY CGPA DESC;""",
-        "params": [
-            {
-                "name": "branch",
-                "label": "Branch Code",
-                "type": "select",
-                "dynamic_source": "branches",
-                "options": [],
-                "placeholder": "Select branch",
-            },
-            {
-                "name": "batch_year",
-                "label": "Batch Year",
-                "type": "select",
-                "dynamic_source": "batch_years",
-                "options": [],
-                "placeholder": "Select batch year",
-            },
-        ],
+        FROM STUDENT
+        WHERE Branch = %s AND Batch_Year = %s
+        ORDER BY CGPA DESC;
+""",
+        "params": [{'name': 'branch', 'label': 'Branch Code', 'type': 'select', 'dynamic_source': 'branches', 'options': [], 'placeholder': 'Select branch'}, {'name': 'batch_year', 'label': 'Batch Year', 'type': 'select', 'dynamic_source': 'batch_years', 'options': [], 'placeholder': 'Select batch year'}],
     },
     {
-        "id": "students_profile",
-        "title": "A3. Complete Profile of One Student",
-        "group": "Students",
-        "dbms_concept": "Correlated scalar subqueries in SELECT projection aggregating 1:N multi-valued attributes (phones, skills) without Cartesian row explosion.",
+        "id": 'students_profile',
+        "title": 'A3. Complete Profile of One Student',
+        "group": 'Students',
+        "dbms_concept": 'Correlated scalar subqueries in SELECT projection aggregating 1:N multi-valued attributes (phones, skills) without Cartesian row explosion.',
         "sql": """SELECT s.Student_ID, s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
-       s.Branch, s.Batch_Year, s.CGPA, s.Backlogs, s.Resume_Link,
-       (SELECT GROUP_CONCAT(ph.Phone_No SEPARATOR ', ')
-          FROM STUDENT_PHONE ph WHERE ph.Student_ID = s.Student_ID) AS Phones,
-       (SELECT GROUP_CONCAT(sk.Skill SEPARATOR ', ')
-          FROM STUDENT_SKILL sk WHERE sk.Student_ID = s.Student_ID) AS Extra_Skills
-FROM STUDENT s
-WHERE s.Roll_No = %s;""",
-        "params": [
-            {
-                "name": "roll_no",
-                "label": "Roll Number",
-                "type": "select",
-                "dynamic_source": "students",
-                "options": [],
-                "placeholder": "e.g. CS201802",
-            },
-        ],
+               s.Branch, s.Batch_Year, s.CGPA, s.Backlogs, s.Resume_Link,
+               (SELECT GROUP_CONCAT(ph.Phone_No SEPARATOR ', ')
+                  FROM STUDENT_PHONE ph WHERE ph.Student_ID = s.Student_ID) AS Phones,
+               (SELECT GROUP_CONCAT(sk.Skill SEPARATOR ', ')
+                  FROM STUDENT_SKILL sk WHERE sk.Student_ID = s.Student_ID) AS Extra_Skills
+        FROM STUDENT s
+        WHERE s.Roll_No = %s;
+""",
+        "params": [{'name': 'roll_no', 'label': 'Roll Number', 'type': 'select', 'dynamic_source': 'students', 'options': [], 'placeholder': 'e.g. CS201802'}],
     },
     {
-        "id": "students_by_skill",
-        "title": "A4. Students Possessing a Particular Skill",
-        "group": "Students",
-        "dbms_concept": "Relational equi-join connecting master STUDENT with 1NF child entity STUDENT_SKILL using foreign key traversal.",
+        "id": 'students_by_skill',
+        "title": 'A4. Students Possessing a Particular Skill',
+        "group": 'Students',
+        "dbms_concept": 'Relational equi-join connecting master STUDENT with 1NF child entity STUDENT_SKILL using foreign key traversal.',
         "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name, s.Branch, s.CGPA, sk.Skill
-FROM STUDENT s
-JOIN STUDENT_SKILL sk ON sk.Student_ID = s.Student_ID
-WHERE sk.Skill = %s
-ORDER BY s.CGPA DESC;""",
-        "params": [
-            {
-                "name": "skill",
-                "label": "Skill Name",
-                "type": "select",
-                "dynamic_source": "skills",
-                "options": [],
-                "placeholder": "e.g. Python, SQL, Java",
-            },
-        ],
+        FROM STUDENT s
+        JOIN STUDENT_SKILL sk ON sk.Student_ID = s.Student_ID
+        WHERE sk.Skill = %s
+        ORDER BY s.CGPA DESC;
+""",
+        "params": [{'name': 'skill', 'label': 'Skill Name', 'type': 'select', 'dynamic_source': 'skills', 'options': [], 'placeholder': 'e.g. Python, SQL, Java'}],
     },
     {
-        "id": "students_high_cgpa_nobacklogs",
-        "title": "A5. Students with High CGPA and Zero Backlogs",
-        "group": "Students",
-        "dbms_concept": "Multi-attribute selection on continuous domain (CGPA >= cutoff) and discrete domain (Backlogs = 0) utilizing secondary B+ tree index.",
+        "id": 'students_high_cgpa_nobacklogs',
+        "title": 'A5. Students with High CGPA and Zero Backlogs',
+        "group": 'Students',
+        "dbms_concept": 'Multi-attribute selection on continuous domain (CGPA >= cutoff) and discrete domain (Backlogs = 0) utilizing secondary B+ tree index.',
         "sql": """SELECT Roll_No, CONCAT_WS(' ', First_Name, Last_Name) AS Student_Name, Branch, Batch_Year, CGPA, Backlogs
-FROM STUDENT
-WHERE CGPA >= %s AND Backlogs = 0
-ORDER BY CGPA DESC;""",
-        "params": [
-            {
-                "name": "min_cgpa",
-                "label": "Minimum CGPA",
-                "type": "number",
-                "step": "0.1",
-                "placeholder": "e.g. 8.0",
-            },
-        ],
+        FROM STUDENT
+        WHERE CGPA >= %s AND Backlogs = 0
+        ORDER BY CGPA DESC;
+""",
+        "params": [{'name': 'min_cgpa', 'label': 'Minimum CGPA', 'type': 'number', 'step': '0.1', 'placeholder': 'e.g. 8.0'}],
     },
     {
-        "id": "students_not_placed_antijoin",
-        "title": "A6 / ADD-1. Students Not Placed (LEFT OUTER Anti-Join)",
-        "group": "Students",
+        "id": 'students_not_placed_antijoin',
+        "title": 'A6 / ADD-1. Students Not Placed (LEFT OUTER Anti-Join)',
+        "group": 'Students',
         "dbms_concept": "Relational Outer Anti-Join (R ▷ S): Preserves unmatched master tuples by performing LEFT JOIN on Joined='Yes' and filtering for IS NULL on foreign key.",
         "sql": """SELECT s.Student_ID, s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
-       s.Branch, s.Batch_Year, s.CGPA
-FROM STUDENT s
-LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID AND p.Joined = 'Yes'
-WHERE p.Placement_ID IS NULL
-ORDER BY s.CGPA DESC;""",
+               s.Branch, s.Batch_Year, s.CGPA
+        FROM STUDENT s
+        LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID AND p.Joined = 'Yes'
+        WHERE p.Placement_ID IS NULL
+        ORDER BY s.CGPA DESC;
+""",
         "params": [],
     },
     {
-        "id": "students_above_avg_cgpa",
-        "title": "ADD-2. Students with CGPA Above Institutional Average",
-        "group": "Students",
-        "dbms_concept": "Scalar non-correlated subquery dynamically calculating the global mean CGPA and projecting the individual variance delta at runtime.",
+        "id": 'students_above_avg_cgpa',
+        "title": 'ADD-2. Students with CGPA Above Institutional Average',
+        "group": 'Students',
+        "dbms_concept": 'Scalar non-correlated subquery dynamically calculating the global mean CGPA and projecting the individual variance delta at runtime.',
         "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name, s.Branch, s.Batch_Year, s.CGPA,
-       ROUND((SELECT AVG(CGPA) FROM STUDENT), 2) AS Benchmark_Avg_CGPA,
-       ROUND(s.CGPA - (SELECT AVG(CGPA) FROM STUDENT), 2) AS Delta_From_Avg
-FROM STUDENT s
-WHERE s.CGPA > (SELECT AVG(CGPA) FROM STUDENT)
-ORDER BY s.CGPA DESC;""",
+               ROUND((SELECT AVG(CGPA) FROM STUDENT), 2) AS Benchmark_Avg_CGPA,
+               ROUND(s.CGPA - (SELECT AVG(CGPA) FROM STUDENT), 2) AS Delta_From_Avg
+        FROM STUDENT s
+        WHERE s.CGPA > (SELECT AVG(CGPA) FROM STUDENT)
+        ORDER BY s.CGPA DESC;
+""",
         "params": [],
     },
     {
-        "id": "students_name_search",
-        "title": "D11. Search Student by Name (Disjunctive Wildcard)",
-        "group": "Students",
-        "dbms_concept": "Non-anchored pattern matching (LIKE %...%) disjunctively evaluated across composite names, outer joined to retrieve placement status.",
+        "id": 'students_name_search',
+        "title": 'D11. Search Student by Name (Disjunctive Wildcard)',
+        "group": 'Students',
+        "dbms_concept": 'Non-anchored pattern matching (LIKE %...%) disjunctively evaluated across composite names, outer joined to retrieve placement status.',
         "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
-       s.Branch, s.CGPA, COALESCE(c.Company_Name, 'Unplaced') AS Joined_Company, p.Package
-FROM STUDENT s
-LEFT JOIN PLACEMENT p ON p.Student_ID = s.Student_ID AND p.Joined = 'Yes'
-LEFT JOIN COMPANY   c ON c.Company_ID = p.Company_ID
-WHERE s.First_Name LIKE %s OR s.Last_Name LIKE %s
-ORDER BY s.Student_ID;""",
-        "params": [
-            {
-                "name": "search_name",
-                "label": "Name Keyword",
-                "type": "text",
-                "placeholder": "e.g. Aarav, Sharma, Neha",
-            },
-        ],
+               s.Branch, s.CGPA, COALESCE(c.Company_Name, 'Unplaced') AS Joined_Company, p.Package
+        FROM STUDENT s
+        LEFT JOIN PLACEMENT p ON p.Student_ID = s.Student_ID AND p.Joined = 'Yes'
+        LEFT JOIN COMPANY   c ON c.Company_ID = p.Company_ID
+        WHERE s.First_Name LIKE %s OR s.Last_Name LIKE %s
+        ORDER BY s.Student_ID;
+""",
+        "params": [{'name': 'search_name', 'label': 'Name Keyword', 'type': 'text', 'placeholder': 'e.g. Aarav, Sharma, Neha'}],
     },
-    # -------------------------------------------------------------------------
-    # 2. PLACEMENTS
-    # -------------------------------------------------------------------------
+
+    # ----------------------------------------------------------------------
+    # CATEGORY: COMPANIES
+    # ----------------------------------------------------------------------
     {
-        "id": "placements_all_joined",
-        "title": "B1. Placed Students with Company and Compensation",
-        "group": "Placements",
+        "id": 'placements_by_company',
+        "title": 'B2. Placements Recruited by Specific Company',
+        "group": 'Companies',
+        "dbms_concept": 'Parameterized relational equi-join with point-filter on indexed corporate entity evaluating organization-level hiring yield.',
+        "sql": """SELECT Student_Name, Branch, Batch_Year, Role, Package, Placement_Year, Joined
+        FROM V_PLACEMENT_DETAIL
+        WHERE Company_Name = %s
+        ORDER BY Placement_Year, Package DESC;
+""",
+        "params": [{'name': 'company_name', 'label': 'Company Name', 'type': 'select', 'dynamic_source': 'companies', 'options': [], 'placeholder': 'Select company'}],
+    },
+    {
+        "id": 'placements_company_hiring',
+        "title": 'B5. Company-Wise Hiring Volume & Salary Metrics',
+        "group": 'Companies',
+        "dbms_concept": 'Multi-column grouping (Company_ID, Company_Name, Company_Type) strictly preserving functional dependencies under ANSI SQL.',
+        "sql": """SELECT Company_Name, Company_Type,
+               COUNT(*)               AS Students_Joined,
+               ROUND(AVG(Package), 2) AS Avg_Package,
+               MAX(Package)           AS Highest_Package
+        FROM V_PLACEMENT_DETAIL
+        WHERE Joined = 'Yes'
+        GROUP BY Company_ID, Company_Name, Company_Type
+        ORDER BY Students_Joined DESC, Avg_Package DESC;
+""",
+        "params": [],
+    },
+    {
+        "id": 'combined_company_skills',
+        "title": 'D5. Technical Skills Targeted by Specific Company',
+        "group": 'Companies',
+        "dbms_concept": 'Three-table relational equi-join traversing bridge entity PLACEMENT_SKILL to PLACEMENT and COMPANY with selective filter.',
+        "sql": """SELECT DISTINCT c.Company_Name, ps.Skill
+        FROM PLACEMENT_SKILL ps
+        JOIN PLACEMENT p ON p.Placement_ID = ps.Placement_ID
+        JOIN COMPANY c   ON c.Company_ID  = p.Company_ID
+        WHERE c.Company_Name = %s
+        ORDER BY ps.Skill;
+""",
+        "params": [{'name': 'company_name', 'label': 'Company Name', 'type': 'select', 'dynamic_source': 'companies', 'options': [], 'placeholder': 'Select company'}],
+    },
+    {
+        "id": 'combined_dual_partners',
+        "title": 'D6. Dual-Role Corporate Partners (Internships + Placements)',
+        "group": 'Companies',
+        "dbms_concept": 'Dual correlated existential predicates (EXISTS ... AND EXISTS ...) proving relationship set intersection across distinct operational scopes.',
+        "sql": """SELECT c.Company_Name, c.Company_Type,
+               (SELECT COUNT(*) FROM INTERNSHIP i WHERE i.Company_ID = c.Company_ID) AS Interns_Taken,
+               (SELECT COUNT(*) FROM PLACEMENT  p WHERE p.Company_ID = c.Company_ID) AS Offers_Made
+        FROM COMPANY c
+        WHERE EXISTS (SELECT 1 FROM INTERNSHIP i WHERE i.Company_ID = c.Company_ID)
+          AND EXISTS (SELECT 1 FROM PLACEMENT  p WHERE p.Company_ID = c.Company_ID);
+""",
+        "params": [],
+    },
+    {
+        "id": 'combined_company_polymorphic',
+        "title": 'D7. Polymorphic Corporate Activity Profile (UNION ALL)',
+        "group": 'Companies',
+        "dbms_concept": 'Set Union (UNION ALL) combining distinct activity records into a unified polymorphic schema with synthetic discriminator column.',
+        "sql": """SELECT 'Internship' AS Record_Type, Student_Name, Branch, Role, NULL AS Package, Stipend
+        FROM V_INTERNSHIP_DETAIL
+        WHERE Company_Name = %s
+        UNION ALL
+        SELECT 'Placement' AS Record_Type, Student_Name, Branch, Role, Package, NULL AS Stipend
+        FROM V_PLACEMENT_DETAIL
+        WHERE Company_Name = %s
+        ORDER BY Record_Type, Student_Name;
+""",
+        "params": [{'name': 'company_name', 'label': 'Company Name', 'type': 'select', 'dynamic_source': 'companies', 'options': [], 'placeholder': 'Select company'}],
+    },
+    {
+        "id": 'report_company_hiring_stats',
+        "title": 'E4. Company-Wise Hiring Ratios & Yield Metrics',
+        "group": 'Companies',
+        "dbms_concept": 'Multi-table relational aggregation traversing corporate recruiters, computing offer acceptance yield percentages, and applying DENSE_RANK() to classify top hiring partners.',
+        "sql": """WITH CompanyHiring AS (
+            SELECT
+                c.Company_ID,
+                c.Company_Name,
+                c.Company_Type,
+                c.Industry,
+                c.Location,
+                COUNT(p.Placement_ID) AS Total_Offers_Extended,
+                COUNT(DISTINCT p.Student_ID) AS Distinct_Candidates_Offered,
+                COUNT(CASE WHEN p.Joined = 'Yes' THEN 1 END) AS Accepted_Offers,
+                ROUND(AVG(p.Package), 2) AS Avg_Offered_Package,
+                ROUND(AVG(CASE WHEN p.Joined = 'Yes' THEN p.Package END), 2) AS Avg_Accepted_Package,
+                MAX(p.Package) AS Highest_Package,
+                MIN(p.Package) AS Lowest_Package,
+                ROUND(SUM(CASE WHEN p.Joined = 'Yes' THEN p.Package ELSE 0 END), 2) AS Total_Compensation_Committed
+            FROM COMPANY c
+            LEFT JOIN PLACEMENT p ON c.Company_ID = p.Company_ID
+            GROUP BY c.Company_ID, c.Company_Name, c.Company_Type, c.Industry, c.Location
+        )
+        SELECT
+            Company_ID,
+            Company_Name,
+            Company_Type,
+            Industry,
+            Location,
+            Total_Offers_Extended,
+            Distinct_Candidates_Offered,
+            Accepted_Offers,
+            ROUND(COALESCE(100.0 * Accepted_Offers / NULLIF(Total_Offers_Extended, 0), 0), 1) AS Acceptance_Rate_Percent,
+            COALESCE(Avg_Offered_Package, 0.00) AS Avg_Offered_Package,
+            COALESCE(Avg_Accepted_Package, 0.00) AS Avg_Accepted_Package,
+            COALESCE(Highest_Package, 0.00) AS Highest_Package,
+            COALESCE(Lowest_Package, 0.00) AS Lowest_Package,
+            Total_Compensation_Committed,
+            DENSE_RANK() OVER (ORDER BY Accepted_Offers DESC, Avg_Accepted_Package DESC) AS Hiring_Rank
+        FROM CompanyHiring
+        WHERE Total_Offers_Extended > 0
+        ORDER BY Accepted_Offers DESC, Total_Offers_Extended DESC;
+""",
+        "params": [],
+    },
+    {
+        "id": 'report_drive_performance',
+        "title": 'E9. Corporate Hiring Yield & Acceptance Conversion',
+        "group": 'Companies',
+        "dbms_concept": 'Aggregation joining COMPANY and PLACEMENT computing selection conversion yield (Joined / Total Offers) and classifying corporate recruitment volume via DENSE_RANK().',
+        "sql": """WITH CompanyHiringStats AS (
+            SELECT
+                c.Company_ID,
+                c.Company_Name,
+                c.Company_Type,
+                c.Industry,
+                p.Placement_Year,
+                COUNT(p.Placement_ID) AS Total_Offers_Extended,
+                COUNT(CASE WHEN p.Offer_Status = 'Accepted' THEN 1 END) AS Accepted_Offers,
+                COUNT(CASE WHEN p.Joined = 'Yes' THEN 1 END) AS Joined_Hires,
+                ROUND(AVG(p.Package), 2) AS Avg_Package_Offered,
+                ROUND(AVG(CASE WHEN p.Joined = 'Yes' THEN p.Package END), 2) AS Avg_Joined_Package,
+                MAX(p.Package) AS Highest_Package
+            FROM COMPANY c
+            JOIN PLACEMENT p ON c.Company_ID = p.Company_ID
+            GROUP BY c.Company_ID, c.Company_Name, c.Company_Type, c.Industry, p.Placement_Year
+        )
+        SELECT
+            chs.*,
+            ROUND(COALESCE(100.0 * Joined_Hires / NULLIF(Total_Offers_Extended, 0), 0), 1) AS Conversion_Rate,
+            DENSE_RANK() OVER (PARTITION BY Placement_Year ORDER BY Total_Offers_Extended DESC, Joined_Hires DESC) AS Year_Company_Rank
+        FROM CompanyHiringStats chs
+        ORDER BY Placement_Year DESC, Total_Offers_Extended DESC;
+""",
+        "params": [],
+    },
+
+    # ----------------------------------------------------------------------
+    # CATEGORY: PLACEMENTS
+    # ----------------------------------------------------------------------
+    {
+        "id": 'placements_all_joined',
+        "title": 'B1. Placed Students with Company and Compensation',
+        "group": 'Placements',
         "dbms_concept": "Relational view abstraction (V_PLACEMENT_DETAIL) encapsulating multi-table equi-join filtered by Joined = 'Yes' sorted by package descending.",
         "sql": """SELECT Roll_No, Student_Name, Branch, Batch_Year, Company_Name, Role, Package, Placement_Year
-FROM V_PLACEMENT_DETAIL
-WHERE Joined = 'Yes'
-ORDER BY Package DESC;""",
+        FROM V_PLACEMENT_DETAIL
+        WHERE Joined = 'Yes'
+        ORDER BY Package DESC;
+""",
         "params": [],
     },
     {
-        "id": "placements_by_company",
-        "title": "B2. Placements Recruited by Specific Company",
-        "group": "Placements",
-        "dbms_concept": "Parameterized relational equi-join with point-filter on indexed corporate entity evaluating organization-level hiring yield.",
-        "sql": """SELECT Student_Name, Branch, Batch_Year, Role, Package, Placement_Year, Joined
-FROM V_PLACEMENT_DETAIL
-WHERE Company_Name = %s
-ORDER BY Placement_Year, Package DESC;""",
-        "params": [
-            {
-                "name": "company_name",
-                "label": "Company Name",
-                "type": "select",
-                "dynamic_source": "companies",
-                "options": [],
-                "placeholder": "Select company",
-            },
-        ],
-    },
-    {
-        "id": "placements_branch_stats",
-        "title": "B3. Branch-Wise Placement Statistics",
-        "group": "Placements",
-        "dbms_concept": "Categorical aggregate reduction (COUNT, AVG, MAX, MIN) partitioned by academic branch computing headcount and salary spread.",
-        "sql": """SELECT Branch,
-       COUNT(*)               AS Students_Placed,
-       ROUND(AVG(Package), 2) AS Avg_Package,
-       MAX(Package)           AS Highest_Package,
-       MIN(Package)           AS Lowest_Package
-FROM V_PLACEMENT_DETAIL
-WHERE Joined = 'Yes'
-GROUP BY Branch
-ORDER BY Avg_Package DESC;""",
-        "params": [],
-    },
-    {
-        "id": "placements_year_stats",
-        "title": "B4. Year-Wise Placement Statistics & Cohort Trends",
-        "group": "Placements",
-        "dbms_concept": "Temporal aggregation grouping by academic cohort year measuring historical compensation escalation and placement volume.",
-        "sql": """SELECT Placement_Year,
-       COUNT(*)               AS Students_Placed,
-       ROUND(AVG(Package), 2) AS Avg_Package,
-       MAX(Package)           AS Highest_Package
-FROM V_PLACEMENT_DETAIL
-WHERE Joined = 'Yes'
-GROUP BY Placement_Year
-ORDER BY Placement_Year;""",
-        "params": [],
-    },
-    {
-        "id": "placements_company_hiring",
-        "title": "B5. Company-Wise Hiring Volume & Salary Metrics",
-        "group": "Placements",
-        "dbms_concept": "Multi-column grouping (Company_ID, Company_Name, Company_Type) strictly preserving functional dependencies under ANSI SQL.",
-        "sql": """SELECT Company_Name, Company_Type,
-       COUNT(*)               AS Students_Joined,
-       ROUND(AVG(Package), 2) AS Avg_Package,
-       MAX(Package)           AS Highest_Package
-FROM V_PLACEMENT_DETAIL
-WHERE Joined = 'Yes'
-GROUP BY Company_ID, Company_Name, Company_Type
-ORDER BY Students_Joined DESC, Avg_Package DESC;""",
-        "params": [],
-    },
-    {
-        "id": "placements_top_packages",
-        "title": "B6. Top 5 Highest Placement Packages (Top-K)",
-        "group": "Placements",
-        "dbms_concept": "Top-K query optimization utilizing sorted index scanning and heap limit buffers to retrieve maximum compensation offers.",
+        "id": 'placements_top_packages',
+        "title": 'B6. Top 5 Highest Placement Packages (Top-K)',
+        "group": 'Placements',
+        "dbms_concept": 'Top-K query optimization utilizing sorted index scanning and heap limit buffers to retrieve maximum compensation offers.',
         "sql": """SELECT Student_Name, Branch, Company_Name, Package, Placement_Year
-FROM V_PLACEMENT_DETAIL
-WHERE Joined = 'Yes'
-ORDER BY Package DESC
-LIMIT 5;""",
+        FROM V_PLACEMENT_DETAIL
+        WHERE Joined = 'Yes'
+        ORDER BY Package DESC
+        LIMIT 5;
+""",
         "params": [],
     },
     {
-        "id": "placements_branch_percent",
-        "title": "B7. Placement Percentage by Branch and Batch",
-        "group": "Placements",
-        "dbms_concept": "Cohort grouping evaluating existential subquery membership (SUM(EXISTS...)) to compute institutional placement success rates.",
-        "sql": """SELECT s.Branch, s.Batch_Year,
-       COUNT(*) AS Total_Students,
-       SUM(EXISTS (SELECT 1 FROM PLACEMENT p
-                   WHERE p.Student_ID = s.Student_ID AND p.Joined = 'Yes')) AS Placed,
-       ROUND(100 * SUM(EXISTS (SELECT 1 FROM PLACEMENT p
-                               WHERE p.Student_ID = s.Student_ID AND p.Joined = 'Yes'))
-                 / COUNT(*), 1) AS Placement_Percent
-FROM STUDENT s
-GROUP BY s.Branch, s.Batch_Year
-ORDER BY s.Batch_Year, s.Branch;""",
-        "params": [],
-    },
-    {
-        "id": "placements_multiple_offers",
-        "title": "B8. Students Receiving Multiple Placement Offers",
-        "group": "Placements",
-        "dbms_concept": "Post-aggregation cardinality filtering (HAVING COUNT(*) > 1) combined with GROUP_CONCAT offer list and conditional selection.",
+        "id": 'placements_multiple_offers',
+        "title": 'B8. Students Receiving Multiple Placement Offers',
+        "group": 'Placements',
+        "dbms_concept": 'Post-aggregation cardinality filtering (HAVING COUNT(*) > 1) combined with GROUP_CONCAT offer list and conditional selection.',
         "sql": """SELECT Student_Name, Roll_No,
-       COUNT(*) AS Total_Offers,
-       GROUP_CONCAT(CONCAT(Company_Name, ' (', Package, ' LPA)') SEPARATOR ', ') AS Offers,
-       MAX(CASE WHEN Joined = 'Yes' THEN Company_Name END) AS Joined_Company
-FROM V_PLACEMENT_DETAIL
-GROUP BY Student_ID, Student_Name, Roll_No
-HAVING COUNT(*) > 1;""",
+               COUNT(*) AS Total_Offers,
+               GROUP_CONCAT(CONCAT(Company_Name, ' (', Package, ' LPA)') SEPARATOR ', ') AS Offers,
+               MAX(CASE WHEN Joined = 'Yes' THEN Company_Name END) AS Joined_Company
+        FROM V_PLACEMENT_DETAIL
+        GROUP BY Student_ID, Student_Name, Roll_No
+        HAVING COUNT(*) > 1;
+""",
         "params": [],
     },
     {
-        "id": "placements_ppo_offers",
-        "title": "B9. Students Receiving Pre-Placement Offers (PPO)",
-        "group": "Placements",
+        "id": 'placements_ppo_offers',
+        "title": 'B9. Students Receiving Pre-Placement Offers (PPO)',
+        "group": 'Placements',
         "dbms_concept": "Selection on categorical ENUM attribute (Is_PPO = 'Yes') measuring direct conversion yield from internships to corporate placements.",
         "sql": """SELECT Student_Name, Branch, Company_Name, Package, Placement_Year, Joined
-FROM V_PLACEMENT_DETAIL
-WHERE Is_PPO = 'Yes'
-ORDER BY Placement_Year, Package DESC;""",
+        FROM V_PLACEMENT_DETAIL
+        WHERE Is_PPO = 'Yes'
+        ORDER BY Placement_Year, Package DESC;
+""",
         "params": [],
     },
     {
-        "id": "placements_cgpa_bands",
-        "title": "B11. CGPA Performance Bands vs Average Package",
-        "group": "Placements",
-        "dbms_concept": "Conditional value discretization using CASE WHEN mapping continuous CGPA metrics into academic achievement tiers.",
-        "sql": """SELECT CASE WHEN CGPA >= 9 THEN '9.0 and above'
-            WHEN CGPA >= 8 THEN '8.0 - 8.99'
-            WHEN CGPA >= 7 THEN '7.0 - 7.99'
-            ELSE 'Below 7.0' END AS CGPA_Band,
-       COUNT(*)               AS Students_Placed,
-       ROUND(AVG(Package), 2) AS Avg_Package
-FROM V_PLACEMENT_DETAIL
-WHERE Joined = 'Yes'
-GROUP BY CGPA_Band
-ORDER BY MIN(CGPA) DESC;""",
-        "params": [],
-    },
-    {
-        "id": "placements_above_threshold",
-        "title": "B14. Placement Packages Above Specified Threshold",
-        "group": "Placements",
-        "dbms_concept": "Decimal numerical inequality filtering parameterized safely, isolating elite compensation offers across hiring partners.",
+        "id": 'placements_above_threshold',
+        "title": 'B14. Placement Packages Above Specified Threshold',
+        "group": 'Placements',
+        "dbms_concept": 'Decimal numerical inequality filtering parameterized safely, isolating elite compensation offers across hiring partners.',
         "sql": """SELECT Student_Name, Branch, Company_Name, Role, Package, Placement_Year
-FROM V_PLACEMENT_DETAIL
-WHERE Package >= %s AND Joined = 'Yes'
-ORDER BY Package DESC;""",
-        "params": [
-            {
-                "name": "min_package",
-                "label": "Minimum Package (LPA)",
-                "type": "number",
-                "step": "0.5",
-                "placeholder": "e.g. 10.0",
-            },
-        ],
-    },
-    # -------------------------------------------------------------------------
-    # 3. INTERNSHIPS
-    # -------------------------------------------------------------------------
-    {
-        "id": "internships_student_history",
-        "title": "C1. All Internships of One Student (Calculated Duration)",
-        "group": "Internships",
-        "dbms_concept": "Dynamic calculation of derived attribute (Duration_Months via DATEDIFF) at query runtime, preventing physical storage redundancy.",
-        "sql": """SELECT Internship_No, Internship_Type, Company_Name, Role,
-       Start_Date, End_Date, Duration_Months, Stipend,
-       Credits, Report_Semester, Report_Grade
-FROM V_INTERNSHIP_DETAIL
-WHERE Roll_No = %s
-ORDER BY Internship_No;""",
-        "params": [
-            {
-                "name": "roll_no",
-                "label": "Roll Number",
-                "type": "select",
-                "dynamic_source": "students",
-                "options": [],
-                "placeholder": "e.g. CS201802",
-            },
-        ],
+        FROM V_PLACEMENT_DETAIL
+        WHERE Package >= %s AND Joined = 'Yes'
+        ORDER BY Package DESC;
+""",
+        "params": [{'name': 'min_package', 'label': 'Minimum Package (LPA)', 'type': 'number', 'step': '0.5', 'placeholder': 'e.g. 10.0'}],
     },
     {
-        "id": "internships_by_company",
-        "title": "C2. Internships Hosted by Specific Organization",
-        "group": "Internships",
-        "dbms_concept": "Weak entity to strong corporate entity relational join filtered by organization name, analyzing internship engagement.",
-        "sql": """SELECT Student_Name, Branch, Internship_No, Role, Start_Date, End_Date, Stipend
-FROM V_INTERNSHIP_DETAIL
-WHERE Company_Name = %s
-ORDER BY Start_Date;""",
-        "params": [
-            {
-                "name": "company_name",
-                "label": "Company Name",
-                "type": "select",
-                "dynamic_source": "companies",
-                "options": [],
-                "placeholder": "Select company",
-            },
-        ],
-    },
-    {
-        "id": "internships_mandatory_compliance",
-        "title": "C3. Mandatory Internship Completion Audit",
-        "group": "Internships",
-        "dbms_concept": "Left outer join with conditional aggregation (COUNT(CASE WHEN...)) ensuring students with zero internships are preserved in audit.",
-        "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
-       COUNT(CASE WHEN i.Internship_Type = 'Mandatory'  THEN 1 END) AS Mandatory_Done,
-       COUNT(CASE WHEN i.Internship_Type = 'Additional' THEN 1 END) AS Additional_Done,
-       COUNT(i.Internship_No)                                       AS Total_Internships
-FROM STUDENT s
-LEFT JOIN INTERNSHIP i ON i.Student_ID = s.Student_ID
-GROUP BY s.Student_ID, s.Roll_No, s.First_Name, s.Last_Name
-ORDER BY Mandatory_Done ASC, Total_Internships ASC;""",
-        "params": [],
-    },
-    {
-        "id": "internships_rule_check_defaulters",
-        "title": "C4. Rule Check: Students with Incomplete Mandatory Internships",
-        "group": "Internships",
-        "dbms_concept": "Integrity rule verification using conditional aggregation inside a HAVING clause (HAVING Mandatory_Done < 2) to flag deficient students.",
-        "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
-       COUNT(CASE WHEN i.Internship_Type = 'Mandatory' THEN 1 END) AS Mandatory_Done
-FROM STUDENT s
-LEFT JOIN INTERNSHIP i ON i.Student_ID = s.Student_ID
-GROUP BY s.Student_ID, s.Roll_No, s.First_Name, s.Last_Name
-HAVING COUNT(CASE WHEN i.Internship_Type = 'Mandatory' THEN 1 END) < 2;""",
-        "params": [],
-    },
-    {
-        "id": "internships_avg_stipend_company",
-        "title": "C6. Average Monthly Stipend Across Companies",
-        "group": "Internships",
-        "dbms_concept": "Aggregate reduction evaluating compensation metrics (mean and maximum monthly stipend) across internship sponsor firms.",
-        "sql": """SELECT Company_Name,
-       COUNT(*)               AS Interns,
-       ROUND(AVG(Stipend), 0) AS Avg_Stipend,
-       MAX(Stipend)           AS Highest_Stipend
-FROM V_INTERNSHIP_DETAIL
-GROUP BY Company_ID, Company_Name
-ORDER BY Avg_Stipend DESC;""",
-        "params": [],
-    },
-    {
-        "id": "internships_date_range",
-        "title": "C12. Internships Active in Date Range",
-        "group": "Internships",
-        "dbms_concept": "Temporal boundary filtering on calendar date types (Start_Date >= and End_Date <=) isolating seasonal internship batches.",
-        "sql": """SELECT Student_Name, Internship_No, Company_Name, Role, Start_Date, End_Date, Stipend
-FROM V_INTERNSHIP_DETAIL
-WHERE Start_Date >= %s AND End_Date <= %s
-ORDER BY Start_Date;""",
-        "params": [
-            {
-                "name": "start_date",
-                "label": "Start Date",
-                "type": "text",
-                "placeholder": "YYYY-MM-DD",
-            },
-            {
-                "name": "end_date",
-                "label": "End Date",
-                "type": "text",
-                "placeholder": "YYYY-MM-DD",
-            },
-        ],
-    },
-    # -------------------------------------------------------------------------
-    # 4. COMBINED
-    # -------------------------------------------------------------------------
-    {
-        "id": "combined_internship_to_job",
-        "title": "D1. Internships Converted to Full-Time Placements (PPO Track)",
-        "group": "Combined",
-        "dbms_concept": "Composite multi-column inner equi-join matching on (Student_ID AND Company_ID) correlating internship history with final placement.",
-        "sql": """SELECT DISTINCT p.Student_Name, p.Branch, p.Company_Name, p.Package, p.Is_PPO
-FROM V_PLACEMENT_DETAIL p
-JOIN INTERNSHIP i
-  ON i.Student_ID = p.Student_ID AND i.Company_ID = p.Company_ID
-WHERE p.Joined = 'Yes'
-ORDER BY p.Package DESC;""",
-        "params": [],
-    },
-    {
-        "id": "combined_popular_skills",
-        "title": "D2. Most Prevalent Technical Skills Among Students",
-        "group": "Combined",
-        "dbms_concept": "Frequency distribution across 1NF decomposed multi-valued skill entities ranking student technical capabilities.",
-        "sql": """SELECT Skill, COUNT(*) AS Students_With_Skill
-FROM STUDENT_SKILL
-GROUP BY Skill
-ORDER BY Students_With_Skill DESC, Skill;""",
-        "params": [],
-    },
-    {
-        "id": "combined_indemand_skills",
-        "title": "D3. In-Demand Skills Evaluated for Placement Offers",
-        "group": "Combined",
-        "dbms_concept": "Demand-side aggregation grouping through bridge relation PLACEMENT_SKILL to determine market skill requirements.",
+        "id": 'combined_indemand_skills',
+        "title": 'D3. In-Demand Skills Evaluated for Placement Offers',
+        "group": 'Placements',
+        "dbms_concept": 'Demand-side aggregation grouping through bridge relation PLACEMENT_SKILL to determine market skill requirements.',
         "sql": """SELECT ps.Skill, COUNT(*) AS Times_Selected_For
-FROM PLACEMENT_SKILL ps
-GROUP BY ps.Skill
-ORDER BY Times_Selected_For DESC, ps.Skill;""",
+        FROM PLACEMENT_SKILL ps
+        GROUP BY ps.Skill
+        ORDER BY Times_Selected_For DESC, ps.Skill;
+""",
         "params": [],
     },
     {
-        "id": "combined_skill_avg_package",
-        "title": "D4. Average Package by Technical Skill Evaluated",
-        "group": "Combined",
-        "dbms_concept": "Many-to-many bridge relation traversal connecting technical competencies to realized salary outcomes with mean aggregation.",
+        "id": 'combined_skill_avg_package',
+        "title": 'D4. Average Package by Technical Skill Evaluated',
+        "group": 'Placements',
+        "dbms_concept": 'Many-to-many bridge relation traversal connecting technical competencies to realized salary outcomes with mean aggregation.',
         "sql": """SELECT ps.Skill, COUNT(*) AS Students, ROUND(AVG(p.Package), 2) AS Avg_Package
-FROM PLACEMENT_SKILL ps
-JOIN PLACEMENT p ON p.Placement_ID = ps.Placement_ID
-WHERE p.Joined = 'Yes'
-GROUP BY ps.Skill
-ORDER BY Avg_Package DESC;""",
-        "params": [],
-    },
-    {
-        "id": "combined_company_skills",
-        "title": "D5. Technical Skills Targeted by Specific Company",
-        "group": "Combined",
-        "dbms_concept": "Three-table relational equi-join traversing bridge entity PLACEMENT_SKILL to PLACEMENT and COMPANY with selective filter.",
-        "sql": """SELECT DISTINCT c.Company_Name, ps.Skill
-FROM PLACEMENT_SKILL ps
-JOIN PLACEMENT p ON p.Placement_ID = ps.Placement_ID
-JOIN COMPANY c   ON c.Company_ID  = p.Company_ID
-WHERE c.Company_Name = %s
-ORDER BY ps.Skill;""",
-        "params": [
-            {
-                "name": "company_name",
-                "label": "Company Name",
-                "type": "select",
-                "dynamic_source": "companies",
-                "options": [],
-                "placeholder": "Select company",
-            },
-        ],
-    },
-    {
-        "id": "combined_dual_partners",
-        "title": "D6. Dual-Role Corporate Partners (Internships + Placements)",
-        "group": "Combined",
-        "dbms_concept": "Dual correlated existential predicates (EXISTS ... AND EXISTS ...) proving relationship set intersection across distinct operational scopes.",
-        "sql": """SELECT c.Company_Name, c.Company_Type,
-       (SELECT COUNT(*) FROM INTERNSHIP i WHERE i.Company_ID = c.Company_ID) AS Interns_Taken,
-       (SELECT COUNT(*) FROM PLACEMENT  p WHERE p.Company_ID = c.Company_ID) AS Offers_Made
-FROM COMPANY c
-WHERE EXISTS (SELECT 1 FROM INTERNSHIP i WHERE i.Company_ID = c.Company_ID)
-  AND EXISTS (SELECT 1 FROM PLACEMENT  p WHERE p.Company_ID = c.Company_ID);""",
-        "params": [],
-    },
-    {
-        "id": "combined_company_polymorphic",
-        "title": "D7. Polymorphic Corporate Activity Profile (UNION ALL)",
-        "group": "Combined",
-        "dbms_concept": "Set Union (UNION ALL) combining distinct activity records into a unified polymorphic schema with synthetic discriminator column.",
-        "sql": """SELECT 'Internship' AS Record_Type, Student_Name, Branch, Role, NULL AS Package, Stipend
-FROM V_INTERNSHIP_DETAIL
-WHERE Company_Name = %s
-UNION ALL
-SELECT 'Placement' AS Record_Type, Student_Name, Branch, Role, Package, NULL AS Stipend
-FROM V_PLACEMENT_DETAIL
-WHERE Company_Name = %s
-ORDER BY Record_Type, Student_Name;""",
-        "params": [
-            {
-                "name": "company_name",
-                "label": "Company Name",
-                "type": "select",
-                "dynamic_source": "companies",
-                "options": [],
-                "placeholder": "Select company",
-            },
-        ],
-    },
-    {
-        "id": "combined_full_career_report",
-        "title": "D8. Comprehensive Student Career Synthesis",
-        "group": "Combined",
-        "dbms_concept": "Multiple correlated scalar subqueries synthesizing academic performance, technical skills, internship volume, and placement outcomes into a master tuple.",
-        "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
-       s.Branch, s.Batch_Year, s.CGPA,
-       (SELECT GROUP_CONCAT(sk.Skill SEPARATOR ', ')
-          FROM STUDENT_SKILL sk WHERE sk.Student_ID = s.Student_ID)              AS Extra_Skills,
-       (SELECT COUNT(*) FROM INTERNSHIP i WHERE i.Student_ID = s.Student_ID)     AS Internships_Done,
-       (SELECT c.Company_Name FROM PLACEMENT p JOIN COMPANY c ON c.Company_ID = p.Company_ID
-         WHERE p.Student_ID = s.Student_ID AND p.Joined = 'Yes' LIMIT 1)         AS Joined_Company,
-       (SELECT p.Package FROM PLACEMENT p
-         WHERE p.Student_ID = s.Student_ID AND p.Joined = 'Yes' LIMIT 1)         AS Package
-FROM STUDENT s
-ORDER BY s.Batch_Year, s.Branch, s.Roll_No;""",
-        "params": [],
-    },
-    {
-        "id": "combined_skills_cohort_comparison",
-        "title": "ADD-3A. Skill Profile Comparison: Placed vs Non-Placed Cohorts",
-        "group": "Combined",
-        "dbms_concept": "Multi-way outer join with conditional aggregation comparing total acquired skills, mean skill density, and unique skills acquired across cohorts.",
-        "sql": """SELECT
-    CASE WHEN p.Joined = 'Yes' THEN 'Placed Students' ELSE 'Non-Placed Students' END AS Placement_Status,
-    COUNT(DISTINCT s.Student_ID) AS Total_Students,
-    COUNT(sk.Skill) AS Total_Skills_Reported,
-    ROUND(COUNT(sk.Skill) / COUNT(DISTINCT s.Student_ID), 2) AS Avg_Skills_Per_Student,
-    GROUP_CONCAT(DISTINCT sk.Skill ORDER BY sk.Skill SEPARATOR ', ') AS Unique_Skills_Acquired
-FROM STUDENT s
-LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID AND p.Joined = 'Yes'
-LEFT JOIN STUDENT_SKILL sk ON s.Student_ID = sk.Student_ID
-GROUP BY CASE WHEN p.Joined = 'Yes' THEN 'Placed Students' ELSE 'Non-Placed Students' END;""",
-        "params": [],
-    },
-    # -------------------------------------------------------------------------
-    # 5. ADVANCED ANALYTICS & EXECUTIVE REPORTS (MySQL 8.0 CTE & Window Functions)
-    # -------------------------------------------------------------------------
-    {
-        "id": "report_branch_placement_stats",
-        "title": "E1. Branch-Wise Placement Statistics & Median Compensation",
-        "group": "Executive Reports",
-        "dbms_concept": "Multi-stage CTEs computing department headcounts, conditional aggregation for placement yields, and ROW_NUMBER() window partitioning to calculate the exact Median Package per branch alongside DENSE_RANK() performance rankings.",
-        "sql": """WITH BranchTotals AS (
-    SELECT
-        s.Branch,
-        COUNT(DISTINCT s.Student_ID) AS Total_Students,
-        COUNT(DISTINCT CASE WHEN p.Joined = 'Yes' THEN s.Student_ID END) AS Placed_Students,
-        COUNT(p.Placement_ID) AS Total_Offers,
-        ROUND(AVG(CASE WHEN p.Joined = 'Yes' THEN p.Package END), 2) AS Avg_Package,
-        MAX(CASE WHEN p.Joined = 'Yes' THEN p.Package END) AS Highest_Package,
-        MIN(CASE WHEN p.Joined = 'Yes' THEN p.Package END) AS Lowest_Package
-    FROM STUDENT s
-    LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID
-    GROUP BY s.Branch
-),
-BranchMedians AS (
-    SELECT
-        Branch,
-        ROUND(AVG(Package), 2) AS Median_Package
-    FROM (
-        SELECT
-            s.Branch,
-            p.Package,
-            ROW_NUMBER() OVER (PARTITION BY s.Branch ORDER BY p.Package ASC) AS row_num,
-            COUNT(*) OVER (PARTITION BY s.Branch) AS total_count
-        FROM PLACEMENT p
-        JOIN STUDENT s ON p.Student_ID = s.Student_ID
+        FROM PLACEMENT_SKILL ps
+        JOIN PLACEMENT p ON p.Placement_ID = ps.Placement_ID
         WHERE p.Joined = 'Yes'
-    ) ranked
-    WHERE row_num IN (FLOOR((total_count + 1) / 2), CEIL((total_count + 1) / 2))
-    GROUP BY Branch
-)
-SELECT
-    b.Branch,
-    b.Total_Students,
-    b.Placed_Students,
-    (b.Total_Students - b.Placed_Students) AS Unplaced_Students,
-    ROUND(COALESCE(100.0 * b.Placed_Students / NULLIF(b.Total_Students, 0), 0), 1) AS Placement_Rate,
-    b.Total_Offers,
-    COALESCE(b.Avg_Package, 0.00) AS Avg_Package,
-    COALESCE(m.Median_Package, 0.00) AS Median_Package,
-    COALESCE(b.Highest_Package, 0.00) AS Highest_Package,
-    COALESCE(b.Lowest_Package, 0.00) AS Lowest_Package,
-    DENSE_RANK() OVER (ORDER BY ROUND(COALESCE(100.0 * b.Placed_Students / NULLIF(b.Total_Students, 0), 0), 1) DESC, b.Avg_Package DESC) AS Performance_Rank
-FROM BranchTotals b
-LEFT JOIN BranchMedians m ON b.Branch = m.Branch
-ORDER BY b.Branch ASC;""",
+        GROUP BY ps.Skill
+        ORDER BY Avg_Package DESC;
+""",
         "params": [],
     },
     {
-        "id": "report_year_placement_stats",
-        "title": "E2. Year-Wise Placement Statistics & YoY Growth Trends",
-        "group": "Executive Reports",
-        "dbms_concept": "Temporal cohort aggregation combined with the LAG() analytic window function to compute year-over-year compensation escalation and growth rates across academic recruitment cycles.",
-        "sql": """WITH YearlyPlacements AS (
-    SELECT
-        p.Placement_Year,
-        COUNT(p.Placement_ID) AS Total_Offers,
-        COUNT(DISTINCT p.Student_ID) AS Total_Candidates_Offered,
-        COUNT(DISTINCT CASE WHEN p.Joined = 'Yes' THEN p.Student_ID END) AS Placed_Count,
-        ROUND(AVG(p.Package), 2) AS Avg_Offered_Package,
-        ROUND(AVG(CASE WHEN p.Joined = 'Yes' THEN p.Package END), 2) AS Avg_Accepted_Package,
-        MAX(p.Package) AS Highest_Package,
-        MIN(p.Package) AS Lowest_Package,
-        ROUND(SUM(CASE WHEN p.Joined = 'Yes' THEN p.Package ELSE 0 END), 2) AS Total_Accepted_Volume
-    FROM PLACEMENT p
-    JOIN STUDENT s ON p.Student_ID = s.Student_ID
-    GROUP BY p.Placement_Year
-),
-YearlyWithGrowth AS (
-    SELECT
-        y.*,
-        LAG(y.Avg_Accepted_Package) OVER (ORDER BY y.Placement_Year ASC) AS Prev_Year_Avg,
-        LAG(y.Placed_Count) OVER (ORDER BY y.Placement_Year ASC) AS Prev_Year_Placed
-    FROM YearlyPlacements y
-)
-SELECT
-    Placement_Year,
-    Total_Offers,
-    Total_Candidates_Offered,
-    Placed_Count,
-    Avg_Accepted_Package AS Avg_Package,
-    Highest_Package,
-    Lowest_Package,
-    Total_Accepted_Volume,
-    ROUND(COALESCE(Avg_Accepted_Package - Prev_Year_Avg, 0), 2) AS YoY_Package_Change,
-    ROUND(COALESCE(100.0 * (Avg_Accepted_Package - Prev_Year_Avg) / NULLIF(Prev_Year_Avg, 0), 0), 1) AS YoY_Growth_Percent,
-    DENSE_RANK() OVER (ORDER BY Placed_Count DESC, Avg_Accepted_Package DESC) AS Volume_Rank
-FROM YearlyWithGrowth
-ORDER BY Placement_Year DESC;""",
-        "params": [],
-    },
-    {
-        "id": "report_package_statistics",
-        "title": "E3. Average, Median, and Highest Package Reports",
-        "group": "Executive Reports",
-        "dbms_concept": "Advanced statistical reduction computing Mean, exact Median via ROW_NUMBER() partitioning, Population Standard Deviation (STDDEV_POP), and discrete Rank distributions across departments and individual offers.",
-        "sql": """WITH RankedByBranch AS (
-    SELECT
-        s.Branch,
-        p.Package,
-        ROW_NUMBER() OVER (PARTITION BY s.Branch ORDER BY p.Package ASC) AS row_num,
-        COUNT(*) OVER (PARTITION BY s.Branch) AS total_count
-    FROM PLACEMENT p
-    JOIN STUDENT s ON p.Student_ID = s.Student_ID
-    WHERE p.Joined = 'Yes'
-),
-BranchMedians AS (
-    SELECT
-        Branch,
-        ROUND(AVG(Package), 2) AS Median_Package
-    FROM RankedByBranch
-    WHERE row_num IN (FLOOR((total_count + 1) / 2), CEIL((total_count + 1) / 2))
-    GROUP BY Branch
-),
-BranchStats AS (
-    SELECT
-        s.Branch,
-        COUNT(p.Placement_ID) AS Placed_Count,
-        ROUND(AVG(p.Package), 2) AS Mean_Package,
-        MAX(p.Package) AS Highest_Package,
-        MIN(p.Package) AS Lowest_Package,
-        ROUND(STDDEV_POP(p.Package), 2) AS Std_Dev
-    FROM PLACEMENT p
-    JOIN STUDENT s ON p.Student_ID = s.Student_ID
-    WHERE p.Joined = 'Yes'
-    GROUP BY s.Branch
-)
-SELECT
-    bs.Branch,
-    bs.Placed_Count,
-    bs.Mean_Package,
-    COALESCE(bm.Median_Package, bs.Mean_Package) AS Median_Package,
-    bs.Highest_Package,
-    bs.Lowest_Package,
-    COALESCE(bs.Std_Dev, 0.00) AS Std_Dev,
-    DENSE_RANK() OVER (ORDER BY bs.Mean_Package DESC) AS Branch_Rank
-FROM BranchStats bs
-LEFT JOIN BranchMedians bm ON bs.Branch = bm.Branch
-ORDER BY Branch_Rank ASC;""",
-        "params": [],
-    },
-    {
-        "id": "report_company_hiring_stats",
-        "title": "E4. Company-Wise Hiring Ratios & Yield Metrics",
-        "group": "Executive Reports",
-        "dbms_concept": "Multi-table relational aggregation traversing corporate recruiters, computing offer acceptance yield percentages, and applying DENSE_RANK() to classify top hiring partners.",
-        "sql": """WITH CompanyHiring AS (
-    SELECT
-        c.Company_ID,
-        c.Company_Name,
-        c.Company_Type,
-        c.Industry,
-        c.Location,
-        COUNT(p.Placement_ID) AS Total_Offers_Extended,
-        COUNT(DISTINCT p.Student_ID) AS Distinct_Candidates_Offered,
-        COUNT(CASE WHEN p.Joined = 'Yes' THEN 1 END) AS Accepted_Offers,
-        ROUND(AVG(p.Package), 2) AS Avg_Offered_Package,
-        ROUND(AVG(CASE WHEN p.Joined = 'Yes' THEN p.Package END), 2) AS Avg_Accepted_Package,
-        MAX(p.Package) AS Highest_Package,
-        MIN(p.Package) AS Lowest_Package,
-        ROUND(SUM(CASE WHEN p.Joined = 'Yes' THEN p.Package ELSE 0 END), 2) AS Total_Compensation_Committed
-    FROM COMPANY c
-    LEFT JOIN PLACEMENT p ON c.Company_ID = p.Company_ID
-    GROUP BY c.Company_ID, c.Company_Name, c.Company_Type, c.Industry, c.Location
-)
-SELECT
-    Company_ID,
-    Company_Name,
-    Company_Type,
-    Industry,
-    Location,
-    Total_Offers_Extended,
-    Distinct_Candidates_Offered,
-    Accepted_Offers,
-    ROUND(COALESCE(100.0 * Accepted_Offers / NULLIF(Total_Offers_Extended, 0), 0), 1) AS Acceptance_Rate_Percent,
-    COALESCE(Avg_Offered_Package, 0.00) AS Avg_Offered_Package,
-    COALESCE(Avg_Accepted_Package, 0.00) AS Avg_Accepted_Package,
-    COALESCE(Highest_Package, 0.00) AS Highest_Package,
-    COALESCE(Lowest_Package, 0.00) AS Lowest_Package,
-    Total_Compensation_Committed,
-    DENSE_RANK() OVER (ORDER BY Accepted_Offers DESC, Avg_Accepted_Package DESC) AS Hiring_Rank
-FROM CompanyHiring
-WHERE Total_Offers_Extended > 0
-ORDER BY Accepted_Offers DESC, Total_Offers_Extended DESC;""",
-        "params": [],
-    },
-    {
-        "id": "report_multiple_offers_analysis",
-        "title": "E5. Multiple Placement Offer Analysis & Package Spread",
-        "group": "Executive Reports",
-        "dbms_concept": "Post-aggregation cardinality filtering (HAVING COUNT(*) > 1) computing the financial spread between highest and lowest offers, aggregating offer catalogs via GROUP_CONCAT, and sorting by DENSE_RANK().",
+        "id": 'report_multiple_offers_analysis',
+        "title": 'E5. Multiple Placement Offer Analysis & Package Spread',
+        "group": 'Placements',
+        "dbms_concept": 'Post-aggregation cardinality filtering (HAVING COUNT(*) > 1) computing the financial spread between highest and lowest offers, aggregating offer catalogs via GROUP_CONCAT, and sorting by DENSE_RANK().',
         "sql": """WITH MultiOfferStudents AS (
-    SELECT
-        s.Student_ID,
-        s.Roll_No,
-        CONCAT(s.First_Name, ' ', COALESCE(s.Last_Name, '')) AS Student_Name,
-        s.Branch,
-        s.Batch_Year,
-        s.CGPA,
-        COUNT(p.Placement_ID) AS Total_Offers,
-        MAX(p.Package) AS Highest_Offer,
-        MIN(p.Package) AS Lowest_Offer,
-        ROUND(MAX(p.Package) - MIN(p.Package), 2) AS Package_Spread,
-        MAX(CASE WHEN p.Joined = 'Yes' THEN c.Company_Name END) AS Joined_Company,
-        MAX(CASE WHEN p.Joined = 'Yes' THEN p.Package END) AS Joined_Package,
-        GROUP_CONCAT(CONCAT(c.Company_Name, ' (', p.Package, ' LPA - ', p.Offer_Status, ')') ORDER BY p.Package DESC SEPARATOR ' | ') AS All_Offers
-    FROM STUDENT s
-    JOIN PLACEMENT p ON s.Student_ID = p.Student_ID
-    JOIN COMPANY c ON p.Company_ID = c.Company_ID
-    GROUP BY s.Student_ID, s.Roll_No, s.First_Name, s.Last_Name, s.Branch, s.Batch_Year, s.CGPA
-    HAVING COUNT(p.Placement_ID) > 1
-)
-SELECT
-    m.*,
-    DENSE_RANK() OVER (ORDER BY m.Total_Offers DESC, m.Highest_Offer DESC) AS Offer_Rank
-FROM MultiOfferStudents m
-ORDER BY m.Total_Offers DESC, m.Highest_Offer DESC;""",
+            SELECT
+                s.Student_ID,
+                s.Roll_No,
+                CONCAT(s.First_Name, ' ', COALESCE(s.Last_Name, '')) AS Student_Name,
+                s.Branch,
+                s.Batch_Year,
+                s.CGPA,
+                COUNT(p.Placement_ID) AS Total_Offers,
+                MAX(p.Package) AS Highest_Offer,
+                MIN(p.Package) AS Lowest_Offer,
+                ROUND(MAX(p.Package) - MIN(p.Package), 2) AS Package_Spread,
+                MAX(CASE WHEN p.Joined = 'Yes' THEN c.Company_Name END) AS Joined_Company,
+                MAX(CASE WHEN p.Joined = 'Yes' THEN p.Package END) AS Joined_Package,
+                GROUP_CONCAT(CONCAT(c.Company_Name, ' (', p.Package, ' LPA - ', p.Offer_Status, ')') ORDER BY p.Package DESC SEPARATOR ' | ') AS All_Offers
+            FROM STUDENT s
+            JOIN PLACEMENT p ON s.Student_ID = p.Student_ID
+            JOIN COMPANY c ON p.Company_ID = c.Company_ID
+            GROUP BY s.Student_ID, s.Roll_No, s.First_Name, s.Last_Name, s.Branch, s.Batch_Year, s.CGPA
+            HAVING COUNT(p.Placement_ID) > 1
+        )
+        SELECT
+            m.*,
+            DENSE_RANK() OVER (ORDER BY m.Total_Offers DESC, m.Highest_Offer DESC) AS Offer_Rank
+        FROM MultiOfferStudents m
+        ORDER BY m.Total_Offers DESC, m.Highest_Offer DESC;
+""",
+        "params": [],
+    },
+
+    # ----------------------------------------------------------------------
+    # CATEGORY: INTERNSHIPS
+    # ----------------------------------------------------------------------
+    {
+        "id": 'internships_student_history',
+        "title": 'C1. All Internships of One Student (Calculated Duration)',
+        "group": 'Internships',
+        "dbms_concept": 'Dynamic calculation of derived attribute (Duration_Months via DATEDIFF) at query runtime, preventing physical storage redundancy.',
+        "sql": """SELECT Internship_No, Internship_Type, Company_Name, Role,
+               Start_Date, End_Date, Duration_Months, Stipend,
+               Credits, Report_Semester, Report_Grade
+        FROM V_INTERNSHIP_DETAIL
+        WHERE Roll_No = %s
+        ORDER BY Internship_No;
+""",
+        "params": [{'name': 'roll_no', 'label': 'Roll Number', 'type': 'select', 'dynamic_source': 'students', 'options': [], 'placeholder': 'e.g. CS201802'}],
+    },
+    {
+        "id": 'internships_by_company',
+        "title": 'C2. Internships Hosted by Specific Organization',
+        "group": 'Internships',
+        "dbms_concept": 'Weak entity to strong corporate entity relational join filtered by organization name, analyzing internship engagement.',
+        "sql": """SELECT Student_Name, Branch, Internship_No, Role, Start_Date, End_Date, Stipend
+        FROM V_INTERNSHIP_DETAIL
+        WHERE Company_Name = %s
+        ORDER BY Start_Date;
+""",
+        "params": [{'name': 'company_name', 'label': 'Company Name', 'type': 'select', 'dynamic_source': 'companies', 'options': [], 'placeholder': 'Select company'}],
+    },
+    {
+        "id": 'internships_avg_stipend_company',
+        "title": 'C6. Average Monthly Stipend Across Companies',
+        "group": 'Internships',
+        "dbms_concept": 'Aggregate reduction evaluating compensation metrics (mean and maximum monthly stipend) across internship sponsor firms.',
+        "sql": """SELECT Company_Name,
+               COUNT(*)               AS Interns,
+               ROUND(AVG(Stipend), 0) AS Avg_Stipend,
+               MAX(Stipend)           AS Highest_Stipend
+        FROM V_INTERNSHIP_DETAIL
+        GROUP BY Company_ID, Company_Name
+        ORDER BY Avg_Stipend DESC;
+""",
         "params": [],
     },
     {
-        "id": "report_internship_compliance",
-        "title": "E6. Degree Internship Policy Compliance & Audits",
-        "group": "Executive Reports",
-        "dbms_concept": "Multi-condition aggregation auditing degree fulfillment of Mandatory Internship 1 and Mandatory Internship 2, tracking additional industry attachments and average compensation.",
+        "id": 'internships_date_range',
+        "title": 'C12. Internships Active in Date Range',
+        "group": 'Internships',
+        "dbms_concept": 'Temporal boundary filtering on calendar date types (Start_Date >= and End_Date <=) isolating seasonal internship batches.',
+        "sql": """SELECT Student_Name, Internship_No, Company_Name, Role, Start_Date, End_Date, Stipend
+        FROM V_INTERNSHIP_DETAIL
+        WHERE Start_Date >= %s AND End_Date <= %s
+        ORDER BY Start_Date;
+""",
+        "params": [{'name': 'start_date', 'label': 'Start Date', 'type': 'text', 'placeholder': 'YYYY-MM-DD'}, {'name': 'end_date', 'label': 'End Date', 'type': 'text', 'placeholder': 'YYYY-MM-DD'}],
+    },
+    {
+        "id": 'combined_internship_to_job',
+        "title": 'D1. Internships Converted to Full-Time Placements (PPO Track)',
+        "group": 'Internships',
+        "dbms_concept": 'Composite multi-column inner equi-join matching on (Student_ID AND Company_ID) correlating internship history with final placement.',
+        "sql": """SELECT DISTINCT p.Student_Name, p.Branch, p.Company_Name, p.Package, p.Is_PPO
+        FROM V_PLACEMENT_DETAIL p
+        JOIN INTERNSHIP i
+          ON i.Student_ID = p.Student_ID AND i.Company_ID = p.Company_ID
+        WHERE p.Joined = 'Yes'
+        ORDER BY p.Package DESC;
+""",
+        "params": [],
+    },
+
+    # ----------------------------------------------------------------------
+    # CATEGORY: DASHBOARD KPIS
+    # ----------------------------------------------------------------------
+    {
+        "id": 'placements_branch_stats',
+        "title": 'B3. Branch-Wise Placement Statistics',
+        "group": 'Dashboard KPIs',
+        "dbms_concept": 'Categorical aggregate reduction (COUNT, AVG, MAX, MIN) partitioned by academic branch computing headcount and salary spread.',
+        "sql": """SELECT Branch,
+               COUNT(*)               AS Students_Placed,
+               ROUND(AVG(Package), 2) AS Avg_Package,
+               MAX(Package)           AS Highest_Package,
+               MIN(Package)           AS Lowest_Package
+        FROM V_PLACEMENT_DETAIL
+        WHERE Joined = 'Yes'
+        GROUP BY Branch
+        ORDER BY Avg_Package DESC;
+""",
+        "params": [],
+    },
+    {
+        "id": 'placements_year_stats',
+        "title": 'B4. Year-Wise Placement Statistics & Cohort Trends',
+        "group": 'Dashboard KPIs',
+        "dbms_concept": 'Temporal aggregation grouping by academic cohort year measuring historical compensation escalation and placement volume.',
+        "sql": """SELECT Placement_Year,
+               COUNT(*)               AS Students_Placed,
+               ROUND(AVG(Package), 2) AS Avg_Package,
+               MAX(Package)           AS Highest_Package
+        FROM V_PLACEMENT_DETAIL
+        WHERE Joined = 'Yes'
+        GROUP BY Placement_Year
+        ORDER BY Placement_Year;
+""",
+        "params": [],
+    },
+    {
+        "id": 'placements_branch_percent',
+        "title": 'B7. Placement Percentage by Branch and Batch',
+        "group": 'Dashboard KPIs',
+        "dbms_concept": 'Cohort grouping evaluating existential subquery membership (SUM(EXISTS...)) to compute institutional placement success rates.',
+        "sql": """SELECT s.Branch, s.Batch_Year,
+               COUNT(*) AS Total_Students,
+               SUM(EXISTS (SELECT 1 FROM PLACEMENT p
+                           WHERE p.Student_ID = s.Student_ID AND p.Joined = 'Yes')) AS Placed,
+               ROUND(100 * SUM(EXISTS (SELECT 1 FROM PLACEMENT p
+                                       WHERE p.Student_ID = s.Student_ID AND p.Joined = 'Yes'))
+                         / COUNT(*), 1) AS Placement_Percent
+        FROM STUDENT s
+        GROUP BY s.Branch, s.Batch_Year
+        ORDER BY s.Batch_Year, s.Branch;
+""",
+        "params": [],
+    },
+    {
+        "id": 'report_branch_placement_stats',
+        "title": 'E1. Branch-Wise Placement Statistics & Median Compensation',
+        "group": 'Dashboard KPIs',
+        "dbms_concept": 'Multi-stage CTEs computing department headcounts, conditional aggregation for placement yields, and ROW_NUMBER() window partitioning to calculate the exact Median Package per branch alongside DENSE_RANK() performance rankings.',
+        "sql": """WITH BranchTotals AS (
+            SELECT
+                s.Branch,
+                COUNT(DISTINCT s.Student_ID) AS Total_Students,
+                COUNT(DISTINCT CASE WHEN p.Joined = 'Yes' THEN s.Student_ID END) AS Placed_Students,
+                COUNT(p.Placement_ID) AS Total_Offers,
+                ROUND(AVG(CASE WHEN p.Joined = 'Yes' THEN p.Package END), 2) AS Avg_Package,
+                MAX(CASE WHEN p.Joined = 'Yes' THEN p.Package END) AS Highest_Package,
+                MIN(CASE WHEN p.Joined = 'Yes' THEN p.Package END) AS Lowest_Package
+            FROM STUDENT s
+            LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID
+            GROUP BY s.Branch
+        ),
+        BranchMedians AS (
+            SELECT
+                Branch,
+                ROUND(AVG(Package), 2) AS Median_Package
+            FROM (
+                SELECT
+                    s.Branch,
+                    p.Package,
+                    ROW_NUMBER() OVER (PARTITION BY s.Branch ORDER BY p.Package ASC) AS row_num,
+                    COUNT(*) OVER (PARTITION BY s.Branch) AS total_count
+                FROM PLACEMENT p
+                JOIN STUDENT s ON p.Student_ID = s.Student_ID
+                WHERE p.Joined = 'Yes'
+            ) ranked
+            WHERE row_num IN (FLOOR((total_count + 1) / 2), CEIL((total_count + 1) / 2))
+            GROUP BY Branch
+        )
+        SELECT
+            b.Branch,
+            b.Total_Students,
+            b.Placed_Students,
+            (b.Total_Students - b.Placed_Students) AS Unplaced_Students,
+            ROUND(COALESCE(100.0 * b.Placed_Students / NULLIF(b.Total_Students, 0), 0), 1) AS Placement_Rate,
+            b.Total_Offers,
+            COALESCE(b.Avg_Package, 0.00) AS Avg_Package,
+            COALESCE(m.Median_Package, 0.00) AS Median_Package,
+            COALESCE(b.Highest_Package, 0.00) AS Highest_Package,
+            COALESCE(b.Lowest_Package, 0.00) AS Lowest_Package,
+            DENSE_RANK() OVER (ORDER BY ROUND(COALESCE(100.0 * b.Placed_Students / NULLIF(b.Total_Students, 0), 0), 1) DESC, b.Avg_Package DESC) AS Performance_Rank
+        FROM BranchTotals b
+        LEFT JOIN BranchMedians m ON b.Branch = m.Branch
+        ORDER BY b.Branch ASC;
+""",
+        "params": [],
+    },
+    {
+        "id": 'report_year_placement_stats',
+        "title": 'E2. Year-Wise Placement Statistics & YoY Growth Trends',
+        "group": 'Dashboard KPIs',
+        "dbms_concept": 'Temporal cohort aggregation combined with the LAG() analytic window function to compute year-over-year compensation escalation and growth rates across academic recruitment cycles.',
+        "sql": """WITH YearlyPlacements AS (
+            SELECT
+                p.Placement_Year,
+                COUNT(p.Placement_ID) AS Total_Offers,
+                COUNT(DISTINCT p.Student_ID) AS Total_Candidates_Offered,
+                COUNT(DISTINCT CASE WHEN p.Joined = 'Yes' THEN p.Student_ID END) AS Placed_Count,
+                ROUND(AVG(p.Package), 2) AS Avg_Offered_Package,
+                ROUND(AVG(CASE WHEN p.Joined = 'Yes' THEN p.Package END), 2) AS Avg_Accepted_Package,
+                MAX(p.Package) AS Highest_Package,
+                MIN(p.Package) AS Lowest_Package,
+                ROUND(SUM(CASE WHEN p.Joined = 'Yes' THEN p.Package ELSE 0 END), 2) AS Total_Accepted_Volume
+            FROM PLACEMENT p
+            JOIN STUDENT s ON p.Student_ID = s.Student_ID
+            GROUP BY p.Placement_Year
+        ),
+        YearlyWithGrowth AS (
+            SELECT
+                y.*,
+                LAG(y.Avg_Accepted_Package) OVER (ORDER BY y.Placement_Year ASC) AS Prev_Year_Avg,
+                LAG(y.Placed_Count) OVER (ORDER BY y.Placement_Year ASC) AS Prev_Year_Placed
+            FROM YearlyPlacements y
+        )
+        SELECT
+            Placement_Year,
+            Total_Offers,
+            Total_Candidates_Offered,
+            Placed_Count,
+            Avg_Accepted_Package AS Avg_Package,
+            Highest_Package,
+            Lowest_Package,
+            Total_Accepted_Volume,
+            ROUND(COALESCE(Avg_Accepted_Package - Prev_Year_Avg, 0), 2) AS YoY_Package_Change,
+            ROUND(COALESCE(100.0 * (Avg_Accepted_Package - Prev_Year_Avg) / NULLIF(Prev_Year_Avg, 0), 0), 1) AS YoY_Growth_Percent,
+            DENSE_RANK() OVER (ORDER BY Placed_Count DESC, Avg_Accepted_Package DESC) AS Volume_Rank
+        FROM YearlyWithGrowth
+        ORDER BY Placement_Year DESC;
+""",
+        "params": [],
+    },
+    {
+        "id": 'report_package_statistics',
+        "title": 'E3. Average, Median, and Highest Package Reports',
+        "group": 'Dashboard KPIs',
+        "dbms_concept": 'Advanced statistical reduction computing Mean, exact Median via ROW_NUMBER() partitioning, Population Standard Deviation (STDDEV_POP), and discrete Rank distributions across departments and individual offers.',
+        "sql": """WITH RankedByBranch AS (
+            SELECT
+                s.Branch,
+                p.Package,
+                ROW_NUMBER() OVER (PARTITION BY s.Branch ORDER BY p.Package ASC) AS row_num,
+                COUNT(*) OVER (PARTITION BY s.Branch) AS total_count
+            FROM PLACEMENT p
+            JOIN STUDENT s ON p.Student_ID = s.Student_ID
+            WHERE p.Joined = 'Yes'
+        ),
+        BranchMedians AS (
+            SELECT
+                Branch,
+                ROUND(AVG(Package), 2) AS Median_Package
+            FROM RankedByBranch
+            WHERE row_num IN (FLOOR((total_count + 1) / 2), CEIL((total_count + 1) / 2))
+            GROUP BY Branch
+        ),
+        BranchStats AS (
+            SELECT
+                s.Branch,
+                COUNT(p.Placement_ID) AS Placed_Count,
+                ROUND(AVG(p.Package), 2) AS Mean_Package,
+                MAX(p.Package) AS Highest_Package,
+                MIN(p.Package) AS Lowest_Package,
+                ROUND(STDDEV_POP(p.Package), 2) AS Std_Dev
+            FROM PLACEMENT p
+            JOIN STUDENT s ON p.Student_ID = s.Student_ID
+            WHERE p.Joined = 'Yes'
+            GROUP BY s.Branch
+        )
+        SELECT
+            bs.Branch,
+            bs.Placed_Count,
+            bs.Mean_Package,
+            COALESCE(bm.Median_Package, bs.Mean_Package) AS Median_Package,
+            bs.Highest_Package,
+            bs.Lowest_Package,
+            COALESCE(bs.Std_Dev, 0.00) AS Std_Dev,
+            DENSE_RANK() OVER (ORDER BY bs.Mean_Package DESC) AS Branch_Rank
+        FROM BranchStats bs
+        LEFT JOIN BranchMedians bm ON bs.Branch = bm.Branch
+        ORDER BY Branch_Rank ASC;
+""",
+        "params": [],
+    },
+
+    # ----------------------------------------------------------------------
+    # CATEGORY: COMPLIANCE (MANDATORY INTERNSHIP 1 AND 2)
+    # ----------------------------------------------------------------------
+    {
+        "id": 'internships_mandatory_compliance',
+        "title": 'C3. Mandatory Internship Completion Audit',
+        "group": 'Compliance (Mandatory Internship 1 and 2)',
+        "dbms_concept": 'Left outer join with conditional aggregation (COUNT(CASE WHEN...)) ensuring students with zero internships are preserved in audit.',
+        "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
+               COUNT(CASE WHEN i.Internship_Type = 'Mandatory'  THEN 1 END) AS Mandatory_Done,
+               COUNT(CASE WHEN i.Internship_Type = 'Additional' THEN 1 END) AS Additional_Done,
+               COUNT(i.Internship_No)                                       AS Total_Internships
+        FROM STUDENT s
+        LEFT JOIN INTERNSHIP i ON i.Student_ID = s.Student_ID
+        GROUP BY s.Student_ID, s.Roll_No, s.First_Name, s.Last_Name
+        ORDER BY Mandatory_Done ASC, Total_Internships ASC;
+""",
+        "params": [],
+    },
+    {
+        "id": 'internships_rule_check_defaulters',
+        "title": 'C4. Rule Check: Students with Incomplete Mandatory Internships',
+        "group": 'Compliance (Mandatory Internship 1 and 2)',
+        "dbms_concept": 'Integrity rule verification using conditional aggregation inside a HAVING clause (HAVING Mandatory_Done < 2) to flag deficient students.',
+        "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
+               COUNT(CASE WHEN i.Internship_Type = 'Mandatory' THEN 1 END) AS Mandatory_Done
+        FROM STUDENT s
+        LEFT JOIN INTERNSHIP i ON i.Student_ID = s.Student_ID
+        GROUP BY s.Student_ID, s.Roll_No, s.First_Name, s.Last_Name
+        HAVING COUNT(CASE WHEN i.Internship_Type = 'Mandatory' THEN 1 END) < 2;
+""",
+        "params": [],
+    },
+    {
+        "id": 'report_internship_compliance',
+        "title": 'E6. Degree Internship Policy Compliance & Audits',
+        "group": 'Compliance (Mandatory Internship 1 and 2)',
+        "dbms_concept": 'Multi-condition aggregation auditing degree fulfillment of Mandatory Internship 1 and Mandatory Internship 2, tracking additional industry attachments and average compensation.',
         "sql": """WITH StudentInternshipSummary AS (
-    SELECT
-        s.Student_ID,
-        s.Roll_No,
-        CONCAT(s.First_Name, ' ', COALESCE(s.Last_Name, '')) AS Student_Name,
-        s.Branch,
-        s.Batch_Year,
-        s.CGPA,
-        COUNT(DISTINCT CASE WHEN i.Internship_No = 1 AND i.Internship_Type = 'Mandatory' THEN i.Internship_ID END) AS Has_I1,
-        COUNT(DISTINCT CASE WHEN i.Internship_No = 2 AND i.Internship_Type = 'Mandatory' THEN i.Internship_ID END) AS Has_I2,
-        COUNT(DISTINCT CASE WHEN i.Internship_Type = 'Additional' THEN i.Internship_ID END) AS Additional_Count,
-        ROUND(AVG(i.Stipend), 2) AS Avg_Stipend
-    FROM STUDENT s
-    LEFT JOIN INTERNSHIP i ON s.Student_ID = i.Student_ID
-    GROUP BY s.Student_ID, s.Roll_No, s.First_Name, s.Last_Name, s.Branch, s.Batch_Year, s.CGPA
-)
-SELECT
-    Branch,
-    COUNT(*) AS Total_Students,
-    SUM(Has_I1) AS I1_Completed,
-    SUM(Has_I2) AS I2_Completed,
-    SUM(CASE WHEN Has_I1 > 0 AND Has_I2 > 0 THEN 1 ELSE 0 END) AS Fully_Compliant,
-    SUM(CASE WHEN Has_I1 = 0 OR Has_I2 = 0 THEN 1 ELSE 0 END) AS Non_Compliant,
-    SUM(Additional_Count) AS Total_Additional,
-    ROUND(100.0 * SUM(CASE WHEN Has_I1 > 0 AND Has_I2 > 0 THEN 1 ELSE 0 END) / COUNT(*), 1) AS Compliance_Rate,
-    ROUND(COALESCE(AVG(Avg_Stipend), 0), 2) AS Avg_Stipend,
-    DENSE_RANK() OVER (ORDER BY ROUND(100.0 * SUM(CASE WHEN Has_I1 > 0 AND Has_I2 > 0 THEN 1 ELSE 0 END) / COUNT(*), 1) DESC) AS Compliance_Rank
-FROM StudentInternshipSummary
-GROUP BY Branch
-ORDER BY Branch ASC;""",
+            SELECT
+                s.Student_ID,
+                s.Roll_No,
+                CONCAT(s.First_Name, ' ', COALESCE(s.Last_Name, '')) AS Student_Name,
+                s.Branch,
+                s.Batch_Year,
+                s.CGPA,
+                COUNT(DISTINCT CASE WHEN i.Internship_No = 1 AND i.Internship_Type = 'Mandatory' THEN i.Internship_ID END) AS Has_I1,
+                COUNT(DISTINCT CASE WHEN i.Internship_No = 2 AND i.Internship_Type = 'Mandatory' THEN i.Internship_ID END) AS Has_I2,
+                COUNT(DISTINCT CASE WHEN i.Internship_Type = 'Additional' THEN i.Internship_ID END) AS Additional_Count,
+                ROUND(AVG(i.Stipend), 2) AS Avg_Stipend
+            FROM STUDENT s
+            LEFT JOIN INTERNSHIP i ON s.Student_ID = i.Student_ID
+            GROUP BY s.Student_ID, s.Roll_No, s.First_Name, s.Last_Name, s.Branch, s.Batch_Year, s.CGPA
+        )
+        SELECT
+            Branch,
+            COUNT(*) AS Total_Students,
+            SUM(Has_I1) AS I1_Completed,
+            SUM(Has_I2) AS I2_Completed,
+            SUM(CASE WHEN Has_I1 > 0 AND Has_I2 > 0 THEN 1 ELSE 0 END) AS Fully_Compliant,
+            SUM(CASE WHEN Has_I1 = 0 OR Has_I2 = 0 THEN 1 ELSE 0 END) AS Non_Compliant,
+            SUM(Additional_Count) AS Total_Additional,
+            ROUND(100.0 * SUM(CASE WHEN Has_I1 > 0 AND Has_I2 > 0 THEN 1 ELSE 0 END) / COUNT(*), 1) AS Compliance_Rate,
+            ROUND(COALESCE(AVG(Avg_Stipend), 0), 2) AS Avg_Stipend,
+            DENSE_RANK() OVER (ORDER BY ROUND(100.0 * SUM(CASE WHEN Has_I1 > 0 AND Has_I2 > 0 THEN 1 ELSE 0 END) / COUNT(*), 1) DESC) AS Compliance_Rank
+        FROM StudentInternshipSummary
+        GROUP BY Branch
+        ORDER BY Branch ASC;
+""",
         "params": [],
     },
     {
-        "id": "report_unplaced_students",
-        "title": "E7. Unplaced Student Roster & Outreach Priority Ranking",
-        "group": "Executive Reports",
-        "dbms_concept": "Outer anti-join identifying unplaced candidates, evaluating institutional eligibility via conditional expression, and utilizing ROW_NUMBER() window partitioning by branch to prioritize outreach by CGPA.",
+        "id": 'compliance_internship_1_audit',
+        "title": 'C7. Mandatory Internship 1 Compliance Audit (Sem 5, 4 Credits)',
+        "group": 'Compliance (Mandatory Internship 1 and 2)',
+        "dbms_concept": 'Selection and projection verifying completion of institutional summer internship after 2nd year evaluated in Semester 5.',
+        "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
+               s.Branch, s.Batch_Year, c.Company_Name, i.Role, i.Credits, i.Report_Semester, i.Report_Grade
+        FROM STUDENT s
+        JOIN INTERNSHIP i ON s.Student_ID = i.Student_ID
+        JOIN COMPANY c ON i.Company_ID = c.Company_ID
+        WHERE i.Internship_No = 1 AND i.Internship_Type = 'Mandatory' AND i.Report_Semester = 5
+        ORDER BY s.Branch, s.Roll_No;
+""",
+        "params": [],
+    },
+    {
+        "id": 'compliance_internship_2_audit',
+        "title": 'C8. Mandatory Internship 2 Curriculum Audit (8th Semester, 4 Credits)',
+        "group": 'Compliance (Mandatory Internship 1 and 2)',
+        "dbms_concept": 'Selection and projection verifying 8th semester mandatory internship completed during final semester and reported after 8th semester end.',
+        "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
+               s.Branch, s.Batch_Year, c.Company_Name, i.Role, i.Credits, i.Report_Semester, i.Report_Grade
+        FROM STUDENT s
+        JOIN INTERNSHIP i ON s.Student_ID = i.Student_ID
+        JOIN COMPANY c ON i.Company_ID = c.Company_ID
+        WHERE i.Internship_No = 2 AND i.Internship_Type = 'Mandatory' AND i.Report_Semester = 8
+        ORDER BY s.Branch, s.Roll_No;
+""",
+        "params": [],
+    },
+
+    # ----------------------------------------------------------------------
+    # CATEGORY: ANALYTICS
+    # ----------------------------------------------------------------------
+    {
+        "id": 'placements_cgpa_bands',
+        "title": 'B11. CGPA Performance Bands vs Average Package',
+        "group": 'Analytics',
+        "dbms_concept": 'Conditional value discretization using CASE WHEN mapping continuous CGPA metrics into academic achievement tiers.',
+        "sql": """SELECT CASE WHEN CGPA >= 9 THEN '9.0 and above'
+                    WHEN CGPA >= 8 THEN '8.0 - 8.99'
+                    WHEN CGPA >= 7 THEN '7.0 - 7.99'
+                    ELSE 'Below 7.0' END AS CGPA_Band,
+               COUNT(*)               AS Students_Placed,
+               ROUND(AVG(Package), 2) AS Avg_Package
+        FROM V_PLACEMENT_DETAIL
+        WHERE Joined = 'Yes'
+        GROUP BY CGPA_Band
+        ORDER BY MIN(CGPA) DESC;
+""",
+        "params": [],
+    },
+    {
+        "id": 'combined_popular_skills',
+        "title": 'D2. Most Prevalent Technical Skills Among Students',
+        "group": 'Analytics',
+        "dbms_concept": 'Frequency distribution across 1NF decomposed multi-valued skill entities ranking student technical capabilities.',
+        "sql": """SELECT Skill, COUNT(*) AS Students_With_Skill
+        FROM STUDENT_SKILL
+        GROUP BY Skill
+        ORDER BY Students_With_Skill DESC, Skill;
+""",
+        "params": [],
+    },
+    {
+        "id": 'combined_full_career_report',
+        "title": 'D8. Comprehensive Student Career Synthesis',
+        "group": 'Analytics',
+        "dbms_concept": 'Multiple correlated scalar subqueries synthesizing academic performance, technical skills, internship volume, and placement outcomes into a master tuple.',
+        "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
+               s.Branch, s.Batch_Year, s.CGPA,
+               (SELECT GROUP_CONCAT(sk.Skill SEPARATOR ', ')
+                  FROM STUDENT_SKILL sk WHERE sk.Student_ID = s.Student_ID)              AS Extra_Skills,
+               (SELECT COUNT(*) FROM INTERNSHIP i WHERE i.Student_ID = s.Student_ID)     AS Internships_Done,
+               (SELECT c.Company_Name FROM PLACEMENT p JOIN COMPANY c ON c.Company_ID = p.Company_ID
+                 WHERE p.Student_ID = s.Student_ID AND p.Joined = 'Yes' LIMIT 1)         AS Joined_Company,
+               (SELECT p.Package FROM PLACEMENT p
+                 WHERE p.Student_ID = s.Student_ID AND p.Joined = 'Yes' LIMIT 1)         AS Package
+        FROM STUDENT s
+        ORDER BY s.Batch_Year, s.Branch, s.Roll_No;
+""",
+        "params": [],
+    },
+    {
+        "id": 'combined_skills_cohort_comparison',
+        "title": 'ADD-3A. Skill Profile Comparison: Placed vs Non-Placed Cohorts',
+        "group": 'Analytics',
+        "dbms_concept": 'Multi-way outer join with conditional aggregation comparing total acquired skills, mean skill density, and unique skills acquired across cohorts.',
+        "sql": """SELECT
+            CASE WHEN p.Joined = 'Yes' THEN 'Placed Students' ELSE 'Non-Placed Students' END AS Placement_Status,
+            COUNT(DISTINCT s.Student_ID) AS Total_Students,
+            COUNT(sk.Skill) AS Total_Skills_Reported,
+            ROUND(COUNT(sk.Skill) / COUNT(DISTINCT s.Student_ID), 2) AS Avg_Skills_Per_Student,
+            GROUP_CONCAT(DISTINCT sk.Skill ORDER BY sk.Skill SEPARATOR ', ') AS Unique_Skills_Acquired
+        FROM STUDENT s
+        LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID AND p.Joined = 'Yes'
+        LEFT JOIN STUDENT_SKILL sk ON s.Student_ID = sk.Student_ID
+        GROUP BY CASE WHEN p.Joined = 'Yes' THEN 'Placed Students' ELSE 'Non-Placed Students' END;
+""",
+        "params": [],
+    },
+    {
+        "id": 'report_unplaced_students',
+        "title": 'E7. Unplaced Student Roster & Outreach Priority Ranking',
+        "group": 'Analytics',
+        "dbms_concept": 'Outer anti-join identifying unplaced candidates, evaluating institutional eligibility via conditional expression, and utilizing ROW_NUMBER() window partitioning by branch to prioritize outreach by CGPA.',
         "sql": """WITH UnplacedStudents AS (
-    SELECT
-        s.Student_ID,
-        s.Roll_No,
-        CONCAT(s.First_Name, ' ', COALESCE(s.Last_Name, '')) AS Student_Name,
-        s.Branch,
-        s.Batch_Year,
-        s.CGPA,
-        s.Backlogs,
-        s.Email,
-        CASE WHEN s.Backlogs = 0 AND s.CGPA >= 6.00 THEN 'Eligible' ELSE 'Ineligible' END AS Placement_Eligibility,
-        (SELECT COUNT(*) FROM PLACEMENT p WHERE p.Student_ID = s.Student_ID) AS Total_Offers_Received,
-        (SELECT GROUP_CONCAT(ph.Phone_No SEPARATOR ', ') FROM STUDENT_PHONE ph WHERE ph.Student_ID = s.Student_ID) AS Contact_Phones,
-        ROW_NUMBER() OVER (PARTITION BY s.Branch ORDER BY s.CGPA DESC) AS Branch_Priority_Rank,
-        DENSE_RANK() OVER (ORDER BY s.CGPA DESC) AS Overall_CGPA_Rank
-    FROM STUDENT s
-    LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID AND p.Joined = 'Yes'
-    WHERE p.Placement_ID IS NULL
-)
-SELECT * FROM UnplacedStudents ORDER BY Branch, Branch_Priority_Rank;""",
+            SELECT
+                s.Student_ID,
+                s.Roll_No,
+                CONCAT(s.First_Name, ' ', COALESCE(s.Last_Name, '')) AS Student_Name,
+                s.Branch,
+                s.Batch_Year,
+                s.CGPA,
+                s.Backlogs,
+                s.Email,
+                CASE WHEN s.Backlogs = 0 AND s.CGPA >= 6.00 THEN 'Eligible' ELSE 'Ineligible' END AS Placement_Eligibility,
+                (SELECT COUNT(*) FROM PLACEMENT p WHERE p.Student_ID = s.Student_ID) AS Total_Offers_Received,
+                (SELECT GROUP_CONCAT(ph.Phone_No SEPARATOR ', ') FROM STUDENT_PHONE ph WHERE ph.Student_ID = s.Student_ID) AS Contact_Phones,
+                ROW_NUMBER() OVER (PARTITION BY s.Branch ORDER BY s.CGPA DESC) AS Branch_Priority_Rank,
+                DENSE_RANK() OVER (ORDER BY s.CGPA DESC) AS Overall_CGPA_Rank
+            FROM STUDENT s
+            LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID AND p.Joined = 'Yes'
+            WHERE p.Placement_ID IS NULL
+        )
+        SELECT * FROM UnplacedStudents ORDER BY Branch, Branch_Priority_Rank;
+""",
         "params": [],
     },
     {
-        "id": "report_cgpa_vs_placement",
-        "title": "E8. CGPA Tiers vs Placement Conversion & Compensation",
-        "group": "Executive Reports",
-        "dbms_concept": "Categorical tiering via CASE WHEN evaluating academic performance bands, calculating group placement conversion rates, and correlating academic excellence with starting compensation packages.",
+        "id": 'report_cgpa_vs_placement',
+        "title": 'E8. CGPA Tiers vs Placement Conversion & Compensation',
+        "group": 'Analytics',
+        "dbms_concept": 'Categorical tiering via CASE WHEN evaluating academic performance bands, calculating group placement conversion rates, and correlating academic excellence with starting compensation packages.',
         "sql": """WITH StudentBands AS (
-    SELECT
-        s.Student_ID,
-        s.CGPA,
-        CASE
-            WHEN s.CGPA >= 9.0 THEN '1. 9.0 & Above (Elite)'
-            WHEN s.CGPA >= 8.0 THEN '2. 8.0 - 8.99 (High Distinction)'
-            WHEN s.CGPA >= 7.0 THEN '3. 7.0 - 7.99 (First Class)'
-            WHEN s.CGPA >= 6.0 THEN '4. 6.0 - 6.99 (Eligible / Pass)'
-            ELSE '5. Below 6.0 (Under Cutoff)'
-        END AS CGPA_Band,
-        CASE WHEN p.Joined = 'Yes' THEN 1 ELSE 0 END AS Is_Placed,
-        CASE WHEN p.Joined = 'Yes' THEN p.Package END AS Placed_Package,
-        p.Placement_ID
-    FROM STUDENT s
-    LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID
-)
-SELECT
-    CGPA_Band,
-    COUNT(DISTINCT Student_ID) AS Total_Students,
-    COUNT(DISTINCT CASE WHEN Is_Placed = 1 THEN Student_ID END) AS Placed_Students,
-    ROUND(100.0 * COUNT(DISTINCT CASE WHEN Is_Placed = 1 THEN Student_ID END) / COUNT(DISTINCT Student_ID), 1) AS Placement_Rate,
-    COUNT(Placement_ID) AS Total_Offers,
-    ROUND(COALESCE(AVG(Placed_Package), 0), 2) AS Avg_Package,
-    COALESCE(MAX(Placed_Package), 0.00) AS Highest_Package,
-    COALESCE(MIN(Placed_Package), 0.00) AS Lowest_Package
-FROM StudentBands
-GROUP BY CGPA_Band
-ORDER BY CGPA_Band ASC;""",
+            SELECT
+                s.Student_ID,
+                s.CGPA,
+                CASE
+                    WHEN s.CGPA >= 9.0 THEN '1. 9.0 & Above (Elite)'
+                    WHEN s.CGPA >= 8.0 THEN '2. 8.0 - 8.99 (High Distinction)'
+                    WHEN s.CGPA >= 7.0 THEN '3. 7.0 - 7.99 (First Class)'
+                    WHEN s.CGPA >= 6.0 THEN '4. 6.0 - 6.99 (Eligible / Pass)'
+                    ELSE '5. Below 6.0 (Under Cutoff)'
+                END AS CGPA_Band,
+                CASE WHEN p.Joined = 'Yes' THEN 1 ELSE 0 END AS Is_Placed,
+                CASE WHEN p.Joined = 'Yes' THEN p.Package END AS Placed_Package,
+                p.Placement_ID
+            FROM STUDENT s
+            LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID
+        )
+        SELECT
+            CGPA_Band,
+            COUNT(DISTINCT Student_ID) AS Total_Students,
+            COUNT(DISTINCT CASE WHEN Is_Placed = 1 THEN Student_ID END) AS Placed_Students,
+            ROUND(100.0 * COUNT(DISTINCT CASE WHEN Is_Placed = 1 THEN Student_ID END) / COUNT(DISTINCT Student_ID), 1) AS Placement_Rate,
+            COUNT(Placement_ID) AS Total_Offers,
+            ROUND(COALESCE(AVG(Placed_Package), 0), 2) AS Avg_Package,
+            COALESCE(MAX(Placed_Package), 0.00) AS Highest_Package,
+            COALESCE(MIN(Placed_Package), 0.00) AS Lowest_Package
+        FROM StudentBands
+        GROUP BY CGPA_Band
+        ORDER BY CGPA_Band ASC;
+""",
         "params": [],
     },
     {
-        "id": "report_drive_performance",
-        "title": "E9. Corporate Hiring Yield & Acceptance Conversion",
-        "group": "Executive Reports",
-        "dbms_concept": "Aggregation joining COMPANY and PLACEMENT computing selection conversion yield (Joined / Total Offers) and classifying corporate recruitment volume via DENSE_RANK().",
-        "sql": """WITH CompanyHiringStats AS (
-    SELECT
-        c.Company_ID,
-        c.Company_Name,
-        c.Company_Type,
-        c.Industry,
-        p.Placement_Year,
-        COUNT(p.Placement_ID) AS Total_Offers_Extended,
-        COUNT(CASE WHEN p.Offer_Status = 'Accepted' THEN 1 END) AS Accepted_Offers,
-        COUNT(CASE WHEN p.Joined = 'Yes' THEN 1 END) AS Joined_Hires,
-        ROUND(AVG(p.Package), 2) AS Avg_Package_Offered,
-        ROUND(AVG(CASE WHEN p.Joined = 'Yes' THEN p.Package END), 2) AS Avg_Joined_Package,
-        MAX(p.Package) AS Highest_Package
-    FROM COMPANY c
-    JOIN PLACEMENT p ON c.Company_ID = p.Company_ID
-    GROUP BY c.Company_ID, c.Company_Name, c.Company_Type, c.Industry, p.Placement_Year
-)
-SELECT
-    chs.*,
-    ROUND(COALESCE(100.0 * Joined_Hires / NULLIF(Total_Offers_Extended, 0), 0), 1) AS Conversion_Rate,
-    DENSE_RANK() OVER (PARTITION BY Placement_Year ORDER BY Total_Offers_Extended DESC, Joined_Hires DESC) AS Year_Company_Rank
-FROM CompanyHiringStats chs
-ORDER BY Placement_Year DESC, Total_Offers_Extended DESC;""",
-        "params": [],
-    },
-    {
-        "id": "report_semester_performance",
-        "title": "E10. Student Academic & Career Progression Trajectory",
-        "group": "Executive Reports",
-        "dbms_concept": "Cohort trajectory evaluation grouping by Branch and Batch_Year, computing placement rates and internship compliance, and calculating inter-cohort delta via LAG() window functions.",
+        "id": 'report_semester_performance',
+        "title": 'E10. Student Academic & Career Progression Trajectory',
+        "group": 'Analytics',
+        "dbms_concept": 'Cohort trajectory evaluation grouping by Branch and Batch_Year, computing placement rates and internship compliance, and calculating inter-cohort delta via LAG() window functions.',
         "sql": """WITH CohortStats AS (
-    SELECT
-        s.Branch,
-        s.Batch_Year,
-        COUNT(DISTINCT s.Student_ID) AS Total_Students,
-        ROUND(AVG(s.CGPA), 2) AS Avg_CGPA,
-        COUNT(DISTINCT CASE WHEN p.Joined = 'Yes' THEN s.Student_ID END) AS Placed_Count,
-        COUNT(DISTINCT CASE WHEN i.Internship_No = 1 AND i.Internship_Type = 'Mandatory' THEN s.Student_ID END) AS I1_Compliant,
-        COUNT(DISTINCT CASE WHEN i.Internship_No = 2 AND i.Internship_Type = 'Mandatory' THEN s.Student_ID END) AS I2_Compliant,
-        ROUND(COALESCE(AVG(p.Package), 0), 2) AS Avg_Placement_Package,
-        MAX(p.Package) AS Max_Package
-    FROM STUDENT s
-    LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID
-    LEFT JOIN INTERNSHIP i ON s.Student_ID = i.Student_ID
-    GROUP BY s.Branch, s.Batch_Year
-)
-SELECT
-    Branch,
-    Batch_Year,
-    Total_Students,
-    Avg_CGPA,
-    Placed_Count,
-    ROUND(100.0 * Placed_Count / NULLIF(Total_Students, 0), 1) AS Placement_Rate,
-    I1_Compliant,
-    I2_Compliant,
-    Avg_Placement_Package,
-    Max_Package,
-    LAG(Avg_CGPA) OVER (PARTITION BY Branch ORDER BY Batch_Year ASC) AS Prev_Batch_CGPA,
-    ROUND(COALESCE(Avg_CGPA - LAG(Avg_CGPA) OVER (PARTITION BY Branch ORDER BY Batch_Year ASC), 0), 2) AS CGPA_YoY_Delta,
-    DENSE_RANK() OVER (PARTITION BY Batch_Year ORDER BY Placed_Count DESC, Avg_Placement_Package DESC) AS Batch_Branch_Rank
-FROM CohortStats
-ORDER BY Batch_Year DESC, Batch_Branch_Rank ASC;""",
+            SELECT
+                s.Branch,
+                s.Batch_Year,
+                COUNT(DISTINCT s.Student_ID) AS Total_Students,
+                ROUND(AVG(s.CGPA), 2) AS Avg_CGPA,
+                COUNT(DISTINCT CASE WHEN p.Joined = 'Yes' THEN s.Student_ID END) AS Placed_Count,
+                COUNT(DISTINCT CASE WHEN i.Internship_No = 1 AND i.Internship_Type = 'Mandatory' THEN s.Student_ID END) AS I1_Compliant,
+                COUNT(DISTINCT CASE WHEN i.Internship_No = 2 AND i.Internship_Type = 'Mandatory' THEN s.Student_ID END) AS I2_Compliant,
+                ROUND(COALESCE(AVG(p.Package), 0), 2) AS Avg_Placement_Package,
+                MAX(p.Package) AS Max_Package
+            FROM STUDENT s
+            LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID
+            LEFT JOIN INTERNSHIP i ON s.Student_ID = i.Student_ID
+            GROUP BY s.Branch, s.Batch_Year
+        )
+        SELECT
+            Branch,
+            Batch_Year,
+            Total_Students,
+            Avg_CGPA,
+            Placed_Count,
+            ROUND(100.0 * Placed_Count / NULLIF(Total_Students, 0), 1) AS Placement_Rate,
+            I1_Compliant,
+            I2_Compliant,
+            Avg_Placement_Package,
+            Max_Package,
+            LAG(Avg_CGPA) OVER (PARTITION BY Branch ORDER BY Batch_Year ASC) AS Prev_Batch_CGPA,
+            ROUND(COALESCE(Avg_CGPA - LAG(Avg_CGPA) OVER (PARTITION BY Branch ORDER BY Batch_Year ASC), 0), 2) AS CGPA_YoY_Delta,
+            DENSE_RANK() OVER (PARTITION BY Batch_Year ORDER BY Placed_Count DESC, Avg_Placement_Package DESC) AS Batch_Branch_Rank
+        FROM CohortStats
+        ORDER BY Batch_Year DESC, Batch_Branch_Rank ASC;
+""",
         "params": [],
     },
 ]
-
-SAVED_QUERIES_BY_ID = {q["id"]: q for q in SAVED_QUERIES}
 
 
 def get_report_dynamic_options() -> Dict[str, List[Any]]:

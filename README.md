@@ -148,34 +148,21 @@ Legacy dataforce/
 ├── routes/
 │   ├── __init__.py                    # Blueprint instantiation and export
 │   ├── main.py                        # Web UI view controllers (Dashboard, Lists, Details, Exports)
-│   ├── students.py                    # Student REST API
-│   ├── companies.py                   # Company REST API
-│   ├── drives.py                      # Recruitment Drive REST API
-│   ├── opportunities.py               # Opportunity & Eligibility REST API
-│   ├── rounds.py                      # Selection Process Rounds REST API
-│   ├── placements.py                  # Placement Offers & Status REST API
-│   ├── internships.py                 # Internships REST API
-│   ├── courses.py                     # Academic Courses REST API
-│   ├── registrations.py               # Student Course Registration REST API
-│   ├── profiles.py                    # Student Extracurricular Profiles REST API
-│   ├── semester_results.py            # Academic Semester Results REST API
+│   ├── students.py                    # Student REST API (STUDENT, STUDENT_PHONE, STUDENT_SKILL)
+│   ├── companies.py                   # Company REST API (COMPANY)
+│   ├── placements.py                  # Placement Offers & Status REST API (PLACEMENT, PLACEMENT_SKILL)
+│   ├── internships.py                 # Internships & Compliance REST API (INTERNSHIP)
 │   └── health.py                      # Health diagnostics & DB ping endpoint
 ├── services/
 │   ├── __init__.py                    # Service exports and CSRF helper bindings
 │   ├── student_service.py             # Student management, profile assembly, search/filters
-│   ├── company_service.py             # Corporate recruiter management
-│   ├── drive_service.py               # Seasonal recruitment drive scheduling
-│   ├── opportunity_service.py         # Job roles, packages, and eligibility criteria
-│   ├── round_service.py               # Selection rounds configuration
-│   ├── placement_service.py           # Offer lifecycle, single-accepted rule, analytics
-│   ├── internship_service.py          # Mandatory/additional internships & prerequisite SGPA joins
-│   ├── internship_requirement_service.py # Curricular internship degree policies
-│   ├── course_service.py              # Academic course catalog operations
-│   ├── registration_service.py        # Student course enrollment operations
-│   ├── profile_service.py             # Portfolios, projects, and certifications
-│   ├── semester_result_service.py     # Verified semester SGPA ledger operations
+│   ├── company_service.py             # Corporate recruiter management & analytics
+│   ├── placement_service.py           # Offer lifecycle, single-joined rule, package analytics
+│   ├── internship_service.py          # Mandatory/additional internships & curriculum audits
 │   ├── dashboard_service.py           # Executive analytics & Chart.js data aggregation
 │   ├── sql_report_service.py          # Accreditation queries, SQL Console & safety validator
+│   ├── pdf_report_service.py          # High-fidelity ReportLab PDF export generation
+│   ├── pagination.py                  # Standardized cursor & offset pagination helper
 │   ├── security.py                    # URL validation, CSRF verification, and OWASP helpers
 │   ├── exceptions.py                  # Custom domain exceptions (Validation, Conflict, NotFound)
 │   └── health_service.py              # Database latency and connectivity diagnostics
@@ -465,11 +452,11 @@ The web application will initialize at:
 
 ### 3. Corporate Partners & Drives (`/companies`)
 - Corporate directory categorized by industry and organization model.
-- Hierarchical company detail views listing campus recruitment drives, open opportunities, eligibility constraints, and multi-stage selection rounds.
+- Comprehensive company detail views listing recruitment engagement, industry profile, placement records, and corporate internships.
 
 ### 4. Placement Management (`/placements`)
-- Complete offer ledger tracking designations, packages, offer statuses, and interview rounds.
-- Strict enforcement of the **Single-Accepted-Offer Rule**: accepting an offer blocks other offers from being accepted (`HTTP 409 Conflict`).
+- Complete offer ledger tracking designations, packages, offer statuses, and evaluated skills.
+- Strict enforcement of the **Single-Joined-Offer Rule**: a student can join at most one placement offer (enforced by generated column `Joined_Student` and unique key `uq_one_joined_offer`).
 - Star Performers view showcasing students holding multiple placement offers.
 
 ### 5. Internship Management (`/internships`)

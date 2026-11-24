@@ -144,6 +144,12 @@ class Config:
         os.getenv("SESSION_LIFETIME_SECONDS", "7200")
     )  # 2 hours default
 
+    # Administrator Authentication Settings (Strictly single admin defined in .env)
+    ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+    ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH")
+    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "AdminPassword2026!")
+    AUTO_AUTH_TEST_CLIENT = True
+
     # MySQL Settings
     MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
     MYSQL_PORT = int(os.getenv("MYSQL_PORT", "3306"))

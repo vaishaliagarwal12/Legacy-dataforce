@@ -19,6 +19,7 @@ from db.connection import DatabaseError
 from . import main_bp
 from services import (
     check_system_health,
+    admin_required,
     ServiceError,
     ValidationError,
     NotFoundError,
@@ -217,6 +218,7 @@ def _safe_error_message(err: Exception, default_msg: str = "A database error occ
 
 
 @main_bp.route("/", methods=["GET"])
+@admin_required
 def index():
     """Renders the executive dashboard with KPI cards, Chart.js visual charts, and recent activity."""
     health_info, status_code = check_system_health()
@@ -280,6 +282,7 @@ def index():
 
 
 @main_bp.route("/students", methods=["GET"])
+@admin_required
 def students_list():
     """Displays searchable, filterable, sortable, and paginated directory of students."""
     search = request.args.get("search", "").strip() or None
@@ -365,6 +368,7 @@ def students_list():
 
 @main_bp.route("/students/export-csv", methods=["GET"])
 @main_bp.route("/students/export", methods=["GET"])
+@admin_required
 def students_export_csv():
     """Generates and downloads a CSV export of filtered student records."""
     search = request.args.get("search", "").strip() or None
@@ -490,6 +494,7 @@ def students_export_csv():
 
 
 @main_bp.route("/students/new", methods=["GET", "POST"])
+@admin_required
 def student_create():
     """Handles adding a new student to the institution directory."""
     filter_opts = get_dashboard_filter_options()
@@ -552,8 +557,9 @@ def student_create():
 
 
 @main_bp.route("/students/<int:student_id>", methods=["GET"])
+@admin_required
 def student_detail(student_id: int):
-    """Displays comprehensive student profile across all 9 academic & career sections."""
+    """Displays comprehensive student profile across canonical 7-table schema sections."""
     try:
         student = get_student(student_id)
     except NotFoundError:
@@ -561,15 +567,8 @@ def student_detail(student_id: int):
         return redirect("/students")
 
     phones = student.get("Phone_Numbers", [])
-    profiles = student.get("Profiles", [])
-    projects = student.get("Projects", [])
-    achievements = student.get("Achievements", [])
-    semester_results = student.get("Semester_Results", [])
-    registrations = student.get("Registered_Courses", [])
     placements = student.get("Placements", [])
     internships = student.get("Internships", [])
-    resumes = student.get("Resumes", [])
-    education_docs = student.get("Education_Documents", [])
     skills = student.get("Skills", [])
 
     return render_template(
@@ -577,20 +576,14 @@ def student_detail(student_id: int):
         active_page="students",
         student=student,
         phones=phones,
-        profiles=profiles,
-        projects=projects,
-        achievements=achievements,
-        semester_results=semester_results,
-        registrations=registrations,
         placements=placements,
         internships=internships,
-        resumes=resumes,
-        education_docs=education_docs,
         skills=skills,
     )
 
 
 @main_bp.route("/students/<int:student_id>/export-pdf", methods=["GET"])
+@admin_required
 def student_export_pdf(student_id: int):
     """Generates and streams a complete 360-degree Student Profile PDF."""
     try:
@@ -613,6 +606,7 @@ def student_export_pdf(student_id: int):
 
 @main_bp.route("/students/<int:student_id>/internship-compliance-pdf", methods=["GET"])
 @main_bp.route("/internships/<int:student_id>/compliance-pdf", methods=["GET"])
+@admin_required
 def student_internship_compliance_pdf(student_id: int):
     """Generates and streams an individual Mandatory Internship Compliance Verification PDF."""
     try:
@@ -635,6 +629,7 @@ def student_internship_compliance_pdf(student_id: int):
 
 @main_bp.route("/students/<int:student_id>/internships-history-pdf", methods=["GET"])
 @main_bp.route("/internships/student/<int:student_id>/history-pdf", methods=["GET"])
+@admin_required
 def student_internship_history_pdf(student_id: int):
     """Generates and streams a student's complete internship history PDF."""
     try:
@@ -656,6 +651,7 @@ def student_internship_history_pdf(student_id: int):
 
 
 @main_bp.route("/students/<int:student_id>/edit", methods=["GET", "POST"])
+@admin_required
 def student_edit(student_id: int):
     """Handles updating student details."""
     try:
@@ -719,6 +715,7 @@ def student_edit(student_id: int):
 
 
 @main_bp.route("/students/<int:student_id>/delete", methods=["POST"])
+@admin_required
 def student_delete(student_id: int):
     """Safely deletes student, respecting institutional career history protection."""
     try:
@@ -733,6 +730,7 @@ def student_delete(student_id: int):
 
 
 @main_bp.route("/students/<int:student_id>/phones", methods=["POST"])
+@admin_required
 def student_phone_add(student_id: int):
     """Adds a phone number to a student in the dedicated phone table."""
     phone_number = request.form.get("phone_number", "").strip()
@@ -746,6 +744,7 @@ def student_phone_add(student_id: int):
 
 
 @main_bp.route("/students/<int:student_id>/phones/<string:phone_no>/delete", methods=["POST"])
+@admin_required
 def student_phone_delete(student_id: int, phone_no: str):
     """Deletes a phone number from the separate phone table."""
     try:
@@ -758,6 +757,7 @@ def student_phone_delete(student_id: int, phone_no: str):
 
 
 @main_bp.route("/students/<int:student_id>/skills", methods=["POST"])
+@admin_required
 def student_skill_add(student_id: int):
     """Adds a technical skill to a student in the dedicated STUDENT_SKILL table."""
     skill = request.form.get("skill", "").strip()
@@ -772,6 +772,7 @@ def student_skill_add(student_id: int):
 
 
 @main_bp.route("/students/<int:student_id>/skills/<string:skill>/delete", methods=["POST"])
+@admin_required
 def student_skill_delete(student_id: int, skill: str):
     """Deletes a skill from the STUDENT_SKILL table."""
     try:
@@ -790,6 +791,7 @@ def student_skill_delete(student_id: int, skill: str):
 
 
 @main_bp.route("/companies", methods=["GET"])
+@admin_required
 def companies_list():
     """Displays searchable and filterable company partners."""
     search = request.args.get("search", "").strip() or None
@@ -813,6 +815,7 @@ def companies_list():
 
 
 @main_bp.route("/companies/new", methods=["GET", "POST"])
+@admin_required
 def company_create():
     """Registers a new corporate partner."""
     if request.method == "POST":
@@ -842,6 +845,7 @@ def company_create():
 
 
 @main_bp.route("/companies/<int:company_id>", methods=["GET"])
+@admin_required
 def company_detail(company_id: int):
     """Displays company profile, recruitment drives, opportunities, and recruited students."""
     try:
@@ -874,6 +878,7 @@ def company_detail(company_id: int):
 
 
 @main_bp.route("/companies/<int:company_id>/edit", methods=["GET", "POST"])
+@admin_required
 def company_edit(company_id: int):
     """Handles updating company details."""
     try:
@@ -916,6 +921,7 @@ def company_edit(company_id: int):
 
 
 @main_bp.route("/companies/<int:company_id>/delete", methods=["POST"])
+@admin_required
 def company_delete(company_id: int):
     """Handles company deletion with relationship integrity protection."""
     try:
@@ -935,6 +941,7 @@ def company_delete(company_id: int):
 
 
 @main_bp.route("/internships", methods=["GET"])
+@admin_required
 def internships_list():
     """Displays internships with comprehensive dashboard, filtering, search, and compliance audit tabs."""
     active_tab = request.args.get("type", "All").strip()
@@ -1015,6 +1022,7 @@ def internships_list():
 
 @main_bp.route("/internships/export-csv", methods=["GET"])
 @main_bp.route("/internships/export", methods=["GET"])
+@admin_required
 def internships_export_csv():
     """Generates and streams a downloadable RFC 4180 CSV export of filtered internship records."""
     search = request.args.get("q") or request.args.get("search")
@@ -1125,6 +1133,7 @@ def internships_export_csv():
 
 
 @main_bp.route("/internships/<int:internship_id>", methods=["GET"])
+@admin_required
 def internship_detail(internship_id: int):
     """Displays comprehensive internship dossier view."""
     try:
@@ -1145,6 +1154,7 @@ def internship_detail(internship_id: int):
 
 
 @main_bp.route("/internships/<int:internship_id>/edit", methods=["GET", "POST"])
+@admin_required
 def internship_edit(internship_id: int):
     """Handles updating an existing internship record."""
     try:
@@ -1188,6 +1198,7 @@ def internship_edit(internship_id: int):
 
 
 @main_bp.route("/internships/new", methods=["GET", "POST"])
+@admin_required
 def internship_create():
     """Handles recording a student internship enforcing academic policy constraints."""
     if request.method == "POST":
@@ -1248,6 +1259,7 @@ def internship_create():
 
 
 @main_bp.route("/internships/<int:internship_id>/delete", methods=["POST"])
+@admin_required
 def internship_delete(internship_id: int):
     """Deletes an internship record."""
     try:
@@ -1260,6 +1272,7 @@ def internship_delete(internship_id: int):
 
 
 @main_bp.route("/internships/missing-mandatory-pdf", methods=["GET"])
+@admin_required
 def internships_missing_mandatory_pdf():
     """Generates and streams an institutional Missing Mandatory Internship Audit PDF."""
     raw_branch = request.args.get("branch", "").strip() or None
@@ -1284,6 +1297,7 @@ def internships_missing_mandatory_pdf():
 
 
 @main_bp.route("/placements", methods=["GET"])
+@admin_required
 def placements_list():
     """Displays placement directory with advanced search, multi-filters, dynamic sorting, server-side pagination, KPI cards, and star performers view."""
     view_type = request.args.get("view", "all").strip().lower()
@@ -1433,6 +1447,7 @@ def placements_list():
 
 @main_bp.route("/placements/export-csv", methods=["GET"])
 @main_bp.route("/placements/export", methods=["GET"])
+@admin_required
 def placements_export_csv():
     """Generates and streams a downloadable CSV of filtered placement offer records."""
     search = request.args.get("search", "").strip() or None
@@ -1565,8 +1580,9 @@ def placements_export_csv():
 
 
 @main_bp.route("/placements/<int:placement_id>", methods=["GET"])
+@admin_required
 def placement_detail(placement_id: int):
-    """Displays comprehensive placement offer details including student, company, drive, and eligibility compliance."""
+    """Displays comprehensive placement offer details including student, company, and evaluated skills."""
     try:
         offer = get_placement_offer(placement_id)
     except NotFoundError:
@@ -1581,6 +1597,7 @@ def placement_detail(placement_id: int):
 
 
 @main_bp.route("/placements/<int:placement_id>/edit", methods=["GET", "POST"])
+@admin_required
 def placement_edit(placement_id: int):
     """Handles updating a placement offer's details and evaluated skills."""
     try:
@@ -1632,8 +1649,9 @@ def placement_edit(placement_id: int):
 
 
 @main_bp.route("/placements/new", methods=["GET", "POST"])
+@admin_required
 def placement_create():
-    """Handles issuing a placement offer enforcing no duplicates, opportunity type, and single-accepted offer rules."""
+    """Handles issuing a placement offer enforcing no duplicates and single-joined offer rules."""
     current_year = datetime.date.today().year
 
     if request.method == "POST":
@@ -1693,6 +1711,7 @@ def placement_create():
 
 
 @main_bp.route("/placements/<int:placement_id>/status", methods=["POST"])
+@admin_required
 def placement_status_update(placement_id: int):
     """Updates an offer's status (Accept, Decline, Joined), enforcing the single accepted offer constraint."""
     new_status = request.form.get("status", "").strip()
@@ -1716,6 +1735,7 @@ def placement_status_update(placement_id: int):
 
 
 @main_bp.route("/placements/<int:placement_id>/delete", methods=["POST"])
+@admin_required
 def placement_delete(placement_id: int):
     """Deletes a placement offer record."""
     try:
@@ -1733,6 +1753,7 @@ def placement_delete(placement_id: int):
 
 
 @main_bp.route("/reports", methods=["GET"])
+@admin_required
 def reports_view():
     """Renders comprehensive institutional reports with multi-criteria filters."""
     raw_branch = request.args.get("branch", "").strip() or None
@@ -1768,6 +1789,7 @@ def reports_view():
 
 
 @main_bp.route("/reports/export", methods=["GET"])
+@admin_required
 def reports_export_csv():
     """Generates and streams a CSV export of the filtered cohort report."""
     raw_branch = request.args.get("branch", "").strip() or None
@@ -1855,6 +1877,7 @@ def reports_export_csv():
 
 
 @main_bp.route("/reports/export-pdf", methods=["GET"])
+@admin_required
 def reports_export_pdf():
     """Generates and streams an executive PDF report of the filtered cohort."""
     raw_branch = request.args.get("branch", "").strip() or None
@@ -2058,6 +2081,7 @@ def reports_export_pdf():
 
 
 @main_bp.route("/api/analytics/dashboard", methods=["GET"])
+@admin_required
 def api_dashboard_stats():
     """Returns aggregated enterprise dashboard statistics and charts JSON."""
     raw_batch = request.args.get("batch_year")
@@ -2084,6 +2108,7 @@ def api_dashboard_stats():
 
 
 @main_bp.route("/api/analytics/charts/yearwise", methods=["GET"])
+@admin_required
 def api_chart_yearwise():
     """Returns year-wise placement trends JSON."""
     raw_branch = request.args.get("branch", "").strip() or None
@@ -2100,6 +2125,7 @@ def api_chart_yearwise():
 
 
 @main_bp.route("/api/analytics/charts/branchwise", methods=["GET"])
+@admin_required
 def api_chart_branchwise():
     """Returns branch-wise distribution JSON."""
     raw_batch = request.args.get("batch_year")
@@ -2124,6 +2150,7 @@ def api_chart_branchwise():
 
 
 @main_bp.route("/sql-reports", methods=["GET"])
+@admin_required
 def sql_reports_view():
     """Displays the two-part SQL Reports page:
     Part 1: Saved queries from placement_internship_db.sql and Phase 9 DBMS demo.
@@ -2138,6 +2165,7 @@ def sql_reports_view():
 
 
 @main_bp.route("/api/sql-reports/run-saved", methods=["POST"])
+@admin_required
 def api_run_saved_query():
     """Executes a parameterized saved query and returns table data as JSON."""
     data = request.get_json(silent=True) or request.form.to_dict()
@@ -2177,6 +2205,7 @@ def api_run_saved_query():
 
 
 @main_bp.route("/sql-reports/export-saved", methods=["GET"])
+@admin_required
 def export_saved_query_csv():
     """Exports the execution results of a saved query as a downloadable CSV file."""
     query_id = request.args.get("query_id")
@@ -2241,6 +2270,7 @@ def export_saved_query_csv():
 
 
 @main_bp.route("/api/sql-reports/run-custom", methods=["POST"])
+@admin_required
 def api_run_custom_query():
     """Validates and executes user-provided SQL under read-only MySQL permissions and 500-row limit."""
     data = request.get_json(silent=True) or request.form.to_dict()
@@ -2307,6 +2337,7 @@ def api_run_custom_query():
 
 
 @main_bp.route("/sql-reports/export-custom", methods=["POST"])
+@admin_required
 def export_custom_query_csv():
     """Exports custom SQL execution results as a downloadable CSV."""
     raw_sql = request.form.get("sql", "").strip()

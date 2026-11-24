@@ -37,6 +37,7 @@ from .placement_service import (
     get_students_with_multiple_offers,
     get_offer_distribution_summary,
     get_placement_analytics,
+    check_candidate_placement_eligibility,
     check_candidate_eligibility_for_opportunity,
     get_placement_package_statistics,
     get_package_bracket_thresholds,
@@ -90,6 +91,10 @@ from .security import (
     verify_csrf_token,
     validate_safe_url,
     validate_file_upload,
+    is_admin_authenticated,
+    authenticate_admin,
+    logout_admin,
+    admin_required,
 )
 
 __all__ = [
@@ -167,4 +172,8 @@ __all__ = [
     "verify_csrf_token",
     "validate_safe_url",
     "validate_file_upload",
+    "is_admin_authenticated",
+    "authenticate_admin",
+    "logout_admin",
+    "admin_required",
 ]

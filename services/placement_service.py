@@ -890,10 +890,8 @@ def get_offer_distribution_summary() -> Dict[str, Any]:
     }
 
 
-def check_candidate_eligibility_for_opportunity(
-    student_id: int, opportunity_id: Optional[int] = None
-) -> Dict[str, Any]:
-    """Evaluates candidate eligibility based on student record (CGPA and backlogs)."""
+def check_candidate_placement_eligibility(student_id: int) -> Dict[str, Any]:
+    """Evaluates candidate placement eligibility based on student academic record (CGPA >= 6.0 and 0 backlogs)."""
     student = execute_one(
         "SELECT Student_ID, Roll_No, First_Name, Last_Name, Branch, CGPA, Backlogs FROM STUDENT WHERE Student_ID = %s",
         (student_id,),
@@ -916,3 +914,8 @@ def check_candidate_eligibility_for_opportunity(
             "Branch": student["Branch"],
         },
     }
+
+
+def check_candidate_eligibility_for_opportunity(student_id: int, opportunity_id: Optional[int] = None) -> Dict[str, Any]:
+    """Backward compatibility alias for check_candidate_placement_eligibility."""
+    return check_candidate_placement_eligibility(student_id)

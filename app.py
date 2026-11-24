@@ -1,10 +1,12 @@
 import os
 import time
 import logging
-from flask import Flask, jsonify, request, flash, redirect, render_template
+from flask import Flask, jsonify, request, flash, redirect, render_template, session
+from flask.testing import FlaskClient
 from config import config_by_name, Config
 from db.connection import DatabaseError
 from routes import (
+    auth_bp,
     health_bp,
     main_bp,
     student_bp,
@@ -12,7 +14,12 @@ from routes import (
     placement_bp,
     internship_bp,
 )
-from services import ServiceError, generate_csrf_token, verify_csrf_token
+from services import (
+    ServiceError,
+    generate_csrf_token,
+    verify_csrf_token,
+    is_admin_authenticated,
+)
 
 # Configure logging format
 logging.basicConfig(
@@ -20,6 +27,18 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("legacy_dataforce")
+
+
+class AutoAuthTestClient(FlaskClient):
+    """Test client supporting auto-authenticated testing while allowing unauthenticated tests."""
+
+    def __init__(self, *args, **kwargs):
+        auto_login = kwargs.pop("auto_login", True)
+        super().__init__(*args, **kwargs)
+        if auto_login and getattr(self.application, "config", {}).get("AUTO_AUTH_TEST_CLIENT", True):
+            with self.session_transaction() as sess:
+                sess["admin_logged_in"] = True
+                sess["admin_user"] = self.application.config.get("ADMIN_USERNAME", "admin")
 
 
 def create_app(config_name: str = None) -> Flask:
@@ -30,8 +49,10 @@ def create_app(config_name: str = None) -> Flask:
     app = Flask(__name__)
     selected_config = config_by_name.get(config_name, Config)
     app.config.from_object(selected_config)
+    app.test_client_class = AutoAuthTestClient
 
     # Register Route Blueprints (Canonical 7-Table Schema)
+    app.register_blueprint(auth_bp)
     app.register_blueprint(health_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(student_bp)
@@ -62,12 +83,19 @@ def create_app(config_name: str = None) -> Flask:
         return {
             "csrf_token": generate_csrf_token,
             "is_db_connected": _db_health_cache["is_connected"],
+            "is_admin_logged_in": is_admin_authenticated(),
+            "admin_username": session.get(
+                "admin_user", app.config.get("ADMIN_USERNAME", "admin")
+            ),
         }
 
     # State-Changing Request Security & CSRF Enforcement
     @app.before_request
     def check_csrf_protection():
         if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+            # When unauthenticated on a non-login route, defer to @admin_required
+            if not is_admin_authenticated() and request.path != "/login":
+                return
             if not app.config.get("CSRF_ENABLED", True):
                 return
             if app.config.get("TESTING", False) and not app.config.get("WTF_CSRF_ENABLED", False):

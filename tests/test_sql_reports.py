@@ -38,15 +38,20 @@ class SqlReportsFeatureTests(unittest.TestCase):
         self.assertIn("Saved DBMS Query", content)
 
     def test_saved_queries_catalog_groups(self):
-        """Verify saved queries are categorized into Students, Placements, Internships, Combined."""
+        """Verify saved queries are categorized into the 7 required groups:
+        Students, Companies, Placements, Internships, Dashboard KPIs, Compliance, Analytics.
+        """
         queries = list_saved_queries()
         self.assertGreaterEqual(len(queries), 30)
 
         groups = {q["group"] for q in queries}
         self.assertIn("Students", groups)
+        self.assertIn("Companies", groups)
         self.assertIn("Placements", groups)
         self.assertIn("Internships", groups)
-        self.assertIn("Combined", groups)
+        self.assertIn("Dashboard KPIs", groups)
+        self.assertIn("Compliance (Mandatory Internship 1 and 2)", groups)
+        self.assertIn("Analytics", groups)
 
         for q in queries:
             self.assertTrue(

@@ -40,7 +40,7 @@ Before calling the professors to your screen, ensure:
 ### Actions to Perform:
 1. Open browser to `http://localhost:5000/`.
 2. Point out the **8 Core University Placement KPI Cards**:
-   - Total Students, Eligible Students (CGPA $\ge$ 6.00 and 0 Backlogs), Total Companies, Active Recruitment Drives, Total Placement Offers, Successfully Placed Students, Average CTC Package, and Highest Package.
+   - Total Students, Eligible Students (CGPA $\ge$ 6.00 and 0 Backlogs), Total Companies, Accepted Offers, Total Placement Offers, Successfully Placed Students (Joined), Average CTC Package, and Highest Package.
 3. In the **Cohort & Placement Filters** toolbar:
    - Select **Batch Year**: `2024`.
    - Select **Branch**: `Computer Science`.
@@ -217,10 +217,10 @@ Before calling the professors to your screen, ensure:
 
 | DBMS Concept | Implementation in Legacy DataForce |
 | :--- | :--- |
-| **Relational Model & Normalization** | 20 base tables in BCNF/3NF; 1NF decomposition for phones & skills (`STUDENT_PHONE`, `STUDENT_SKILL`). |
-| **Integrity Constraints** | Primary keys on all tables, composite keys on child tables, `CHECK` constraints on CGPA (0-10) and dates (`End_Date >= Start_Date`). |
-| **Referential Integrity** | `ON DELETE RESTRICT` on companies to protect placement history; `ON DELETE CASCADE` on rounds & eligibility. |
-| **ACID Transactions** | Multi-table inserts and the Single-Accepted-Offer rule wrapped in `BEGIN ... COMMIT` with rollback on conflict. |
+| **Relational Model & Normalization** | Canonical 7 base tables (6 in BCNF, 1 in 1NF with curriculum denormalization); 1NF decomposition for phones & skills (`STUDENT_PHONE`, `STUDENT_SKILL`). |
+| **Integrity Constraints** | Primary keys on all tables, composite keys on child tables, `CHECK` constraints on CGPA (0-10), placement joined status, and dates (`End_Date >= Start_Date`). |
+| **Referential Integrity** | `ON DELETE RESTRICT` on students and companies to protect placement/internship history; `ON DELETE CASCADE` on `STUDENT_PHONE`, `STUDENT_SKILL`, `PLACEMENT_SKILL`. |
+| **ACID Transactions** | Multi-table inserts and the Single-Joined-Offer rule wrapped in atomic transactions with rollback on conflict. |
 | **Indexing & Performance** | Clustered primary B-Tree indexes + secondary composite indexes on `(Branch, Batch_Year)` and `(CGPA)`. |
 | **Database Views** | `v_placement_detail` and `v_internship_detail` abstracting complex multi-table joins. |
 | **Advanced SQL** | Window functions (`DENSE_RANK()`, `ROW_NUMBER()`), CTEs (`WITH ...`), and conditional aggregations (`COUNT(CASE WHEN...)`). |

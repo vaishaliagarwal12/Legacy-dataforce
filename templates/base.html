@@ -21,6 +21,7 @@
 </head>
 <body>
     <div class="app-wrapper">
+        {% if is_admin_logged_in %}
         <!-- Light Theme Sidebar (Collapses on Mobile) -->
         <aside class="app-sidebar" id="appSidebar">
             <div class="d-flex align-items-center justify-content-between border-bottom">
@@ -99,12 +100,14 @@
 
         <!-- Mobile Sidebar Backdrop -->
         <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+        {% endif %}
 
         <!-- Main Wrapper -->
         <div class="main-wrapper">
             <!-- Top Navbar -->
             <header class="top-navbar">
                 <div class="d-flex align-items-center gap-3">
+                    {% if is_admin_logged_in %}
                     <button class="btn btn-sm btn-light border d-lg-none" id="sidebarToggle" aria-label="Toggle Sidebar" title="Toggle Sidebar">
                         <i class="bi bi-list fs-5"></i>
                     </button>
@@ -114,15 +117,31 @@
                             {% block breadcrumb %}{% endblock %}
                         </ol>
                     </nav>
+                    {% else %}
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="brand-icon text-primary"><i class="bi bi-mortarboard-fill fs-5"></i></span>
+                        <span class="fw-bold text-dark">Legacy DataForce</span>
+                    </div>
+                    {% endif %}
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
+                    {% if is_admin_logged_in %}
                     <span class="badge {% if is_db_connected %}badge-status-success{% else %}badge-status-danger{% endif %} px-2 py-1" id="dbHealthBadge" title="{% if is_db_connected %}MySQL 8.0 Active Connection{% else %}MySQL Service Unavailable{% endif %}">
                         <i class="bi bi-circle-fill {% if is_db_connected %}text-success{% else %}text-danger{% endif %}" style="font-size: 0.5rem; vertical-align: middle;"></i> {% if is_db_connected %}MySQL Connected{% else %}MySQL Disconnected{% endif %}
                     </span>
                     <a href="/health" class="btn btn-sm btn-outline-secondary d-none d-sm-inline-flex align-items-center gap-1" target="_blank" title="System Health & API Status">
                         <i class="bi bi-activity"></i> Health
                     </a>
+                    <div class="vr d-none d-sm-block my-1 text-secondary opacity-25"></div>
+                    <span class="badge bg-light text-dark border px-2 py-1 d-inline-flex align-items-center gap-1" id="adminUserBadge" title="Authenticated Administrator">
+                        <i class="bi bi-person-fill text-primary"></i>
+                        <span class="fw-semibold">{{ admin_username }}</span>
+                    </span>
+                    <a href="{{ url_for('auth_bp.logout') }}" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1" id="logoutBtn" title="Log out of administrator account">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </a>
+                    {% endif %}
                 </div>
             </header>
 

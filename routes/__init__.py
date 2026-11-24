@@ -1,5 +1,6 @@
 from flask import Blueprint
 
+auth_bp = Blueprint("auth_bp", __name__)
 health_bp = Blueprint("health_bp", __name__)
 main_bp = Blueprint("main_bp", __name__)
 student_bp = Blueprint("student_bp", __name__, url_prefix="/api/students")
@@ -8,6 +9,7 @@ placement_bp = Blueprint("placement_bp", __name__, url_prefix="/api/placements")
 internship_bp = Blueprint("internship_bp", __name__, url_prefix="/api/internships")
 
 from . import (
+    auth,
     health,
     main,
     students,
@@ -17,6 +19,7 @@ from . import (
 )
 
 __all__ = [
+    "auth_bp",
     "health_bp",
     "main_bp",
     "student_bp",

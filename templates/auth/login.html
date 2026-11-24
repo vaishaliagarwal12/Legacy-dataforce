@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Administrator Login &bull; Legacy DataForce{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center py-5 my-sm-4">
+    <div class="col-12 col-sm-10 col-md-8 col-lg-5 col-xl-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4 p-sm-5">
+                <div class="text-center mb-4">
+                    <div class="d-inline-flex align-items-center justify-content-center mb-3 text-primary" style="width: 56px; height: 56px; border-radius: 12px; background: rgba(37, 99, 235, 0.1);">
+                        <i class="bi bi-shield-lock-fill fs-3"></i>
+                    </div>
+                    <h4 class="fw-bold text-dark mb-1">Administrator Sign In</h4>
+                    <p class="text-muted small mb-0">Single Authorized Institutional Access</p>
+                </div>
+
+                <form method="POST" action="{{ url_for('auth_bp.login') }}" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    {% if request.args.get('next') %}
+                        <input type="hidden" name="next" value="{{ request.args.get('next') }}">
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="adminUsername" class="form-label small fw-semibold text-secondary">Username</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-person"></i></span>
+                            <input type="text" class="form-control border-start-0" id="adminUsername" name="username" placeholder="Enter admin username" required autofocus autocomplete="username">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="adminPassword" class="form-label small fw-semibold text-secondary">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-key"></i></span>
+                            <input type="password" class="form-control border-start-0" id="adminPassword" name="password" placeholder="Enter admin password" required autocomplete="current-password">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2">
+                        <i class="bi bi-box-arrow-in-right"></i> Sign In to Portal
+                    </button>
+                </form>
+            </div>
+            <div class="card-footer bg-light border-0 py-3 text-center text-muted small">
+                <i class="bi bi-shield-check me-1"></i> Admin Authentication &bull; Strictly single account access
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

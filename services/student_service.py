@@ -245,16 +245,6 @@ def get_student(student_id: int) -> Dict[str, Any]:
             pass
 
     student["Internships"] = internships
-
-    # Compatibility empty lists for dropped tables
-    student["Registered_Courses"] = []
-    student["Profiles"] = []
-    student["Projects"] = []
-    student["Achievements"] = []
-    student["Semester_Results"] = []
-    student["Resumes"] = []
-    student["Education_Documents"] = []
-
     return student
 
 

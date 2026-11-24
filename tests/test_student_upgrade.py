@@ -166,39 +166,21 @@ class StudentUpgradeTestCase(unittest.TestCase):
         self.assertIn("Backlogs", student)
         self.assertIn("Is_Eligible", student)
 
-        # 3. Semester results
-        self.assertIn("Semester_Results", student)
-        self.assertIsInstance(student["Semester_Results"], list)
-        if student["Semester_Results"]:
-            sr = student["Semester_Results"][0]
-            self.assertIn("Semester", sr)
-            self.assertIn("SGPA", sr)
-            self.assertIn("Total_Credits", sr)
-
-        # 4. Registered courses
-        self.assertIn("Registered_Courses", student)
-        self.assertIsInstance(student["Registered_Courses"], list)
-
-        # 5. Technical skills
+        # 3. Technical skills (STUDENT_SKILL)
         self.assertIn("Skills", student)
         self.assertIsInstance(student["Skills"], list)
 
-        # 6. Projects and achievements
-        self.assertIn("Projects", student)
-        self.assertIn("Achievements", student)
-        self.assertIn("Profiles", student)
-
-        # 7. Resume and education documents
-        self.assertIn("Resumes", student)
-        self.assertIn("Education_Documents", student)
-
-        # 8. Internship history
+        # 4. Internship history (INTERNSHIP)
         self.assertIn("Internships", student)
         self.assertIsInstance(student["Internships"], list)
 
-        # 9. Placement offers
+        # 5. Placement offers (PLACEMENT)
         self.assertIn("Placements", student)
         self.assertIsInstance(student["Placements"], list)
+
+        # 6. Verify dropped tables are NOT in student dict
+        for dropped in ["Semester_Results", "Registered_Courses", "Projects", "Achievements", "Profiles", "Resumes", "Education_Documents"]:
+            self.assertNotIn(dropped, student)
 
     def test_08_student_detail_page_renders_all_sections(self):
         """Verifies GET /students/<id> HTML view renders canonical profile sections."""

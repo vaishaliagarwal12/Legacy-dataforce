@@ -116,7 +116,7 @@ class TestInputValidation:
             "SELECT * FROM STUDENT -- comment",
             "SELECT * FROM STUDENT # hash comment",
             "UPDATE STUDENT SET CGPA = 10.0 WHERE Student_ID = 1",
-            "DELETE FROM RECRUITMENT_DRIVE",
+            "DELETE FROM COMPANY",
             "TRUNCATE TABLE INTERNSHIP",
         ]
         for attack in attack_vectors:

@@ -111,55 +111,7 @@ def generate_student_profile_pdf(student_id: int) -> bytes:
         ('RIGHTPADDING', (0,0), (-1,-1), 5),
     ]))
     story.append(t_personal)
-    story.append(Spacer(1, 6))
-
-    # Academic Semester Results Ledger
-    story.append(Paragraph("Chronological Semester Performance Ledger", styles['SecHead']))
-    sem_rows = [[Paragraph("Semester", styles['TableHead']), Paragraph("Academic Year", styles['TableHead']),
-                 Paragraph("SGPA", styles['TableHead']), Paragraph("Credits Earned", styles['TableHead']), Paragraph("Standing", styles['TableHead'])]]
-    for s in student.get('Semester_Results', []):
-        standing = "Excellent" if s['SGPA'] >= 9.0 else "Good" if s['SGPA'] >= 7.5 else "Passing"
-        sem_rows.append([
-            Paragraph(f"Semester {s['Semester']}", styles['TableCell']),
-            Paragraph(str(s.get('Year', 'N/A')), styles['TableCell']),
-            Paragraph(f"<b>{s['SGPA']:.2f}</b>", styles['TableCell']),
-            Paragraph(str(s.get('Total_Credits', 24)), styles['TableCell']),
-            Paragraph(standing, styles['TagSuccess'] if s['SGPA'] >= 7.5 else styles['TableCell'])
-        ])
-    t_sem = Table(sem_rows, colWidths=[100, 100, 100, 120, 120])
-    t_sem.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1e3a8a')),
-        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-        ('INNERGRID', (0,0), (-1,-1), 0.3, colors.HexColor('#e2e8f0')),
-        ('TOPPADDING', (0,0), (-1,-1), 2.5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 2.5),
-    ]))
-    story.append(t_sem)
-    story.append(Spacer(1, 6))
-
-    # Enrolled Course Work
-    if student.get('Registered_Courses'):
-        story.append(Paragraph("Registered Course Work & Academic Curricula", styles['SecHead']))
-        course_rows = [[Paragraph("Semester", styles['TableHead']), Paragraph("Course Name", styles['TableHead']),
-                        Paragraph("Type", styles['TableHead']), Paragraph("Credits", styles['TableHead']), Paragraph("Final Grade", styles['TableHead'])]]
-        for c in student['Registered_Courses']:
-            course_rows.append([
-                Paragraph(f"Sem {c['Semester']}", styles['TableCell']),
-                Paragraph(c['Course_Name'], styles['TableCell']),
-                Paragraph(c.get('Course_Type', 'Core'), styles['TableCell']),
-                Paragraph(str(c.get('Credits', 4)), styles['TableCell']),
-                Paragraph(f"<b>{c.get('Grade', 'N/A')}</b>", styles['TableCell']),
-            ])
-        t_course = Table(course_rows, colWidths=[65, 235, 80, 70, 90])
-        t_course.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0f766e')),
-            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
-            ('INNERGRID', (0,0), (-1,-1), 0.3, colors.HexColor('#e2e8f0')),
-            ('TOPPADDING', (0,0), (-1,-1), 2.5),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 2.5),
-        ]))
-        story.append(t_course)
-        story.append(Spacer(1, 6))
+    story.append(Spacer(1, 8))
 
     # Placement Offers
     story.append(Paragraph("Placement Offers & Compensation Records", styles['SecHead']))
@@ -167,7 +119,7 @@ def generate_student_profile_pdf(student_id: int) -> bytes:
         p_rows = [[Paragraph("Recruiting Organization", styles['TableHead']), Paragraph("Designated Role", styles['TableHead']),
                    Paragraph("Package (CTC)", styles['TableHead']), Paragraph("Offer Status", styles['TableHead']), Paragraph("PPO", styles['TableHead'])]]
         for p in student['Placements']:
-            status_style = styles['TagSuccess'] if p.get('Joined') == 'Yes' or p.get('Offer_Status') in ('Accepted', 'Joined') else styles['TableCell']
+            status_style = styles['TagSuccess'] if p.get('Joined') == 'Yes' or p.get('Offer_Status') == 'Accepted' else styles['TableCell']
             p_rows.append([
                 Paragraph(p['Company_Name'], styles['TableCellBold']),
                 Paragraph(p['Role'], styles['TableCell']),
