@@ -11,16 +11,13 @@ Verifies:
 """
 
 import unittest
-from datetime import date
 from db.connection import get_cursor, execute_one
 from services.internship_service import (
     create_internship,
-    update_internship,
     check_internship_eligibility,
-    get_mandatory_internships_with_prerequisite_sgpa,
 )
-from services.internship_requirement_service import list_requirements, get_requirement
-from services.exceptions import ValidationError, ConflictError
+from services.internship_requirement_service import get_requirement
+from services.exceptions import ValidationError
 
 
 class TestInternshipRuleV2(unittest.TestCase):
@@ -33,19 +30,30 @@ class TestInternshipRuleV2(unittest.TestCase):
                 VALUES ('TEST_V2_001', 'TestRule', 'Student', 'testrule.student@fictional.edu', 'CSE', 2021, 8.50, 0)
                 ON DUPLICATE KEY UPDATE Student_ID = LAST_INSERT_ID(Student_ID)
             """)
-            cls.student_id = cur.lastrowid or execute_one("SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST_V2_001'")["Student_ID"]
+            cls.student_id = (
+                cur.lastrowid
+                or execute_one("SELECT Student_ID FROM STUDENT WHERE Roll_No = 'TEST_V2_001'")[
+                    "Student_ID"
+                ]
+            )
 
             # Insert Sem 3, Sem 7 results
-            cur.execute("""
+            cur.execute(
+                """
                 INSERT INTO SEMESTER_RESULT (Student_ID, Semester, SGPA, Year, Total_Credits)
                 VALUES (%s, 3, 8.20, 2022, 24)
                 ON DUPLICATE KEY UPDATE SGPA = 8.20
-            """, (cls.student_id,))
-            cur.execute("""
+            """,
+                (cls.student_id,),
+            )
+            cur.execute(
+                """
                 INSERT INTO SEMESTER_RESULT (Student_ID, Semester, SGPA, Year, Total_Credits)
                 VALUES (%s, 7, 8.75, 2024, 24)
                 ON DUPLICATE KEY UPDATE SGPA = 8.75
-            """, (cls.student_id,))
+            """,
+                (cls.student_id,),
+            )
 
             cls.company_id = execute_one("SELECT Company_ID FROM COMPANY LIMIT 1")["Company_ID"]
 

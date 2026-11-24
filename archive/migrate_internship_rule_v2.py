@@ -17,6 +17,7 @@ from db.connection import get_cursor
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("migration_v2")
 
+
 def run_migration():
     logger.info("Starting migration: 2nd Mandatory Internship Rule Update (v2)...")
 
@@ -47,7 +48,9 @@ def run_migration():
             WHERE i.Internship_No = 2 AND i.Internship_Type = 'Mandatory';
         """
         cursor.execute(update_internships_sql)
-        logger.info("Updated INTERNSHIP records for Internship_No = 2 (rows affected: %d)", cursor.rowcount)
+        logger.info(
+            "Updated INTERNSHIP records for Internship_No = 2 (rows affected: %d)", cursor.rowcount
+        )
 
         # 3. Ensure Semester 7 results exist in SEMESTER_RESULT for students so prerequisite checks join dynamically
         insert_sem7_sql = """
@@ -58,7 +61,9 @@ def run_migration():
             WHERE sr.Result_ID IS NULL;
         """
         cursor.execute(insert_sem7_sql)
-        logger.info("Ensured Semester 7 results in SEMESTER_RESULT (rows added: %d)", cursor.rowcount)
+        logger.info(
+            "Ensured Semester 7 results in SEMESTER_RESULT (rows added: %d)", cursor.rowcount
+        )
 
         # 4. Verification check
         cursor.execute("SELECT * FROM INTERNSHIP_REQUIREMENT WHERE Internship_No = 2")
@@ -76,6 +81,7 @@ def run_migration():
         logger.info("Internship 2 DB Verification Stats: %s", stats)
 
     logger.info("Migration completed successfully.")
+
 
 if __name__ == "__main__":
     try:

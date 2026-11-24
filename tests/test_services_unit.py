@@ -135,9 +135,7 @@ class TestPlacementServiceUnit:
             assert "Highest_Package" in s
             assert "Accepted_Company" in s
 
-    def test_check_candidate_eligibility_for_opportunity(
-        self, app, clean_test_student
-    ):
+    def test_check_candidate_eligibility_for_opportunity(self, app, clean_test_student):
         """Verifies candidate eligibility checks for student CGPA and backlogs."""
         student = clean_test_student
         eval_result = check_candidate_eligibility_for_opportunity(student["Student_ID"])

@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+
 load_dotenv()
 """
 Phase 9 (Scope A) Automated Demo Runner and Verification Suite.
@@ -13,9 +14,9 @@ import pymysql
 import pymysql.cursors
 
 # Reconfigure stdout for UTF-8 compatibility on Windows terminal
-if sys.stdout.encoding != 'utf-8':
+if sys.stdout.encoding != "utf-8":
     try:
-        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stdout.reconfigure(encoding="utf-8")
     except Exception:
         pass
 
@@ -25,8 +26,9 @@ DB_CONFIG = {
     "user": "root",
     "password": os.getenv("MYSQL_PASSWORD", ""),
     "charset": "utf8mb4",
-    "cursorclass": pymysql.cursors.DictCursor
+    "cursorclass": pymysql.cursors.DictCursor,
 }
+
 
 def format_row(row):
     formatted = {}
@@ -39,13 +41,20 @@ def format_row(row):
             formatted[k] = str(v)
     return formatted
 
+
 def run_phase9_demo():
     print("=" * 80)
     print("PHASE 9 (SCOPE A): COMPLETE 13 DBMS DEMO ITEMS VERIFICATION RUNNER")
     print("=" * 80)
 
     # 1. Initialize clean database
-    conn = pymysql.connect(host=DB_CONFIG["host"], port=DB_CONFIG["port"], user=DB_CONFIG["user"], password=DB_CONFIG["password"], charset=DB_CONFIG["charset"])
+    conn = pymysql.connect(
+        host=DB_CONFIG["host"],
+        port=DB_CONFIG["port"],
+        user=DB_CONFIG["user"],
+        password=DB_CONFIG["password"],
+        charset=DB_CONFIG["charset"],
+    )
     with conn.cursor() as cur:
         cur.execute("DROP DATABASE IF EXISTS placement_scope_a;")
         cur.execute("CREATE DATABASE placement_scope_a;")
@@ -53,16 +62,23 @@ def run_phase9_demo():
     conn.close()
 
     conn = pymysql.connect(database="placement_scope_a", **DB_CONFIG)
-    
+
     # 2. Setup DDL, Sample Data, Views from placement_internship_db.sql
     with open("placement_internship_db.sql", "r", encoding="utf-8") as f:
         full_sql = f.read()
 
     setup_sql = full_sql.split("-- PART 4: QUERIES")[0]
     setup_sql = setup_sql.replace("placement_db", "placement_scope_a")
-    
+
     # Run multi-statement setup
-    setup_conn = pymysql.connect(host=DB_CONFIG["host"], port=DB_CONFIG["port"], user=DB_CONFIG["user"], password=DB_CONFIG["password"], charset=DB_CONFIG["charset"], client_flag=pymysql.constants.CLIENT.MULTI_STATEMENTS)
+    setup_conn = pymysql.connect(
+        host=DB_CONFIG["host"],
+        port=DB_CONFIG["port"],
+        user=DB_CONFIG["user"],
+        password=DB_CONFIG["password"],
+        charset=DB_CONFIG["charset"],
+        client_flag=pymysql.constants.CLIENT.MULTI_STATEMENTS,
+    )
     with setup_conn.cursor() as cur:
         cur.execute(setup_sql)
     setup_conn.commit()
@@ -80,7 +96,7 @@ def run_phase9_demo():
                     "qid": "DDL-1",
                     "title": "Verification of Tables and Constraints in Schema",
                     "dbms_desc": "Verifies that all 7 core Scope A tables are registered with appropriate engine and constraint configurations.",
-                    "sql": "SHOW FULL TABLES WHERE Table_type = 'BASE TABLE';"
+                    "sql": "SHOW FULL TABLES WHERE Table_type = 'BASE TABLE';",
                 },
                 {
                     "qid": "DDL-2",
@@ -98,9 +114,9 @@ def run_phase9_demo():
                     UNION ALL
                     SELECT 'INTERNSHIP -> STUDENT (Weak Entity)', COUNT(*)
                     FROM INTERNSHIP i LEFT JOIN STUDENT s ON i.Student_ID = s.Student_ID WHERE s.Student_ID IS NULL;
-                    """
-                }
-            ]
+                    """,
+                },
+            ],
         },
         {
             "item_no": 2,
@@ -116,7 +132,7 @@ def run_phase9_demo():
                            Branch, Batch_Year, CGPA, Backlogs
                     FROM STUDENT
                     ORDER BY Batch_Year, Branch, Student_Name;
-                    """
+                    """,
                 },
                 {
                     "qid": "A2",
@@ -127,7 +143,7 @@ def run_phase9_demo():
                     FROM STUDENT
                     WHERE Branch = 'CSE' AND Batch_Year = 2024
                     ORDER BY CGPA DESC;
-                    """
+                    """,
                 },
                 {
                     "qid": "A5",
@@ -138,7 +154,7 @@ def run_phase9_demo():
                     FROM STUDENT
                     WHERE CGPA >= 8.0 AND Backlogs = 0
                     ORDER BY CGPA DESC;
-                    """
+                    """,
                 },
                 {
                     "qid": "B6",
@@ -150,7 +166,7 @@ def run_phase9_demo():
                     WHERE Joined = 'Yes'
                     ORDER BY Package DESC
                     LIMIT 5;
-                    """
+                    """,
                 },
                 {
                     "qid": "B9",
@@ -161,7 +177,7 @@ def run_phase9_demo():
                     FROM V_PLACEMENT_DETAIL
                     WHERE Is_PPO = 'Yes'
                     ORDER BY Placement_Year, Package DESC;
-                    """
+                    """,
                 },
                 {
                     "qid": "B14",
@@ -172,7 +188,7 @@ def run_phase9_demo():
                     FROM V_PLACEMENT_DETAIL
                     WHERE Package >= 8 AND Joined = 'Yes'
                     ORDER BY Package DESC;
-                    """
+                    """,
                 },
                 {
                     "qid": "C12",
@@ -182,9 +198,9 @@ def run_phase9_demo():
                     SELECT Student_Name, Internship_No, Company_Name, Start_Date, End_Date
                     FROM V_INTERNSHIP_DETAIL
                     WHERE Start_Date >= '2023-05-01' AND End_Date <= '2023-08-31';
-                    """
-                }
-            ]
+                    """,
+                },
+            ],
         },
         {
             "item_no": 3,
@@ -202,7 +218,7 @@ def run_phase9_demo():
                     LEFT JOIN PLACEMENT p ON p.Student_ID = s.Student_ID AND p.Joined = 'Yes'
                     LEFT JOIN COMPANY   c ON c.Company_ID = p.Company_ID
                     WHERE s.First_Name LIKE '%an%' OR s.Last_Name LIKE '%an%';
-                    """
+                    """,
                 },
                 {
                     "qid": "C8",
@@ -212,9 +228,9 @@ def run_phase9_demo():
                     SELECT Student_Name, Branch, Internship_No, Report_Semester, Company_Name
                     FROM V_INTERNSHIP_DETAIL
                     WHERE Internship_Type = 'Mandatory' AND Report_Link IS NULL;
-                    """
-                }
-            ]
+                    """,
+                },
+            ],
         },
         {
             "item_no": 4,
@@ -232,7 +248,7 @@ def run_phase9_demo():
                     FROM V_INTERNSHIP_DETAIL
                     WHERE Roll_No = 'CS2102'
                     ORDER BY Internship_No;
-                    """
+                    """,
                 },
                 {
                     "qid": "C9",
@@ -243,9 +259,9 @@ def run_phase9_demo():
                     FROM V_INTERNSHIP_DETAIL
                     GROUP BY Student_ID, Roll_No, Student_Name
                     ORDER BY Total_Credits DESC;
-                    """
-                }
-            ]
+                    """,
+                },
+            ],
         },
         {
             "item_no": 5,
@@ -265,7 +281,7 @@ def run_phase9_demo():
                     WHERE Joined = 'Yes'
                     GROUP BY Placement_Year
                     ORDER BY Placement_Year;
-                    """
+                    """,
                 },
                 {
                     "qid": "B10",
@@ -278,7 +294,7 @@ def run_phase9_demo():
                     FROM V_PLACEMENT_DETAIL
                     WHERE Joined = 'Yes'
                     GROUP BY Placement_Type;
-                    """
+                    """,
                 },
                 {
                     "qid": "B13",
@@ -291,7 +307,7 @@ def run_phase9_demo():
                     FROM V_PLACEMENT_DETAIL
                     GROUP BY Company_ID, Company_Name
                     ORDER BY Avg_Interview_Rounds DESC;
-                    """
+                    """,
                 },
                 {
                     "qid": "C6",
@@ -305,7 +321,7 @@ def run_phase9_demo():
                     FROM V_INTERNSHIP_DETAIL
                     GROUP BY Company_ID, Company_Name
                     ORDER BY Avg_Stipend DESC;
-                    """
+                    """,
                 },
                 {
                     "qid": "C11",
@@ -316,7 +332,7 @@ def run_phase9_demo():
                     FROM V_INTERNSHIP_DETAIL
                     GROUP BY Company_ID, Company_Name
                     ORDER BY Avg_Interview_Rounds DESC;
-                    """
+                    """,
                 },
                 {
                     "qid": "D2",
@@ -327,7 +343,7 @@ def run_phase9_demo():
                     FROM STUDENT_SKILL
                     GROUP BY Skill
                     ORDER BY Students_With_Skill DESC, Skill;
-                    """
+                    """,
                 },
                 {
                     "qid": "D3",
@@ -338,9 +354,9 @@ def run_phase9_demo():
                     FROM PLACEMENT_SKILL ps
                     GROUP BY ps.Skill
                     ORDER BY Times_Selected_For DESC, ps.Skill;
-                    """
-                }
-            ]
+                    """,
+                },
+            ],
         },
         {
             "item_no": 6,
@@ -361,7 +377,7 @@ def run_phase9_demo():
                     WHERE Joined = 'Yes'
                     GROUP BY Branch
                     ORDER BY Avg_Package DESC;
-                    """
+                    """,
                 },
                 {
                     "qid": "B5",
@@ -376,7 +392,7 @@ def run_phase9_demo():
                     WHERE Joined = 'Yes'
                     GROUP BY Company_ID, Company_Name, Company_Type
                     ORDER BY Students_Joined DESC, Avg_Package DESC;
-                    """
+                    """,
                 },
                 {
                     "qid": "B15",
@@ -388,7 +404,7 @@ def run_phase9_demo():
                     WHERE Joined = 'Yes'
                     GROUP BY Company_Type, Industry
                     ORDER BY Students_Joined DESC;
-                    """
+                    """,
                 },
                 {
                     "qid": "C7",
@@ -400,7 +416,7 @@ def run_phase9_demo():
                     WHERE Internship_Type = 'Mandatory' AND Report_Grade IS NOT NULL
                     GROUP BY Batch_Year, Internship_No, Report_Grade
                     ORDER BY Batch_Year, Internship_No, Report_Grade;
-                    """
+                    """,
                 },
                 {
                     "qid": "D4",
@@ -413,7 +429,7 @@ def run_phase9_demo():
                     WHERE p.Joined = 'Yes'
                     GROUP BY ps.Skill
                     ORDER BY Avg_Package DESC;
-                    """
+                    """,
                 },
                 {
                     "qid": "D10",
@@ -429,9 +445,9 @@ def run_phase9_demo():
                     LEFT JOIN PLACEMENT p ON p.Student_ID = s.Student_ID
                     GROUP BY s.Batch_Year
                     ORDER BY s.Batch_Year;
-                    """
-                }
-            ]
+                    """,
+                },
+            ],
         },
         {
             "item_no": 7,
@@ -450,7 +466,7 @@ def run_phase9_demo():
                     FROM V_PLACEMENT_DETAIL
                     GROUP BY Student_ID, Student_Name, Roll_No
                     HAVING COUNT(*) > 1;
-                    """
+                    """,
                 },
                 {
                     "qid": "C4",
@@ -463,7 +479,7 @@ def run_phase9_demo():
                     LEFT JOIN INTERNSHIP i ON i.Student_ID = s.Student_ID
                     GROUP BY s.Student_ID, s.Roll_No, s.First_Name, s.Last_Name
                     HAVING COUNT(CASE WHEN i.Internship_Type = 'Mandatory' THEN 1 END) < 2;
-                    """
+                    """,
                 },
                 {
                     "qid": "C10",
@@ -474,9 +490,9 @@ def run_phase9_demo():
                     FROM V_INTERNSHIP_DETAIL
                     GROUP BY Student_ID, Roll_No, Student_Name
                     HAVING COUNT(*) > 2;
-                    """
-                }
-            ]
+                    """,
+                },
+            ],
         },
         {
             "item_no": 8,
@@ -492,7 +508,7 @@ def run_phase9_demo():
                     FROM STUDENT s
                     JOIN STUDENT_SKILL sk ON sk.Student_ID = s.Student_ID
                     WHERE sk.Skill = 'SQL';
-                    """
+                    """,
                 },
                 {
                     "qid": "B1",
@@ -503,7 +519,7 @@ def run_phase9_demo():
                     FROM V_PLACEMENT_DETAIL
                     WHERE Joined = 'Yes'
                     ORDER BY Package DESC;
-                    """
+                    """,
                 },
                 {
                     "qid": "B2",
@@ -514,7 +530,7 @@ def run_phase9_demo():
                     FROM V_PLACEMENT_DETAIL
                     WHERE Company_Name = 'TCS'
                     ORDER BY Placement_Year;
-                    """
+                    """,
                 },
                 {
                     "qid": "B12",
@@ -524,7 +540,7 @@ def run_phase9_demo():
                     SELECT Student_Name, Branch, Backlogs, Company_Name, Package
                     FROM V_PLACEMENT_DETAIL
                     WHERE Joined = 'Yes' AND Backlogs > 0;
-                    """
+                    """,
                 },
                 {
                     "qid": "C2",
@@ -535,7 +551,7 @@ def run_phase9_demo():
                     FROM V_INTERNSHIP_DETAIL
                     WHERE Company_Name = 'Zoho'
                     ORDER BY Start_Date;
-                    """
+                    """,
                 },
                 {
                     "qid": "C5",
@@ -545,7 +561,7 @@ def run_phase9_demo():
                     SELECT Student_Name, Branch, Internship_No, Company_Name, Role, Duration_Months, Stipend
                     FROM V_INTERNSHIP_DETAIL
                     WHERE Internship_Type = 'Additional';
-                    """
+                    """,
                 },
                 {
                     "qid": "D1",
@@ -557,7 +573,7 @@ def run_phase9_demo():
                     JOIN INTERNSHIP i
                       ON i.Student_ID = p.Student_ID AND i.Company_ID = p.Company_ID
                     WHERE p.Joined = 'Yes';
-                    """
+                    """,
                 },
                 {
                     "qid": "D5",
@@ -569,7 +585,7 @@ def run_phase9_demo():
                     JOIN PLACEMENT p ON p.Placement_ID = ps.Placement_ID
                     JOIN COMPANY c   ON c.Company_ID  = p.Company_ID
                     WHERE c.Company_Name = 'Zoho';
-                    """
+                    """,
                 },
                 {
                     "qid": "D9",
@@ -582,9 +598,9 @@ def run_phase9_demo():
                     JOIN PLACEMENT p ON p.Student_ID = sc.Student_ID AND p.Joined = 'Yes'
                     GROUP BY sc.Skill_Count
                     ORDER BY sc.Skill_Count;
-                    """
-                }
-            ]
+                    """,
+                },
+            ],
         },
         {
             "item_no": 9,
@@ -601,7 +617,7 @@ def run_phase9_demo():
                     FROM STUDENT s
                     LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID AND p.Joined = 'Yes'
                     WHERE p.Placement_ID IS NULL;
-                    """
+                    """,
                 },
                 {
                     "qid": "C3",
@@ -615,7 +631,7 @@ def run_phase9_demo():
                     FROM STUDENT s
                     LEFT JOIN INTERNSHIP i ON i.Student_ID = s.Student_ID
                     GROUP BY s.Student_ID, s.Roll_No, s.First_Name, s.Last_Name;
-                    """
+                    """,
                 },
                 {
                     "qid": "ADD-3A",
@@ -632,7 +648,7 @@ def run_phase9_demo():
                     LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID AND p.Joined = 'Yes'
                     LEFT JOIN STUDENT_SKILL sk ON s.Student_ID = sk.Student_ID
                     GROUP BY CASE WHEN p.Joined = 'Yes' THEN 'Placed Students' ELSE 'Non-Placed Students' END;
-                    """
+                    """,
                 },
                 {
                     "qid": "ADD-3B",
@@ -649,9 +665,9 @@ def run_phase9_demo():
                     LEFT JOIN PLACEMENT p ON s.Student_ID = p.Student_ID AND p.Joined = 'Yes'
                     GROUP BY sk.Skill
                     ORDER BY Placed_Students_With_Skill DESC, Total_Students_With_Skill DESC;
-                    """
-                }
-            ]
+                    """,
+                },
+            ],
         },
         {
             "item_no": 10,
@@ -669,7 +685,7 @@ def run_phase9_demo():
                     FROM STUDENT s
                     WHERE s.CGPA > (SELECT AVG(CGPA) FROM STUDENT)
                     ORDER BY s.CGPA DESC;
-                    """
+                    """,
                 },
                 {
                     "qid": "B7",
@@ -686,9 +702,9 @@ def run_phase9_demo():
                     FROM STUDENT s
                     GROUP BY s.Branch, s.Batch_Year
                     ORDER BY s.Batch_Year, s.Branch;
-                    """
-                }
-            ]
+                    """,
+                },
+            ],
         },
         {
             "item_no": 11,
@@ -708,7 +724,7 @@ def run_phase9_demo():
                               FROM STUDENT_SKILL sk WHERE sk.Student_ID = s.Student_ID) AS Extra_Skills
                     FROM STUDENT s
                     WHERE s.Roll_No = 'CS2101';
-                    """
+                    """,
                 },
                 {
                     "qid": "A6",
@@ -719,7 +735,7 @@ def run_phase9_demo():
                     FROM STUDENT s
                     WHERE NOT EXISTS (SELECT 1 FROM PLACEMENT p
                                       WHERE p.Student_ID = s.Student_ID AND p.Joined = 'Yes');
-                    """
+                    """,
                 },
                 {
                     "qid": "D6",
@@ -732,7 +748,7 @@ def run_phase9_demo():
                     FROM COMPANY c
                     WHERE EXISTS (SELECT 1 FROM INTERNSHIP i WHERE i.Company_ID = c.Company_ID)
                       AND EXISTS (SELECT 1 FROM PLACEMENT  p WHERE p.Company_ID = c.Company_ID);
-                    """
+                    """,
                 },
                 {
                     "qid": "D8",
@@ -750,9 +766,9 @@ def run_phase9_demo():
                              WHERE p.Student_ID = s.Student_ID AND p.Joined = 'Yes')                 AS Package
                     FROM STUDENT s
                     ORDER BY s.Batch_Year, s.Branch, s.Roll_No;
-                    """
-                }
-            ]
+                    """,
+                },
+            ],
         },
         {
             "item_no": 12,
@@ -772,7 +788,7 @@ def run_phase9_demo():
                     FROM V_PLACEMENT_DETAIL
                     WHERE Company_Name = 'TCS'
                     ORDER BY Record_Type, Student_Name;
-                    """
+                    """,
                 },
                 {
                     "qid": "B11",
@@ -789,7 +805,7 @@ def run_phase9_demo():
                     WHERE Joined = 'Yes'
                     GROUP BY CGPA_Band
                     ORDER BY MIN(CGPA) DESC;
-                    """
+                    """,
                 },
                 {
                     "qid": "VIEW-1",
@@ -799,9 +815,9 @@ def run_phase9_demo():
                     SELECT Table_Name, View_Definition 
                     FROM information_schema.views 
                     WHERE table_schema = 'placement_scope_a';
-                    """
-                }
-            ]
+                    """,
+                },
+            ],
         },
         {
             "item_no": 13,
@@ -812,16 +828,16 @@ def run_phase9_demo():
                     "qid": "ADD-4",
                     "title": "Safe Atomic Insertion Transaction (Student + Phones + Skills) [REQUIRED ADDITION]",
                     "dbms_desc": "ACID Transaction guaranteeing Atomicity and Referential Integrity when inserting into STUDENT and dependent multi-valued child tables.",
-                    "type": "transaction"
+                    "type": "transaction",
                 },
                 {
                     "qid": "ADD-5",
                     "title": "Physical Design: Secondary Index Creation & Query Optimizer EXPLAIN [REQUIRED ADDITION]",
                     "dbms_desc": "B+ Tree index creation on composite search paths and foreign keys, transforming full table scans into index range scans.",
-                    "type": "indexes"
-                }
-            ]
-        }
+                    "type": "indexes",
+                },
+            ],
+        },
     ]
 
     total_executed = 0
@@ -837,7 +853,7 @@ def run_phase9_demo():
             qid = q["qid"]
             title = q["title"]
             desc = q["dbms_desc"]
-            
+
             print(f"\n>>> [{qid}] {title}")
             print(f"    DBMS Analysis: {desc}")
 
@@ -852,12 +868,16 @@ def run_phase9_demo():
                             VALUES ('CS2106', 'Vikram', 'Aditya', 'CSE', 2024, 8.75, 0, 'https://drive.example.com/resume/vikram.pdf');
                         """)
                         new_id = cur.lastrowid
-                        cur.executemany("INSERT INTO STUDENT_PHONE (Student_ID, Phone_No) VALUES (%s, %s);",
-                                        [(new_id, '9810000006'), (new_id, '9810000066')])
-                        cur.executemany("INSERT INTO STUDENT_SKILL (Student_ID, Skill) VALUES (%s, %s);",
-                                        [(new_id, 'Python'), (new_id, 'Django'), (new_id, 'Docker')])
+                        cur.executemany(
+                            "INSERT INTO STUDENT_PHONE (Student_ID, Phone_No) VALUES (%s, %s);",
+                            [(new_id, "9810000006"), (new_id, "9810000066")],
+                        )
+                        cur.executemany(
+                            "INSERT INTO STUDENT_SKILL (Student_ID, Skill) VALUES (%s, %s);",
+                            [(new_id, "Python"), (new_id, "Django"), (new_id, "Docker")],
+                        )
                         conn.commit()
-                        
+
                         # Verify committed state
                         cur.execute("""
                             SELECT s.Student_ID, s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Name,
@@ -881,13 +901,48 @@ def run_phase9_demo():
                 total_executed += 1
                 try:
                     index_defs = [
-                        ("idx_student_branch_batch", "STUDENT", "(Branch, Batch_Year)", "Speeds up composite filter queries on branch & graduation year."),
-                        ("idx_student_cgpa", "STUDENT", "(CGPA)", "Optimizes range filters, threshold lookups, and ORDER BY CGPA."),
-                        ("idx_placement_student_joined", "PLACEMENT", "(Student_ID, Joined)", "Covering index for joining placements while filtering on accepted offers."),
-                        ("idx_placement_company_pkg", "PLACEMENT", "(Company_ID, Package)", "Accelerates company-level placement salary aggregations."),
-                        ("idx_internship_student_type", "INTERNSHIP", "(Student_ID, Internship_Type)", "Optimizes mandatory vs additional internship audits."),
-                        ("idx_student_skill_skill", "STUDENT_SKILL", "(Skill)", "Supports inverted skill lookups and global skill prevalence counts."),
-                        ("idx_company_name", "COMPANY", "(Company_Name)", "Enables instant O(log N) point lookup on company name.")
+                        (
+                            "idx_student_branch_batch",
+                            "STUDENT",
+                            "(Branch, Batch_Year)",
+                            "Speeds up composite filter queries on branch & graduation year.",
+                        ),
+                        (
+                            "idx_student_cgpa",
+                            "STUDENT",
+                            "(CGPA)",
+                            "Optimizes range filters, threshold lookups, and ORDER BY CGPA.",
+                        ),
+                        (
+                            "idx_placement_student_joined",
+                            "PLACEMENT",
+                            "(Student_ID, Joined)",
+                            "Covering index for joining placements while filtering on accepted offers.",
+                        ),
+                        (
+                            "idx_placement_company_pkg",
+                            "PLACEMENT",
+                            "(Company_ID, Package)",
+                            "Accelerates company-level placement salary aggregations.",
+                        ),
+                        (
+                            "idx_internship_student_type",
+                            "INTERNSHIP",
+                            "(Student_ID, Internship_Type)",
+                            "Optimizes mandatory vs additional internship audits.",
+                        ),
+                        (
+                            "idx_student_skill_skill",
+                            "STUDENT_SKILL",
+                            "(Skill)",
+                            "Supports inverted skill lookups and global skill prevalence counts.",
+                        ),
+                        (
+                            "idx_company_name",
+                            "COMPANY",
+                            "(Company_Name)",
+                            "Enables instant O(log N) point lookup on company name.",
+                        ),
                     ]
                     with conn.cursor() as cur:
                         for iname, itbl, icols, ireason in index_defs:
@@ -897,16 +952,24 @@ def run_phase9_demo():
                                 pass
                             cur.execute(f"CREATE INDEX {iname} ON {itbl} {icols};")
                             print(f"    [OK] Created index: {iname} on {itbl}{icols} -> {ireason}")
-                        
-                        # EXPLAIN verification
-                        cur.execute("EXPLAIN SELECT Roll_No, First_Name FROM STUDENT WHERE Branch = 'CSE' AND Batch_Year = 2024;")
-                        exp1 = cur.fetchall()[0]
-                        print(f"    [OK] EXPLAIN Plan (Branch & Batch): type={exp1['type']}, key={exp1['key']}")
 
-                        cur.execute("EXPLAIN SELECT s.Roll_No FROM STUDENT s JOIN PLACEMENT p ON s.Student_ID = p.Student_ID WHERE p.Joined = 'Yes';")
+                        # EXPLAIN verification
+                        cur.execute(
+                            "EXPLAIN SELECT Roll_No, First_Name FROM STUDENT WHERE Branch = 'CSE' AND Batch_Year = 2024;"
+                        )
+                        exp1 = cur.fetchall()[0]
+                        print(
+                            f"    [OK] EXPLAIN Plan (Branch & Batch): type={exp1['type']}, key={exp1['key']}"
+                        )
+
+                        cur.execute(
+                            "EXPLAIN SELECT s.Roll_No FROM STUDENT s JOIN PLACEMENT p ON s.Student_ID = p.Student_ID WHERE p.Joined = 'Yes';"
+                        )
                         exp2 = cur.fetchall()
-                        print(f"    [OK] EXPLAIN Plan (Joined Placement): p.key={exp2[0]['key']}, s.key={exp2[1]['key']}")
-                        
+                        print(
+                            f"    [OK] EXPLAIN Plan (Joined Placement): p.key={exp2[0]['key']}, s.key={exp2[1]['key']}"
+                        )
+
                         total_passed += 1
                 except Exception as e:
                     print(f"    [FAIL] Index creation / EXPLAIN failed: {e}")
@@ -929,9 +992,12 @@ def run_phase9_demo():
     conn.close()
 
     print("\n" + "=" * 80)
-    print(f"FINAL PHASE 9 SUMMARY: Total Executed = {total_executed}, Passed = {total_passed}, Failed = {total_executed - total_passed}")
+    print(
+        f"FINAL PHASE 9 SUMMARY: Total Executed = {total_executed}, Passed = {total_passed}, Failed = {total_executed - total_passed}"
+    )
     print("ALL 13 DBMS DEMO ITEMS & 49 QUERIES/STATEMENTS EXECUTED AND VALIDATED.")
     print("=" * 80)
+
 
 if __name__ == "__main__":
     run_phase9_demo()

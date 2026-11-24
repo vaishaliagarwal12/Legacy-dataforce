@@ -763,6 +763,7 @@ def student_skill_add(student_id: int):
     skill = request.form.get("skill", "").strip()
     try:
         from services import add_student_skill
+
         add_student_skill(student_id, skill)
         flash(f"Added skill '{skill}' successfully.", "success")
     except (ValidationError, ConflictError, DatabaseError, ServiceError) as err:
@@ -777,6 +778,7 @@ def student_skill_delete(student_id: int, skill: str):
     """Deletes a skill from the STUDENT_SKILL table."""
     try:
         from services import delete_student_skill
+
         delete_student_skill(student_id, skill)
         flash(f"Skill '{skill}' removed successfully.", "success")
     except (NotFoundError, DatabaseError, ServiceError) as err:
@@ -1119,9 +1121,9 @@ def internships_export_csv():
         "X-Export-Count": str(len(internships)),
         "X-Export-Limit": str(export_limit),
         "X-Export-Limited": "true" if is_truncated else "false",
-        "X-Export-Status": "limited"
-        if is_truncated
-        else ("empty" if not internships else "complete"),
+        "X-Export-Status": (
+            "limited" if is_truncated else ("empty" if not internships else "complete")
+        ),
     }
     if is_truncated:
         headers["X-Export-Warning"] = f"Export capped at {export_limit} records."
@@ -2055,9 +2057,9 @@ def reports_export_pdf():
             "X-Export-Count": str(len(rows)),
             "X-Export-Limit": str(pdf_limit),
             "X-Export-Limited": "true" if is_truncated else "false",
-            "X-Export-Status": "limited"
-            if is_truncated
-            else ("empty" if not all_rows else "complete"),
+            "X-Export-Status": (
+                "limited" if is_truncated else ("empty" if not all_rows else "complete")
+            ),
         }
         if is_truncated:
             headers["X-Export-Warning"] = (
@@ -2211,7 +2213,9 @@ def export_saved_query_csv():
     query_id = request.args.get("query_id")
     if not query_id:
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return Response("Cannot export: query_id is required.", status=400, mimetype="text/plain")
+            return Response(
+                "Cannot export: query_id is required.", status=400, mimetype="text/plain"
+            )
         flash("Cannot export: query_id is required.", "danger")
         return redirect(url_for("main_bp.sql_reports_view"))
 
@@ -2258,13 +2262,19 @@ def export_saved_query_csv():
     except ValidationError as ve:
         logger.warning("Saved query export validation error: %s", ve)
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return Response(f"Export Validation Error: {ve.message}", status=400, mimetype="text/plain")
+            return Response(
+                f"Export Validation Error: {ve.message}", status=400, mimetype="text/plain"
+            )
         flash(f"Export Validation Error: {ve.message}", "danger")
         return redirect(url_for("main_bp.sql_reports_view"))
     except Exception as exc:
         logger.error("Failed to export saved query CSV: %s", exc)
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return Response("CSV Export Failed due to an internal processing error.", status=500, mimetype="text/plain")
+            return Response(
+                "CSV Export Failed due to an internal processing error.",
+                status=500,
+                mimetype="text/plain",
+            )
         flash("CSV Export Failed due to an internal processing error.", "danger")
         return redirect(url_for("main_bp.sql_reports_view"))
 
@@ -2343,7 +2353,9 @@ def export_custom_query_csv():
     raw_sql = request.form.get("sql", "").strip()
     if not raw_sql:
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return Response("Cannot export: SQL query cannot be empty.", status=400, mimetype="text/plain")
+            return Response(
+                "Cannot export: SQL query cannot be empty.", status=400, mimetype="text/plain"
+            )
         flash("Cannot export: SQL query cannot be empty.", "warning")
         return redirect(url_for("main_bp.sql_reports_view"))
 
@@ -2393,12 +2405,18 @@ def export_custom_query_csv():
         )
     except ValidationError as ve:
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return Response(f"SQL Validation Error: {ve.message}", status=400, mimetype="text/plain")
+            return Response(
+                f"SQL Validation Error: {ve.message}", status=400, mimetype="text/plain"
+            )
         flash(f"SQL Validation Error: {ve.message}", "danger")
         return redirect(url_for("main_bp.sql_reports_view"))
     except Exception as exc:
         logger.error("Failed to export custom SQL CSV: %s", exc)
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return Response("Custom CSV Export Failed due to an internal server error.", status=500, mimetype="text/plain")
+            return Response(
+                "Custom CSV Export Failed due to an internal server error.",
+                status=500,
+                mimetype="text/plain",
+            )
         flash("Custom CSV Export Failed due to an internal server error.", "danger")
         return redirect(url_for("main_bp.sql_reports_view"))

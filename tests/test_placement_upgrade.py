@@ -268,20 +268,27 @@ class PlacementUpgradeTestCase(unittest.TestCase):
         self.assertEqual(len(student_offers), 2)
 
         # 3. Accept and Join first offer
-        up1 = update_placement_offer(o1["Placement_ID"], {"Offer_Status": "Accepted", "Joined": "Yes"})
+        up1 = update_placement_offer(
+            o1["Placement_ID"], {"Offer_Status": "Accepted", "Joined": "Yes"}
+        )
         self.assertEqual(up1["Offer_Status"], "Accepted")
         self.assertEqual(up1["Joined"], "Yes")
 
         # 4. Attempt to join second offer while first is joined -> MUST FAIL (ConflictError / uq_one_joined_offer)
         with self.assertRaises((ConflictError, ValidationError)) as ctx:
-            update_placement_offer(o2["Placement_ID"], {"Offer_Status": "Accepted", "Joined": "Yes"})
+            update_placement_offer(
+                o2["Placement_ID"], {"Offer_Status": "Accepted", "Joined": "Yes"}
+            )
         self.assertTrue(
-            "joined offer" in str(ctx.exception).lower() or "uq_one_joined_offer" in str(ctx.exception).lower()
+            "joined offer" in str(ctx.exception).lower()
+            or "uq_one_joined_offer" in str(ctx.exception).lower()
         )
 
         # 5. Unjoin first offer -> Now joining second offer must succeed
         update_placement_offer(o1["Placement_ID"], {"Joined": "No"})
-        up2 = update_placement_offer(o2["Placement_ID"], {"Offer_Status": "Accepted", "Joined": "Yes"})
+        up2 = update_placement_offer(
+            o2["Placement_ID"], {"Offer_Status": "Accepted", "Joined": "Yes"}
+        )
         self.assertEqual(up2["Joined"], "Yes")
 
         # Cleanup test records

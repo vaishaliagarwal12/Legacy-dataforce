@@ -229,6 +229,7 @@ def get_student(student_id: int) -> Dict[str, Any]:
                 calculate_internship_duration,
                 determine_internship_status,
             )
+
             dur = calculate_internship_duration(it["Start_Date"], it["End_Date"])
             it["Duration_Days"] = dur["days"]
             it["Duration_Weeks"] = dur["weeks"]

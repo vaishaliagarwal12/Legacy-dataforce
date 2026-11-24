@@ -179,7 +179,15 @@ class StudentUpgradeTestCase(unittest.TestCase):
         self.assertIsInstance(student["Placements"], list)
 
         # 6. Verify dropped tables are NOT in student dict
-        for dropped in ["Semester_Results", "Registered_Courses", "Projects", "Achievements", "Profiles", "Resumes", "Education_Documents"]:
+        for dropped in [
+            "Semester_Results",
+            "Registered_Courses",
+            "Projects",
+            "Achievements",
+            "Profiles",
+            "Resumes",
+            "Education_Documents",
+        ]:
             self.assertNotIn(dropped, student)
 
     def test_08_student_detail_page_renders_all_sections(self):

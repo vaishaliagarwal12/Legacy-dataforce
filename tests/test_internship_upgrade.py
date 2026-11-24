@@ -47,13 +47,16 @@ class InternshipUpgradeTestCase(unittest.TestCase):
             )
             cur.execute("DELETE FROM STUDENT WHERE Roll_No = 'TEST_INT_STUDENT'")
 
-    def _create_test_student(self, cgpa=8.50, backlogs=0, roll_no='TEST_INT_STUDENT'):
+    def _create_test_student(self, cgpa=8.50, backlogs=0, roll_no="TEST_INT_STUDENT"):
         """Helper to create an isolated test student for eligibility tests."""
         with get_cursor(commit=True) as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 INSERT INTO STUDENT (Roll_No, First_Name, Last_Name, Branch, Batch_Year, CGPA, Backlogs, Email)
                 VALUES (%s, 'Academic', 'TestStudent', 'CSE', 2024, %s, %s, %s)
-            """, (roll_no, cgpa, backlogs, f'{roll_no.lower()}@example.com'))
+            """,
+                (roll_no, cgpa, backlogs, f"{roll_no.lower()}@example.com"),
+            )
             return cur.lastrowid
 
     def _cleanup_test_student(self, student_id):

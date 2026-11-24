@@ -23,7 +23,9 @@ def validate_placement_payload(data: Dict[str, Any], is_update: bool = False) ->
     if "Role" in data and data["Role"] is not None:
         role = str(data["Role"]).strip()
         if not role or len(role) < 2 or len(role) > 100:
-            raise ValidationError("Role designation must be between 2 and 100 characters in length.")
+            raise ValidationError(
+                "Role designation must be between 2 and 100 characters in length."
+            )
 
     if "Package" in data and data["Package"] is not None:
         try:
@@ -69,7 +71,9 @@ def validate_placement_payload(data: Dict[str, Any], is_update: bool = False) ->
     if joined_val == "Yes" and status_val and status_val != "Accepted":
         raise ValidationError("Joined can only be 'Yes' if Offer_Status is 'Accepted'.")
     if status_val in ("Offered", "Declined") and joined_val == "Yes":
-        raise ValidationError("A placement offer cannot be marked Joined='Yes' when Offer_Status is not 'Accepted'.")
+        raise ValidationError(
+            "A placement offer cannot be marked Joined='Yes' when Offer_Status is not 'Accepted'."
+        )
 
 
 def create_placement_offer(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -916,6 +920,8 @@ def check_candidate_placement_eligibility(student_id: int) -> Dict[str, Any]:
     }
 
 
-def check_candidate_eligibility_for_opportunity(student_id: int, opportunity_id: Optional[int] = None) -> Dict[str, Any]:
+def check_candidate_eligibility_for_opportunity(
+    student_id: int, opportunity_id: Optional[int] = None
+) -> Dict[str, Any]:
     """Backward compatibility alias for check_candidate_placement_eligibility."""
     return check_candidate_placement_eligibility(student_id)

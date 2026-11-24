@@ -35,15 +35,14 @@ def get_sql_report_limits() -> Tuple[int, int]:
 # ==============================================================================
 
 SAVED_QUERIES: List[Dict[str, Any]] = [
-
     # ----------------------------------------------------------------------
     # CATEGORY: STUDENTS
     # ----------------------------------------------------------------------
     {
-        "id": 'students_all',
-        "title": 'A1. List All Registered Students',
-        "group": 'Students',
-        "dbms_concept": 'Relational projection (π) and lexicographical multi-attribute ordering (ORDER BY Batch_Year, Branch, Student_Name).',
+        "id": "students_all",
+        "title": "A1. List All Registered Students",
+        "group": "Students",
+        "dbms_concept": "Relational projection (π) and lexicographical multi-attribute ordering (ORDER BY Batch_Year, Branch, Student_Name).",
         "sql": """SELECT Student_ID, Roll_No, CONCAT_WS(' ', First_Name, Last_Name) AS Student_Name,
                Branch, Batch_Year, CGPA, Backlogs
         FROM STUDENT
@@ -52,22 +51,39 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'students_branch_batch',
-        "title": 'A2. Students of Specific Branch and Batch',
-        "group": 'Students',
-        "dbms_concept": 'Equality selection (σ) on composite index (Branch, Batch_Year) with descending sort on continuous numeric CGPA.',
+        "id": "students_branch_batch",
+        "title": "A2. Students of Specific Branch and Batch",
+        "group": "Students",
+        "dbms_concept": "Equality selection (σ) on composite index (Branch, Batch_Year) with descending sort on continuous numeric CGPA.",
         "sql": """SELECT Roll_No, CONCAT_WS(' ', First_Name, Last_Name) AS Student_Name, Branch, Batch_Year, CGPA
         FROM STUDENT
         WHERE Branch = %s AND Batch_Year = %s
         ORDER BY CGPA DESC;
 """,
-        "params": [{'name': 'branch', 'label': 'Branch Code', 'type': 'select', 'dynamic_source': 'branches', 'options': [], 'placeholder': 'Select branch'}, {'name': 'batch_year', 'label': 'Batch Year', 'type': 'select', 'dynamic_source': 'batch_years', 'options': [], 'placeholder': 'Select batch year'}],
+        "params": [
+            {
+                "name": "branch",
+                "label": "Branch Code",
+                "type": "select",
+                "dynamic_source": "branches",
+                "options": [],
+                "placeholder": "Select branch",
+            },
+            {
+                "name": "batch_year",
+                "label": "Batch Year",
+                "type": "select",
+                "dynamic_source": "batch_years",
+                "options": [],
+                "placeholder": "Select batch year",
+            },
+        ],
     },
     {
-        "id": 'students_profile',
-        "title": 'A3. Complete Profile of One Student',
-        "group": 'Students',
-        "dbms_concept": 'Correlated scalar subqueries in SELECT projection aggregating 1:N multi-valued attributes (phones, skills) without Cartesian row explosion.',
+        "id": "students_profile",
+        "title": "A3. Complete Profile of One Student",
+        "group": "Students",
+        "dbms_concept": "Correlated scalar subqueries in SELECT projection aggregating 1:N multi-valued attributes (phones, skills) without Cartesian row explosion.",
         "sql": """SELECT s.Student_ID, s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
                s.Branch, s.Batch_Year, s.CGPA, s.Backlogs, s.Resume_Link,
                (SELECT GROUP_CONCAT(ph.Phone_No SEPARATOR ', ')
@@ -77,37 +93,63 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         FROM STUDENT s
         WHERE s.Roll_No = %s;
 """,
-        "params": [{'name': 'roll_no', 'label': 'Roll Number', 'type': 'select', 'dynamic_source': 'students', 'options': [], 'placeholder': 'e.g. CS201802'}],
+        "params": [
+            {
+                "name": "roll_no",
+                "label": "Roll Number",
+                "type": "select",
+                "dynamic_source": "students",
+                "options": [],
+                "placeholder": "e.g. CS201802",
+            }
+        ],
     },
     {
-        "id": 'students_by_skill',
-        "title": 'A4. Students Possessing a Particular Skill',
-        "group": 'Students',
-        "dbms_concept": 'Relational equi-join connecting master STUDENT with 1NF child entity STUDENT_SKILL using foreign key traversal.',
+        "id": "students_by_skill",
+        "title": "A4. Students Possessing a Particular Skill",
+        "group": "Students",
+        "dbms_concept": "Relational equi-join connecting master STUDENT with 1NF child entity STUDENT_SKILL using foreign key traversal.",
         "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name, s.Branch, s.CGPA, sk.Skill
         FROM STUDENT s
         JOIN STUDENT_SKILL sk ON sk.Student_ID = s.Student_ID
         WHERE sk.Skill = %s
         ORDER BY s.CGPA DESC;
 """,
-        "params": [{'name': 'skill', 'label': 'Skill Name', 'type': 'select', 'dynamic_source': 'skills', 'options': [], 'placeholder': 'e.g. Python, SQL, Java'}],
+        "params": [
+            {
+                "name": "skill",
+                "label": "Skill Name",
+                "type": "select",
+                "dynamic_source": "skills",
+                "options": [],
+                "placeholder": "e.g. Python, SQL, Java",
+            }
+        ],
     },
     {
-        "id": 'students_high_cgpa_nobacklogs',
-        "title": 'A5. Students with High CGPA and Zero Backlogs',
-        "group": 'Students',
-        "dbms_concept": 'Multi-attribute selection on continuous domain (CGPA >= cutoff) and discrete domain (Backlogs = 0) utilizing secondary B+ tree index.',
+        "id": "students_high_cgpa_nobacklogs",
+        "title": "A5. Students with High CGPA and Zero Backlogs",
+        "group": "Students",
+        "dbms_concept": "Multi-attribute selection on continuous domain (CGPA >= cutoff) and discrete domain (Backlogs = 0) utilizing secondary B+ tree index.",
         "sql": """SELECT Roll_No, CONCAT_WS(' ', First_Name, Last_Name) AS Student_Name, Branch, Batch_Year, CGPA, Backlogs
         FROM STUDENT
         WHERE CGPA >= %s AND Backlogs = 0
         ORDER BY CGPA DESC;
 """,
-        "params": [{'name': 'min_cgpa', 'label': 'Minimum CGPA', 'type': 'number', 'step': '0.1', 'placeholder': 'e.g. 8.0'}],
+        "params": [
+            {
+                "name": "min_cgpa",
+                "label": "Minimum CGPA",
+                "type": "number",
+                "step": "0.1",
+                "placeholder": "e.g. 8.0",
+            }
+        ],
     },
     {
-        "id": 'students_not_placed_antijoin',
-        "title": 'A6 / ADD-1. Students Not Placed (LEFT OUTER Anti-Join)',
-        "group": 'Students',
+        "id": "students_not_placed_antijoin",
+        "title": "A6 / ADD-1. Students Not Placed (LEFT OUTER Anti-Join)",
+        "group": "Students",
         "dbms_concept": "Relational Outer Anti-Join (R ▷ S): Preserves unmatched master tuples by performing LEFT JOIN on Joined='Yes' and filtering for IS NULL on foreign key.",
         "sql": """SELECT s.Student_ID, s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
                s.Branch, s.Batch_Year, s.CGPA
@@ -119,10 +161,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'students_above_avg_cgpa',
-        "title": 'ADD-2. Students with CGPA Above Institutional Average',
-        "group": 'Students',
-        "dbms_concept": 'Scalar non-correlated subquery dynamically calculating the global mean CGPA and projecting the individual variance delta at runtime.',
+        "id": "students_above_avg_cgpa",
+        "title": "ADD-2. Students with CGPA Above Institutional Average",
+        "group": "Students",
+        "dbms_concept": "Scalar non-correlated subquery dynamically calculating the global mean CGPA and projecting the individual variance delta at runtime.",
         "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name, s.Branch, s.Batch_Year, s.CGPA,
                ROUND((SELECT AVG(CGPA) FROM STUDENT), 2) AS Benchmark_Avg_CGPA,
                ROUND(s.CGPA - (SELECT AVG(CGPA) FROM STUDENT), 2) AS Delta_From_Avg
@@ -133,10 +175,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'students_name_search',
-        "title": 'D11. Search Student by Name (Disjunctive Wildcard)',
-        "group": 'Students',
-        "dbms_concept": 'Non-anchored pattern matching (LIKE %...%) disjunctively evaluated across composite names, outer joined to retrieve placement status.',
+        "id": "students_name_search",
+        "title": "D11. Search Student by Name (Disjunctive Wildcard)",
+        "group": "Students",
+        "dbms_concept": "Non-anchored pattern matching (LIKE %...%) disjunctively evaluated across composite names, outer joined to retrieve placement status.",
         "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
                s.Branch, s.CGPA, COALESCE(c.Company_Name, 'Unplaced') AS Joined_Company, p.Package
         FROM STUDENT s
@@ -145,29 +187,44 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         WHERE s.First_Name LIKE %s OR s.Last_Name LIKE %s
         ORDER BY s.Student_ID;
 """,
-        "params": [{'name': 'search_name', 'label': 'Name Keyword', 'type': 'text', 'placeholder': 'e.g. Aarav, Sharma, Neha'}],
+        "params": [
+            {
+                "name": "search_name",
+                "label": "Name Keyword",
+                "type": "text",
+                "placeholder": "e.g. Aarav, Sharma, Neha",
+            }
+        ],
     },
-
     # ----------------------------------------------------------------------
     # CATEGORY: COMPANIES
     # ----------------------------------------------------------------------
     {
-        "id": 'placements_by_company',
-        "title": 'B2. Placements Recruited by Specific Company',
-        "group": 'Companies',
-        "dbms_concept": 'Parameterized relational equi-join with point-filter on indexed corporate entity evaluating organization-level hiring yield.',
+        "id": "placements_by_company",
+        "title": "B2. Placements Recruited by Specific Company",
+        "group": "Companies",
+        "dbms_concept": "Parameterized relational equi-join with point-filter on indexed corporate entity evaluating organization-level hiring yield.",
         "sql": """SELECT Student_Name, Branch, Batch_Year, Role, Package, Placement_Year, Joined
         FROM V_PLACEMENT_DETAIL
         WHERE Company_Name = %s
         ORDER BY Placement_Year, Package DESC;
 """,
-        "params": [{'name': 'company_name', 'label': 'Company Name', 'type': 'select', 'dynamic_source': 'companies', 'options': [], 'placeholder': 'Select company'}],
+        "params": [
+            {
+                "name": "company_name",
+                "label": "Company Name",
+                "type": "select",
+                "dynamic_source": "companies",
+                "options": [],
+                "placeholder": "Select company",
+            }
+        ],
     },
     {
-        "id": 'placements_company_hiring',
-        "title": 'B5. Company-Wise Hiring Volume & Salary Metrics',
-        "group": 'Companies',
-        "dbms_concept": 'Multi-column grouping (Company_ID, Company_Name, Company_Type) strictly preserving functional dependencies under ANSI SQL.',
+        "id": "placements_company_hiring",
+        "title": "B5. Company-Wise Hiring Volume & Salary Metrics",
+        "group": "Companies",
+        "dbms_concept": "Multi-column grouping (Company_ID, Company_Name, Company_Type) strictly preserving functional dependencies under ANSI SQL.",
         "sql": """SELECT Company_Name, Company_Type,
                COUNT(*)               AS Students_Joined,
                ROUND(AVG(Package), 2) AS Avg_Package,
@@ -180,10 +237,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'combined_company_skills',
-        "title": 'D5. Technical Skills Targeted by Specific Company',
-        "group": 'Companies',
-        "dbms_concept": 'Three-table relational equi-join traversing bridge entity PLACEMENT_SKILL to PLACEMENT and COMPANY with selective filter.',
+        "id": "combined_company_skills",
+        "title": "D5. Technical Skills Targeted by Specific Company",
+        "group": "Companies",
+        "dbms_concept": "Three-table relational equi-join traversing bridge entity PLACEMENT_SKILL to PLACEMENT and COMPANY with selective filter.",
         "sql": """SELECT DISTINCT c.Company_Name, ps.Skill
         FROM PLACEMENT_SKILL ps
         JOIN PLACEMENT p ON p.Placement_ID = ps.Placement_ID
@@ -191,13 +248,22 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         WHERE c.Company_Name = %s
         ORDER BY ps.Skill;
 """,
-        "params": [{'name': 'company_name', 'label': 'Company Name', 'type': 'select', 'dynamic_source': 'companies', 'options': [], 'placeholder': 'Select company'}],
+        "params": [
+            {
+                "name": "company_name",
+                "label": "Company Name",
+                "type": "select",
+                "dynamic_source": "companies",
+                "options": [],
+                "placeholder": "Select company",
+            }
+        ],
     },
     {
-        "id": 'combined_dual_partners',
-        "title": 'D6. Dual-Role Corporate Partners (Internships + Placements)',
-        "group": 'Companies',
-        "dbms_concept": 'Dual correlated existential predicates (EXISTS ... AND EXISTS ...) proving relationship set intersection across distinct operational scopes.',
+        "id": "combined_dual_partners",
+        "title": "D6. Dual-Role Corporate Partners (Internships + Placements)",
+        "group": "Companies",
+        "dbms_concept": "Dual correlated existential predicates (EXISTS ... AND EXISTS ...) proving relationship set intersection across distinct operational scopes.",
         "sql": """SELECT c.Company_Name, c.Company_Type,
                (SELECT COUNT(*) FROM INTERNSHIP i WHERE i.Company_ID = c.Company_ID) AS Interns_Taken,
                (SELECT COUNT(*) FROM PLACEMENT  p WHERE p.Company_ID = c.Company_ID) AS Offers_Made
@@ -208,10 +274,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'combined_company_polymorphic',
-        "title": 'D7. Polymorphic Corporate Activity Profile (UNION ALL)',
-        "group": 'Companies',
-        "dbms_concept": 'Set Union (UNION ALL) combining distinct activity records into a unified polymorphic schema with synthetic discriminator column.',
+        "id": "combined_company_polymorphic",
+        "title": "D7. Polymorphic Corporate Activity Profile (UNION ALL)",
+        "group": "Companies",
+        "dbms_concept": "Set Union (UNION ALL) combining distinct activity records into a unified polymorphic schema with synthetic discriminator column.",
         "sql": """SELECT 'Internship' AS Record_Type, Student_Name, Branch, Role, NULL AS Package, Stipend
         FROM V_INTERNSHIP_DETAIL
         WHERE Company_Name = %s
@@ -221,13 +287,22 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         WHERE Company_Name = %s
         ORDER BY Record_Type, Student_Name;
 """,
-        "params": [{'name': 'company_name', 'label': 'Company Name', 'type': 'select', 'dynamic_source': 'companies', 'options': [], 'placeholder': 'Select company'}],
+        "params": [
+            {
+                "name": "company_name",
+                "label": "Company Name",
+                "type": "select",
+                "dynamic_source": "companies",
+                "options": [],
+                "placeholder": "Select company",
+            }
+        ],
     },
     {
-        "id": 'report_company_hiring_stats',
-        "title": 'E4. Company-Wise Hiring Ratios & Yield Metrics',
-        "group": 'Companies',
-        "dbms_concept": 'Multi-table relational aggregation traversing corporate recruiters, computing offer acceptance yield percentages, and applying DENSE_RANK() to classify top hiring partners.',
+        "id": "report_company_hiring_stats",
+        "title": "E4. Company-Wise Hiring Ratios & Yield Metrics",
+        "group": "Companies",
+        "dbms_concept": "Multi-table relational aggregation traversing corporate recruiters, computing offer acceptance yield percentages, and applying DENSE_RANK() to classify top hiring partners.",
         "sql": """WITH CompanyHiring AS (
             SELECT
                 c.Company_ID,
@@ -270,10 +345,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'report_drive_performance',
-        "title": 'E9. Corporate Hiring Yield & Acceptance Conversion',
-        "group": 'Companies',
-        "dbms_concept": 'Aggregation joining COMPANY and PLACEMENT computing selection conversion yield (Joined / Total Offers) and classifying corporate recruitment volume via DENSE_RANK().',
+        "id": "report_drive_performance",
+        "title": "E9. Corporate Hiring Yield & Acceptance Conversion",
+        "group": "Companies",
+        "dbms_concept": "Aggregation joining COMPANY and PLACEMENT computing selection conversion yield (Joined / Total Offers) and classifying corporate recruitment volume via DENSE_RANK().",
         "sql": """WITH CompanyHiringStats AS (
             SELECT
                 c.Company_ID,
@@ -300,14 +375,13 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
 """,
         "params": [],
     },
-
     # ----------------------------------------------------------------------
     # CATEGORY: PLACEMENTS
     # ----------------------------------------------------------------------
     {
-        "id": 'placements_all_joined',
-        "title": 'B1. Placed Students with Company and Compensation',
-        "group": 'Placements',
+        "id": "placements_all_joined",
+        "title": "B1. Placed Students with Company and Compensation",
+        "group": "Placements",
         "dbms_concept": "Relational view abstraction (V_PLACEMENT_DETAIL) encapsulating multi-table equi-join filtered by Joined = 'Yes' sorted by package descending.",
         "sql": """SELECT Roll_No, Student_Name, Branch, Batch_Year, Company_Name, Role, Package, Placement_Year
         FROM V_PLACEMENT_DETAIL
@@ -317,10 +391,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'placements_top_packages',
-        "title": 'B6. Top 5 Highest Placement Packages (Top-K)',
-        "group": 'Placements',
-        "dbms_concept": 'Top-K query optimization utilizing sorted index scanning and heap limit buffers to retrieve maximum compensation offers.',
+        "id": "placements_top_packages",
+        "title": "B6. Top 5 Highest Placement Packages (Top-K)",
+        "group": "Placements",
+        "dbms_concept": "Top-K query optimization utilizing sorted index scanning and heap limit buffers to retrieve maximum compensation offers.",
         "sql": """SELECT Student_Name, Branch, Company_Name, Package, Placement_Year
         FROM V_PLACEMENT_DETAIL
         WHERE Joined = 'Yes'
@@ -330,10 +404,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'placements_multiple_offers',
-        "title": 'B8. Students Receiving Multiple Placement Offers',
-        "group": 'Placements',
-        "dbms_concept": 'Post-aggregation cardinality filtering (HAVING COUNT(*) > 1) combined with GROUP_CONCAT offer list and conditional selection.',
+        "id": "placements_multiple_offers",
+        "title": "B8. Students Receiving Multiple Placement Offers",
+        "group": "Placements",
+        "dbms_concept": "Post-aggregation cardinality filtering (HAVING COUNT(*) > 1) combined with GROUP_CONCAT offer list and conditional selection.",
         "sql": """SELECT Student_Name, Roll_No,
                COUNT(*) AS Total_Offers,
                GROUP_CONCAT(CONCAT(Company_Name, ' (', Package, ' LPA)') SEPARATOR ', ') AS Offers,
@@ -345,9 +419,9 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'placements_ppo_offers',
-        "title": 'B9. Students Receiving Pre-Placement Offers (PPO)',
-        "group": 'Placements',
+        "id": "placements_ppo_offers",
+        "title": "B9. Students Receiving Pre-Placement Offers (PPO)",
+        "group": "Placements",
         "dbms_concept": "Selection on categorical ENUM attribute (Is_PPO = 'Yes') measuring direct conversion yield from internships to corporate placements.",
         "sql": """SELECT Student_Name, Branch, Company_Name, Package, Placement_Year, Joined
         FROM V_PLACEMENT_DETAIL
@@ -357,22 +431,30 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'placements_above_threshold',
-        "title": 'B14. Placement Packages Above Specified Threshold',
-        "group": 'Placements',
-        "dbms_concept": 'Decimal numerical inequality filtering parameterized safely, isolating elite compensation offers across hiring partners.',
+        "id": "placements_above_threshold",
+        "title": "B14. Placement Packages Above Specified Threshold",
+        "group": "Placements",
+        "dbms_concept": "Decimal numerical inequality filtering parameterized safely, isolating elite compensation offers across hiring partners.",
         "sql": """SELECT Student_Name, Branch, Company_Name, Role, Package, Placement_Year
         FROM V_PLACEMENT_DETAIL
         WHERE Package >= %s AND Joined = 'Yes'
         ORDER BY Package DESC;
 """,
-        "params": [{'name': 'min_package', 'label': 'Minimum Package (LPA)', 'type': 'number', 'step': '0.5', 'placeholder': 'e.g. 10.0'}],
+        "params": [
+            {
+                "name": "min_package",
+                "label": "Minimum Package (LPA)",
+                "type": "number",
+                "step": "0.5",
+                "placeholder": "e.g. 10.0",
+            }
+        ],
     },
     {
-        "id": 'combined_indemand_skills',
-        "title": 'D3. In-Demand Skills Evaluated for Placement Offers',
-        "group": 'Placements',
-        "dbms_concept": 'Demand-side aggregation grouping through bridge relation PLACEMENT_SKILL to determine market skill requirements.',
+        "id": "combined_indemand_skills",
+        "title": "D3. In-Demand Skills Evaluated for Placement Offers",
+        "group": "Placements",
+        "dbms_concept": "Demand-side aggregation grouping through bridge relation PLACEMENT_SKILL to determine market skill requirements.",
         "sql": """SELECT ps.Skill, COUNT(*) AS Times_Selected_For
         FROM PLACEMENT_SKILL ps
         GROUP BY ps.Skill
@@ -381,10 +463,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'combined_skill_avg_package',
-        "title": 'D4. Average Package by Technical Skill Evaluated',
-        "group": 'Placements',
-        "dbms_concept": 'Many-to-many bridge relation traversal connecting technical competencies to realized salary outcomes with mean aggregation.',
+        "id": "combined_skill_avg_package",
+        "title": "D4. Average Package by Technical Skill Evaluated",
+        "group": "Placements",
+        "dbms_concept": "Many-to-many bridge relation traversal connecting technical competencies to realized salary outcomes with mean aggregation.",
         "sql": """SELECT ps.Skill, COUNT(*) AS Students, ROUND(AVG(p.Package), 2) AS Avg_Package
         FROM PLACEMENT_SKILL ps
         JOIN PLACEMENT p ON p.Placement_ID = ps.Placement_ID
@@ -395,10 +477,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'report_multiple_offers_analysis',
-        "title": 'E5. Multiple Placement Offer Analysis & Package Spread',
-        "group": 'Placements',
-        "dbms_concept": 'Post-aggregation cardinality filtering (HAVING COUNT(*) > 1) computing the financial spread between highest and lowest offers, aggregating offer catalogs via GROUP_CONCAT, and sorting by DENSE_RANK().',
+        "id": "report_multiple_offers_analysis",
+        "title": "E5. Multiple Placement Offer Analysis & Package Spread",
+        "group": "Placements",
+        "dbms_concept": "Post-aggregation cardinality filtering (HAVING COUNT(*) > 1) computing the financial spread between highest and lowest offers, aggregating offer catalogs via GROUP_CONCAT, and sorting by DENSE_RANK().",
         "sql": """WITH MultiOfferStudents AS (
             SELECT
                 s.Student_ID,
@@ -428,15 +510,14 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
 """,
         "params": [],
     },
-
     # ----------------------------------------------------------------------
     # CATEGORY: INTERNSHIPS
     # ----------------------------------------------------------------------
     {
-        "id": 'internships_student_history',
-        "title": 'C1. All Internships of One Student (Calculated Duration)',
-        "group": 'Internships',
-        "dbms_concept": 'Dynamic calculation of derived attribute (Duration_Months via DATEDIFF) at query runtime, preventing physical storage redundancy.',
+        "id": "internships_student_history",
+        "title": "C1. All Internships of One Student (Calculated Duration)",
+        "group": "Internships",
+        "dbms_concept": "Dynamic calculation of derived attribute (Duration_Months via DATEDIFF) at query runtime, preventing physical storage redundancy.",
         "sql": """SELECT Internship_No, Internship_Type, Company_Name, Role,
                Start_Date, End_Date, Duration_Months, Stipend,
                Credits, Report_Semester, Report_Grade
@@ -444,25 +525,43 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         WHERE Roll_No = %s
         ORDER BY Internship_No;
 """,
-        "params": [{'name': 'roll_no', 'label': 'Roll Number', 'type': 'select', 'dynamic_source': 'students', 'options': [], 'placeholder': 'e.g. CS201802'}],
+        "params": [
+            {
+                "name": "roll_no",
+                "label": "Roll Number",
+                "type": "select",
+                "dynamic_source": "students",
+                "options": [],
+                "placeholder": "e.g. CS201802",
+            }
+        ],
     },
     {
-        "id": 'internships_by_company',
-        "title": 'C2. Internships Hosted by Specific Organization',
-        "group": 'Internships',
-        "dbms_concept": 'Weak entity to strong corporate entity relational join filtered by organization name, analyzing internship engagement.',
+        "id": "internships_by_company",
+        "title": "C2. Internships Hosted by Specific Organization",
+        "group": "Internships",
+        "dbms_concept": "Weak entity to strong corporate entity relational join filtered by organization name, analyzing internship engagement.",
         "sql": """SELECT Student_Name, Branch, Internship_No, Role, Start_Date, End_Date, Stipend
         FROM V_INTERNSHIP_DETAIL
         WHERE Company_Name = %s
         ORDER BY Start_Date;
 """,
-        "params": [{'name': 'company_name', 'label': 'Company Name', 'type': 'select', 'dynamic_source': 'companies', 'options': [], 'placeholder': 'Select company'}],
+        "params": [
+            {
+                "name": "company_name",
+                "label": "Company Name",
+                "type": "select",
+                "dynamic_source": "companies",
+                "options": [],
+                "placeholder": "Select company",
+            }
+        ],
     },
     {
-        "id": 'internships_avg_stipend_company',
-        "title": 'C6. Average Monthly Stipend Across Companies',
-        "group": 'Internships',
-        "dbms_concept": 'Aggregate reduction evaluating compensation metrics (mean and maximum monthly stipend) across internship sponsor firms.',
+        "id": "internships_avg_stipend_company",
+        "title": "C6. Average Monthly Stipend Across Companies",
+        "group": "Internships",
+        "dbms_concept": "Aggregate reduction evaluating compensation metrics (mean and maximum monthly stipend) across internship sponsor firms.",
         "sql": """SELECT Company_Name,
                COUNT(*)               AS Interns,
                ROUND(AVG(Stipend), 0) AS Avg_Stipend,
@@ -474,22 +573,30 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'internships_date_range',
-        "title": 'C12. Internships Active in Date Range',
-        "group": 'Internships',
-        "dbms_concept": 'Temporal boundary filtering on calendar date types (Start_Date >= and End_Date <=) isolating seasonal internship batches.',
+        "id": "internships_date_range",
+        "title": "C12. Internships Active in Date Range",
+        "group": "Internships",
+        "dbms_concept": "Temporal boundary filtering on calendar date types (Start_Date >= and End_Date <=) isolating seasonal internship batches.",
         "sql": """SELECT Student_Name, Internship_No, Company_Name, Role, Start_Date, End_Date, Stipend
         FROM V_INTERNSHIP_DETAIL
         WHERE Start_Date >= %s AND End_Date <= %s
         ORDER BY Start_Date;
 """,
-        "params": [{'name': 'start_date', 'label': 'Start Date', 'type': 'text', 'placeholder': 'YYYY-MM-DD'}, {'name': 'end_date', 'label': 'End Date', 'type': 'text', 'placeholder': 'YYYY-MM-DD'}],
+        "params": [
+            {
+                "name": "start_date",
+                "label": "Start Date",
+                "type": "text",
+                "placeholder": "YYYY-MM-DD",
+            },
+            {"name": "end_date", "label": "End Date", "type": "text", "placeholder": "YYYY-MM-DD"},
+        ],
     },
     {
-        "id": 'combined_internship_to_job',
-        "title": 'D1. Internships Converted to Full-Time Placements (PPO Track)',
-        "group": 'Internships',
-        "dbms_concept": 'Composite multi-column inner equi-join matching on (Student_ID AND Company_ID) correlating internship history with final placement.',
+        "id": "combined_internship_to_job",
+        "title": "D1. Internships Converted to Full-Time Placements (PPO Track)",
+        "group": "Internships",
+        "dbms_concept": "Composite multi-column inner equi-join matching on (Student_ID AND Company_ID) correlating internship history with final placement.",
         "sql": """SELECT DISTINCT p.Student_Name, p.Branch, p.Company_Name, p.Package, p.Is_PPO
         FROM V_PLACEMENT_DETAIL p
         JOIN INTERNSHIP i
@@ -499,15 +606,14 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
 """,
         "params": [],
     },
-
     # ----------------------------------------------------------------------
     # CATEGORY: DASHBOARD KPIS
     # ----------------------------------------------------------------------
     {
-        "id": 'placements_branch_stats',
-        "title": 'B3. Branch-Wise Placement Statistics',
-        "group": 'Dashboard KPIs',
-        "dbms_concept": 'Categorical aggregate reduction (COUNT, AVG, MAX, MIN) partitioned by academic branch computing headcount and salary spread.',
+        "id": "placements_branch_stats",
+        "title": "B3. Branch-Wise Placement Statistics",
+        "group": "Dashboard KPIs",
+        "dbms_concept": "Categorical aggregate reduction (COUNT, AVG, MAX, MIN) partitioned by academic branch computing headcount and salary spread.",
         "sql": """SELECT Branch,
                COUNT(*)               AS Students_Placed,
                ROUND(AVG(Package), 2) AS Avg_Package,
@@ -521,10 +627,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'placements_year_stats',
-        "title": 'B4. Year-Wise Placement Statistics & Cohort Trends',
-        "group": 'Dashboard KPIs',
-        "dbms_concept": 'Temporal aggregation grouping by academic cohort year measuring historical compensation escalation and placement volume.',
+        "id": "placements_year_stats",
+        "title": "B4. Year-Wise Placement Statistics & Cohort Trends",
+        "group": "Dashboard KPIs",
+        "dbms_concept": "Temporal aggregation grouping by academic cohort year measuring historical compensation escalation and placement volume.",
         "sql": """SELECT Placement_Year,
                COUNT(*)               AS Students_Placed,
                ROUND(AVG(Package), 2) AS Avg_Package,
@@ -537,10 +643,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'placements_branch_percent',
-        "title": 'B7. Placement Percentage by Branch and Batch',
-        "group": 'Dashboard KPIs',
-        "dbms_concept": 'Cohort grouping evaluating existential subquery membership (SUM(EXISTS...)) to compute institutional placement success rates.',
+        "id": "placements_branch_percent",
+        "title": "B7. Placement Percentage by Branch and Batch",
+        "group": "Dashboard KPIs",
+        "dbms_concept": "Cohort grouping evaluating existential subquery membership (SUM(EXISTS...)) to compute institutional placement success rates.",
         "sql": """SELECT s.Branch, s.Batch_Year,
                COUNT(*) AS Total_Students,
                SUM(EXISTS (SELECT 1 FROM PLACEMENT p
@@ -555,10 +661,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'report_branch_placement_stats',
-        "title": 'E1. Branch-Wise Placement Statistics & Median Compensation',
-        "group": 'Dashboard KPIs',
-        "dbms_concept": 'Multi-stage CTEs computing department headcounts, conditional aggregation for placement yields, and ROW_NUMBER() window partitioning to calculate the exact Median Package per branch alongside DENSE_RANK() performance rankings.',
+        "id": "report_branch_placement_stats",
+        "title": "E1. Branch-Wise Placement Statistics & Median Compensation",
+        "group": "Dashboard KPIs",
+        "dbms_concept": "Multi-stage CTEs computing department headcounts, conditional aggregation for placement yields, and ROW_NUMBER() window partitioning to calculate the exact Median Package per branch alongside DENSE_RANK() performance rankings.",
         "sql": """WITH BranchTotals AS (
             SELECT
                 s.Branch,
@@ -608,10 +714,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'report_year_placement_stats',
-        "title": 'E2. Year-Wise Placement Statistics & YoY Growth Trends',
-        "group": 'Dashboard KPIs',
-        "dbms_concept": 'Temporal cohort aggregation combined with the LAG() analytic window function to compute year-over-year compensation escalation and growth rates across academic recruitment cycles.',
+        "id": "report_year_placement_stats",
+        "title": "E2. Year-Wise Placement Statistics & YoY Growth Trends",
+        "group": "Dashboard KPIs",
+        "dbms_concept": "Temporal cohort aggregation combined with the LAG() analytic window function to compute year-over-year compensation escalation and growth rates across academic recruitment cycles.",
         "sql": """WITH YearlyPlacements AS (
             SELECT
                 p.Placement_Year,
@@ -652,10 +758,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'report_package_statistics',
-        "title": 'E3. Average, Median, and Highest Package Reports',
-        "group": 'Dashboard KPIs',
-        "dbms_concept": 'Advanced statistical reduction computing Mean, exact Median via ROW_NUMBER() partitioning, Population Standard Deviation (STDDEV_POP), and discrete Rank distributions across departments and individual offers.',
+        "id": "report_package_statistics",
+        "title": "E3. Average, Median, and Highest Package Reports",
+        "group": "Dashboard KPIs",
+        "dbms_concept": "Advanced statistical reduction computing Mean, exact Median via ROW_NUMBER() partitioning, Population Standard Deviation (STDDEV_POP), and discrete Rank distributions across departments and individual offers.",
         "sql": """WITH RankedByBranch AS (
             SELECT
                 s.Branch,
@@ -702,15 +808,14 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
 """,
         "params": [],
     },
-
     # ----------------------------------------------------------------------
     # CATEGORY: COMPLIANCE (MANDATORY INTERNSHIP 1 AND 2)
     # ----------------------------------------------------------------------
     {
-        "id": 'internships_mandatory_compliance',
-        "title": 'C3. Mandatory Internship Completion Audit',
-        "group": 'Compliance (Mandatory Internship 1 and 2)',
-        "dbms_concept": 'Left outer join with conditional aggregation (COUNT(CASE WHEN...)) ensuring students with zero internships are preserved in audit.',
+        "id": "internships_mandatory_compliance",
+        "title": "C3. Mandatory Internship Completion Audit",
+        "group": "Compliance (Mandatory Internship 1 and 2)",
+        "dbms_concept": "Left outer join with conditional aggregation (COUNT(CASE WHEN...)) ensuring students with zero internships are preserved in audit.",
         "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
                COUNT(CASE WHEN i.Internship_Type = 'Mandatory'  THEN 1 END) AS Mandatory_Done,
                COUNT(CASE WHEN i.Internship_Type = 'Additional' THEN 1 END) AS Additional_Done,
@@ -723,10 +828,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'internships_rule_check_defaulters',
-        "title": 'C4. Rule Check: Students with Incomplete Mandatory Internships',
-        "group": 'Compliance (Mandatory Internship 1 and 2)',
-        "dbms_concept": 'Integrity rule verification using conditional aggregation inside a HAVING clause (HAVING Mandatory_Done < 2) to flag deficient students.',
+        "id": "internships_rule_check_defaulters",
+        "title": "C4. Rule Check: Students with Incomplete Mandatory Internships",
+        "group": "Compliance (Mandatory Internship 1 and 2)",
+        "dbms_concept": "Integrity rule verification using conditional aggregation inside a HAVING clause (HAVING Mandatory_Done < 2) to flag deficient students.",
         "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
                COUNT(CASE WHEN i.Internship_Type = 'Mandatory' THEN 1 END) AS Mandatory_Done
         FROM STUDENT s
@@ -737,10 +842,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'report_internship_compliance',
-        "title": 'E6. Degree Internship Policy Compliance & Audits',
-        "group": 'Compliance (Mandatory Internship 1 and 2)',
-        "dbms_concept": 'Multi-condition aggregation auditing degree fulfillment of Mandatory Internship 1 and Mandatory Internship 2, tracking additional industry attachments and average compensation.',
+        "id": "report_internship_compliance",
+        "title": "E6. Degree Internship Policy Compliance & Audits",
+        "group": "Compliance (Mandatory Internship 1 and 2)",
+        "dbms_concept": "Multi-condition aggregation auditing degree fulfillment of Mandatory Internship 1 and Mandatory Internship 2, tracking additional industry attachments and average compensation.",
         "sql": """WITH StudentInternshipSummary AS (
             SELECT
                 s.Student_ID,
@@ -775,10 +880,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'compliance_internship_1_audit',
-        "title": 'C7. Mandatory Internship 1 Compliance Audit (Sem 5, 4 Credits)',
-        "group": 'Compliance (Mandatory Internship 1 and 2)',
-        "dbms_concept": 'Selection and projection verifying completion of institutional summer internship after 2nd year evaluated in Semester 5.',
+        "id": "compliance_internship_1_audit",
+        "title": "C7. Mandatory Internship 1 Compliance Audit (Sem 5, 4 Credits)",
+        "group": "Compliance (Mandatory Internship 1 and 2)",
+        "dbms_concept": "Selection and projection verifying completion of institutional summer internship after 2nd year evaluated in Semester 5.",
         "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
                s.Branch, s.Batch_Year, c.Company_Name, i.Role, i.Credits, i.Report_Semester, i.Report_Grade
         FROM STUDENT s
@@ -790,10 +895,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'compliance_internship_2_audit',
-        "title": 'C8. Mandatory Internship 2 Curriculum Audit (8th Semester, 4 Credits)',
-        "group": 'Compliance (Mandatory Internship 1 and 2)',
-        "dbms_concept": 'Selection and projection verifying 8th semester mandatory internship completed during final semester and reported after 8th semester end.',
+        "id": "compliance_internship_2_audit",
+        "title": "C8. Mandatory Internship 2 Curriculum Audit (8th Semester, 4 Credits)",
+        "group": "Compliance (Mandatory Internship 1 and 2)",
+        "dbms_concept": "Selection and projection verifying 8th semester mandatory internship completed during final semester and reported after 8th semester end.",
         "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
                s.Branch, s.Batch_Year, c.Company_Name, i.Role, i.Credits, i.Report_Semester, i.Report_Grade
         FROM STUDENT s
@@ -804,15 +909,14 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
 """,
         "params": [],
     },
-
     # ----------------------------------------------------------------------
     # CATEGORY: ANALYTICS
     # ----------------------------------------------------------------------
     {
-        "id": 'placements_cgpa_bands',
-        "title": 'B11. CGPA Performance Bands vs Average Package',
-        "group": 'Analytics',
-        "dbms_concept": 'Conditional value discretization using CASE WHEN mapping continuous CGPA metrics into academic achievement tiers.',
+        "id": "placements_cgpa_bands",
+        "title": "B11. CGPA Performance Bands vs Average Package",
+        "group": "Analytics",
+        "dbms_concept": "Conditional value discretization using CASE WHEN mapping continuous CGPA metrics into academic achievement tiers.",
         "sql": """SELECT CASE WHEN CGPA >= 9 THEN '9.0 and above'
                     WHEN CGPA >= 8 THEN '8.0 - 8.99'
                     WHEN CGPA >= 7 THEN '7.0 - 7.99'
@@ -827,10 +931,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'combined_popular_skills',
-        "title": 'D2. Most Prevalent Technical Skills Among Students',
-        "group": 'Analytics',
-        "dbms_concept": 'Frequency distribution across 1NF decomposed multi-valued skill entities ranking student technical capabilities.',
+        "id": "combined_popular_skills",
+        "title": "D2. Most Prevalent Technical Skills Among Students",
+        "group": "Analytics",
+        "dbms_concept": "Frequency distribution across 1NF decomposed multi-valued skill entities ranking student technical capabilities.",
         "sql": """SELECT Skill, COUNT(*) AS Students_With_Skill
         FROM STUDENT_SKILL
         GROUP BY Skill
@@ -839,10 +943,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'combined_full_career_report',
-        "title": 'D8. Comprehensive Student Career Synthesis',
-        "group": 'Analytics',
-        "dbms_concept": 'Multiple correlated scalar subqueries synthesizing academic performance, technical skills, internship volume, and placement outcomes into a master tuple.',
+        "id": "combined_full_career_report",
+        "title": "D8. Comprehensive Student Career Synthesis",
+        "group": "Analytics",
+        "dbms_concept": "Multiple correlated scalar subqueries synthesizing academic performance, technical skills, internship volume, and placement outcomes into a master tuple.",
         "sql": """SELECT s.Roll_No, CONCAT_WS(' ', s.First_Name, s.Last_Name) AS Student_Name,
                s.Branch, s.Batch_Year, s.CGPA,
                (SELECT GROUP_CONCAT(sk.Skill SEPARATOR ', ')
@@ -858,10 +962,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'combined_skills_cohort_comparison',
-        "title": 'ADD-3A. Skill Profile Comparison: Placed vs Non-Placed Cohorts',
-        "group": 'Analytics',
-        "dbms_concept": 'Multi-way outer join with conditional aggregation comparing total acquired skills, mean skill density, and unique skills acquired across cohorts.',
+        "id": "combined_skills_cohort_comparison",
+        "title": "ADD-3A. Skill Profile Comparison: Placed vs Non-Placed Cohorts",
+        "group": "Analytics",
+        "dbms_concept": "Multi-way outer join with conditional aggregation comparing total acquired skills, mean skill density, and unique skills acquired across cohorts.",
         "sql": """SELECT
             CASE WHEN p.Joined = 'Yes' THEN 'Placed Students' ELSE 'Non-Placed Students' END AS Placement_Status,
             COUNT(DISTINCT s.Student_ID) AS Total_Students,
@@ -876,10 +980,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'report_unplaced_students',
-        "title": 'E7. Unplaced Student Roster & Outreach Priority Ranking',
-        "group": 'Analytics',
-        "dbms_concept": 'Outer anti-join identifying unplaced candidates, evaluating institutional eligibility via conditional expression, and utilizing ROW_NUMBER() window partitioning by branch to prioritize outreach by CGPA.',
+        "id": "report_unplaced_students",
+        "title": "E7. Unplaced Student Roster & Outreach Priority Ranking",
+        "group": "Analytics",
+        "dbms_concept": "Outer anti-join identifying unplaced candidates, evaluating institutional eligibility via conditional expression, and utilizing ROW_NUMBER() window partitioning by branch to prioritize outreach by CGPA.",
         "sql": """WITH UnplacedStudents AS (
             SELECT
                 s.Student_ID,
@@ -904,10 +1008,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'report_cgpa_vs_placement',
-        "title": 'E8. CGPA Tiers vs Placement Conversion & Compensation',
-        "group": 'Analytics',
-        "dbms_concept": 'Categorical tiering via CASE WHEN evaluating academic performance bands, calculating group placement conversion rates, and correlating academic excellence with starting compensation packages.',
+        "id": "report_cgpa_vs_placement",
+        "title": "E8. CGPA Tiers vs Placement Conversion & Compensation",
+        "group": "Analytics",
+        "dbms_concept": "Categorical tiering via CASE WHEN evaluating academic performance bands, calculating group placement conversion rates, and correlating academic excellence with starting compensation packages.",
         "sql": """WITH StudentBands AS (
             SELECT
                 s.Student_ID,
@@ -941,10 +1045,10 @@ SAVED_QUERIES: List[Dict[str, Any]] = [
         "params": [],
     },
     {
-        "id": 'report_semester_performance',
-        "title": 'E10. Student Academic & Career Progression Trajectory',
-        "group": 'Analytics',
-        "dbms_concept": 'Cohort trajectory evaluation grouping by Branch and Batch_Year, computing placement rates and internship compliance, and calculating inter-cohort delta via LAG() window functions.',
+        "id": "report_semester_performance",
+        "title": "E10. Student Academic & Career Progression Trajectory",
+        "group": "Analytics",
+        "dbms_concept": "Cohort trajectory evaluation grouping by Branch and Batch_Year, computing placement rates and internship compliance, and calculating inter-cohort delta via LAG() window functions.",
         "sql": """WITH CohortStats AS (
             SELECT
                 s.Branch,
@@ -1128,13 +1232,19 @@ def execute_saved_query(
 
                 if p_name == "min_cgpa":
                     if not (0.0 <= casted <= 10.0):
-                        raise ValidationError("Parameter 'Minimum CGPA' must be between 0.0 and 10.0.")
+                        raise ValidationError(
+                            "Parameter 'Minimum CGPA' must be between 0.0 and 10.0."
+                        )
                 elif p_name == "min_package":
                     if casted < 0:
-                        raise ValidationError("Parameter 'Minimum Package (LPA)' cannot be negative.")
+                        raise ValidationError(
+                            "Parameter 'Minimum Package (LPA)' cannot be negative."
+                        )
                 elif p_name == "batch_year":
                     if not (2000 <= casted <= 2100):
-                        raise ValidationError("Parameter 'Batch Year' must be between 2000 and 2100.")
+                        raise ValidationError(
+                            "Parameter 'Batch Year' must be between 2000 and 2100."
+                        )
                 args_list.append(casted)
             else:
                 str_val = str(raw).strip()
@@ -1142,7 +1252,9 @@ def execute_saved_query(
                     try:
                         datetime.date.fromisoformat(str_val)
                     except ValueError:
-                        raise ValidationError(f"Parameter '{p_label}' must be in YYYY-MM-DD format.")
+                        raise ValidationError(
+                            f"Parameter '{p_label}' must be in YYYY-MM-DD format."
+                        )
                 args_list.append(str_val)
 
         if query_id == "internships_date_range":
@@ -1396,4 +1508,3 @@ def is_safe_custom_sql(raw_sql: str) -> bool:
         return True
     except Exception:
         return False
-

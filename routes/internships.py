@@ -168,7 +168,16 @@ def api_delete_internship(internship_id: int):
 @admin_required
 def api_list_requirements():
     """Lists the official mandatory internship requirements."""
-    return jsonify({"status": "success", "total": len(CANONICAL_REQUIREMENTS), "data": CANONICAL_REQUIREMENTS}), 200
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "total": len(CANONICAL_REQUIREMENTS),
+                "data": CANONICAL_REQUIREMENTS,
+            }
+        ),
+        200,
+    )
 
 
 @internship_bp.route("/requirements/<int:req_id>", methods=["GET"])
@@ -177,7 +186,15 @@ def api_get_requirement(req_id: int):
     """Retrieves an official internship requirement by Internship_No."""
     req = next((r for r in CANONICAL_REQUIREMENTS if r["Internship_No"] == req_id), None)
     if not req:
-        return jsonify({"status": "error", "message": f"Requirement with Internship_No {req_id} not found."}), 404
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": f"Requirement with Internship_No {req_id} not found.",
+                }
+            ),
+            404,
+        )
     return jsonify({"status": "success", "data": req}), 200
 
 

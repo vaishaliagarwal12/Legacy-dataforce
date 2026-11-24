@@ -13,8 +13,13 @@ Verifies:
 
 import re
 import pytest
+from werkzeug.security import generate_password_hash
 from app import create_app
 from config import Config
+
+TEST_ADMIN_USERNAME = "test_admin"
+TEST_ADMIN_PASSWORD = "TestAdminPassword2026!"
+TEST_ADMIN_PASSWORD_HASH = generate_password_hash(TEST_ADMIN_PASSWORD)
 
 
 def audit_all_routes_require_authentication(app, client):
@@ -53,14 +58,25 @@ def audit_all_routes_require_authentication(app, client):
         if res.status_code == 302:
             location = res.headers.get("Location", "")
             if "/login" not in location:
-                leaks.append((rule.rule, method, res.status_code, f"Redirected to {location} instead of /login"))
+                leaks.append(
+                    (
+                        rule.rule,
+                        method,
+                        res.status_code,
+                        f"Redirected to {location} instead of /login",
+                    )
+                )
         elif res.status_code == 401:
             pass  # Expected for API/JSON endpoints
         else:
-            leaks.append((rule.rule, method, res.status_code, "Expected 302 redirect to /login or 401"))
+            leaks.append(
+                (rule.rule, method, res.status_code, "Expected 302 redirect to /login or 401")
+            )
 
     if leaks:
-        leak_details = "\n".join(f" - [{m}] {r} -> HTTP {status}: {msg}" for r, m, status, msg in leaks)
+        leak_details = "\n".join(
+            f" - [{m}] {r} -> HTTP {status}: {msg}" for r, m, status, msg in leaks
+        )
         raise AssertionError(
             f"Security Audit Failure: {len(leaks)} unprotected route(s) detected:\n{leak_details}"
         )
@@ -69,15 +85,35 @@ def audit_all_routes_require_authentication(app, client):
 class TestAdminAuthentication:
     """Test suite verifying strict single-admin authentication and access control."""
 
+    @pytest.fixture(autouse=True)
+    def isolate_admin_credentials(self, app):
+        """Explicitly isolates test credentials on app config so tests never depend on real .env."""
+        app.config["ADMIN_USERNAME"] = TEST_ADMIN_USERNAME
+        app.config["ADMIN_PASSWORD_HASH"] = TEST_ADMIN_PASSWORD_HASH
+        app.config["ADMIN_PASSWORD"] = None
+        yield
+
     def test_no_signup_register_or_forgot_password_routes_exist(self, app):
         """Verifies NO sign-up, register, or forgot password routes exist in url_map."""
-        forbidden_keywords = ["signup", "sign-up", "register", "registration", "forgot", "reset_password", "reset-password"]
+        forbidden_keywords = [
+            "signup",
+            "sign-up",
+            "register",
+            "registration",
+            "forgot",
+            "reset_password",
+            "reset-password",
+        ]
         for rule in app.url_map.iter_rules():
             rule_str = rule.rule.lower()
             endpoint_str = rule.endpoint.lower()
             for kw in forbidden_keywords:
-                assert kw not in rule_str, f"Forbidden keyword '{kw}' found in route rule: {rule.rule}"
-                assert kw not in endpoint_str, f"Forbidden keyword '{kw}' found in endpoint: {rule.endpoint}"
+                assert (
+                    kw not in rule_str
+                ), f"Forbidden keyword '{kw}' found in route rule: {rule.rule}"
+                assert (
+                    kw not in endpoint_str
+                ), f"Forbidden keyword '{kw}' found in endpoint: {rule.endpoint}"
 
     def test_login_page_renders_without_navigation_or_links(self, unauthenticated_client):
         """Verifies login page shows no data, no sidebar, and no navigation links to other pages."""
@@ -109,13 +145,14 @@ class TestAdminAuthentication:
         assert "Administrator Sign In" in html
 
     def test_login_successful_with_admin_credentials_from_env(self, unauthenticated_client, app):
-        """Verifies logging in with the single admin account defined in .env succeeds."""
-        admin_user = app.config.get("ADMIN_USERNAME", "admin")
-        admin_pass = app.config.get("ADMIN_PASSWORD", "AdminPassword2026!")
+        """Verifies logging in with the configured admin account succeeds."""
+        app.config["ADMIN_USERNAME"] = TEST_ADMIN_USERNAME
+        app.config["ADMIN_PASSWORD_HASH"] = TEST_ADMIN_PASSWORD_HASH
+        app.config["ADMIN_PASSWORD"] = None
 
         res = unauthenticated_client.post(
             "/login",
-            data={"username": admin_user, "password": admin_pass},
+            data={"username": TEST_ADMIN_USERNAME, "password": TEST_ADMIN_PASSWORD},
             follow_redirects=False,
         )
         assert res.status_code == 302
@@ -123,15 +160,17 @@ class TestAdminAuthentication:
 
         with unauthenticated_client.session_transaction() as sess:
             assert sess.get("admin_logged_in") is True
-            assert sess.get("admin_user") == admin_user
+            assert sess.get("admin_user") == TEST_ADMIN_USERNAME
 
     def test_login_rejected_with_invalid_credentials(self, unauthenticated_client, app):
         """Verifies login attempt with invalid credentials is rejected with 401."""
-        admin_user = app.config.get("ADMIN_USERNAME", "admin")
+        app.config["ADMIN_USERNAME"] = TEST_ADMIN_USERNAME
+        app.config["ADMIN_PASSWORD_HASH"] = TEST_ADMIN_PASSWORD_HASH
+        app.config["ADMIN_PASSWORD"] = None
 
         res = unauthenticated_client.post(
             "/login",
-            data={"username": admin_user, "password": "WrongPassword123!"},
+            data={"username": TEST_ADMIN_USERNAME, "password": "WrongPassword123!"},
             follow_redirects=False,
         )
         assert res.status_code == 401
@@ -143,13 +182,14 @@ class TestAdminAuthentication:
 
     def test_login_api_json_authentication(self, unauthenticated_client, app):
         """Verifies JSON API login endpoint behavior for automated agents/tools."""
-        admin_user = app.config.get("ADMIN_USERNAME", "admin")
-        admin_pass = app.config.get("ADMIN_PASSWORD", "AdminPassword2026!")
+        app.config["ADMIN_USERNAME"] = TEST_ADMIN_USERNAME
+        app.config["ADMIN_PASSWORD_HASH"] = TEST_ADMIN_PASSWORD_HASH
+        app.config["ADMIN_PASSWORD"] = None
 
         # Valid JSON login
         res_ok = unauthenticated_client.post(
             "/login",
-            json={"username": admin_user, "password": admin_pass},
+            json={"username": TEST_ADMIN_USERNAME, "password": TEST_ADMIN_PASSWORD},
         )
         assert res_ok.status_code == 200
         data_ok = res_ok.get_json()
@@ -158,7 +198,7 @@ class TestAdminAuthentication:
         # Invalid JSON login
         res_fail = unauthenticated_client.post(
             "/login",
-            json={"username": admin_user, "password": "BadPassword"},
+            json={"username": TEST_ADMIN_USERNAME, "password": "BadPassword"},
         )
         assert res_fail.status_code == 401
         data_fail = res_fail.get_json()
@@ -180,23 +220,35 @@ class TestAdminAuthentication:
 
     def test_navbar_shows_username_and_logout_when_logged_in(self, client, app):
         """Verifies authenticated pages show the admin username and a Logout button in the navbar."""
+        app.config["ADMIN_USERNAME"] = TEST_ADMIN_USERNAME
+        app.config["ADMIN_PASSWORD_HASH"] = TEST_ADMIN_PASSWORD_HASH
+        app.config["ADMIN_PASSWORD"] = None
+
+        with client.session_transaction() as sess:
+            sess["admin_logged_in"] = True
+            sess["admin_user"] = TEST_ADMIN_USERNAME
+
         res = client.get("/")
         assert res.status_code == 200
         html = res.get_data(as_text=True)
 
-        admin_user = app.config.get("ADMIN_USERNAME", "admin")
-        assert admin_user in html
+        assert TEST_ADMIN_USERNAME in html
         assert 'id="logoutBtn"' in html
         assert 'href="/logout"' in html
         assert "Logout" in html
 
-    def test_all_registered_routes_require_authentication_when_logged_out(self, app, unauthenticated_client):
+    def test_all_registered_routes_require_authentication_when_logged_out(
+        self, app, unauthenticated_client
+    ):
         """Loops over app.url_map while logged out and verifies every non-exempt route redirects or returns 401."""
         audit_all_routes_require_authentication(app, unauthenticated_client)
 
     def test_new_route_added_without_protection_makes_audit_fail(self):
         """Verifies that adding a new route without @admin_required protection causes the audit test to fail."""
         test_app = create_app("testing")
+        test_app.config["ADMIN_USERNAME"] = TEST_ADMIN_USERNAME
+        test_app.config["ADMIN_PASSWORD_HASH"] = TEST_ADMIN_PASSWORD_HASH
+        test_app.config["ADMIN_PASSWORD"] = None
 
         # Dynamically register an unprotected route on test_app
         @test_app.route("/api/v1/unprotected-secret-endpoint", methods=["GET"])
@@ -216,13 +268,14 @@ class TestAdminAuthentication:
 
     def test_login_safe_redirect_prevents_open_redirect(self, unauthenticated_client, app):
         """Verifies login safe redirect sanitizes external next parameter to prevent open redirects."""
-        admin_user = app.config.get("ADMIN_USERNAME", "admin")
-        admin_pass = app.config.get("ADMIN_PASSWORD", "AdminPassword2026!")
+        app.config["ADMIN_USERNAME"] = TEST_ADMIN_USERNAME
+        app.config["ADMIN_PASSWORD_HASH"] = TEST_ADMIN_PASSWORD_HASH
+        app.config["ADMIN_PASSWORD"] = None
 
         # Attempt external open redirect
         res = unauthenticated_client.post(
             "/login?next=https://attacker.com/evil",
-            data={"username": admin_user, "password": admin_pass},
+            data={"username": TEST_ADMIN_USERNAME, "password": TEST_ADMIN_PASSWORD},
             follow_redirects=False,
         )
         assert res.status_code == 302
@@ -284,7 +337,9 @@ class TestAdminAuthentication:
         assert "SECRET_KEY=" in updated_text
         assert "SECRET_KEY=\n" not in updated_text
 
-    def test_login_page_accepts_new_password_and_rejects_wrong_one(self, unauthenticated_client, app):
+    def test_login_page_accepts_new_password_and_rejects_wrong_one(
+        self, unauthenticated_client, app
+    ):
         """Verifies login page accepts the newly hashed admin password and rejects wrong passwords."""
         from werkzeug.security import generate_password_hash
 
@@ -316,4 +371,3 @@ class TestAdminAuthentication:
         with unauthenticated_client.session_transaction() as sess:
             assert sess.get("admin_logged_in") is True
             assert sess.get("admin_user") == "testadmin"
-

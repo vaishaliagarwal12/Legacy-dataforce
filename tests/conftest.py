@@ -14,6 +14,11 @@ from services.student_service import create_student, delete_student
 from services.company_service import create_company, delete_company
 from services.placement_service import create_placement_offer, delete_placement_offer
 from services.security import generate_csrf_token
+from werkzeug.security import generate_password_hash
+
+TEST_ADMIN_USERNAME = "test_admin"
+TEST_ADMIN_PASSWORD = "TestAdminPassword2026!"
+TEST_ADMIN_PASSWORD_HASH = generate_password_hash(TEST_ADMIN_PASSWORD)
 
 
 @pytest.fixture(scope="session")
@@ -27,6 +32,9 @@ def app():
             "TESTING": True,
             "WTF_CSRF_ENABLED": False,
             "PRESERVE_CONTEXT_ON_EXCEPTION": False,
+            "ADMIN_USERNAME": TEST_ADMIN_USERNAME,
+            "ADMIN_PASSWORD_HASH": TEST_ADMIN_PASSWORD_HASH,
+            "ADMIN_PASSWORD": None,
         }
     )
 

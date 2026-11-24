@@ -117,6 +117,7 @@ def admin_required(f):
     Redirects unauthenticated browser requests to /login.
     Returns HTTP 401 JSON for API and JSON requests.
     """
+
     @functools.wraps(f)
     def decorated_function(*args, **kwargs):
         if not is_admin_authenticated():
@@ -139,5 +140,3 @@ def admin_required(f):
 
     decorated_function._admin_required = True
     return decorated_function
-
-

@@ -35,7 +35,9 @@ class AutoAuthTestClient(FlaskClient):
     def __init__(self, *args, **kwargs):
         auto_login = kwargs.pop("auto_login", True)
         super().__init__(*args, **kwargs)
-        if auto_login and getattr(self.application, "config", {}).get("AUTO_AUTH_TEST_CLIENT", True):
+        if auto_login and getattr(self.application, "config", {}).get(
+            "AUTO_AUTH_TEST_CLIENT", True
+        ):
             with self.session_transaction() as sess:
                 sess["admin_logged_in"] = True
                 sess["admin_user"] = self.application.config.get("ADMIN_USERNAME", "admin")
@@ -84,9 +86,7 @@ def create_app(config_name: str = None) -> Flask:
             "csrf_token": generate_csrf_token,
             "is_db_connected": _db_health_cache["is_connected"],
             "is_admin_logged_in": is_admin_authenticated(),
-            "admin_username": session.get(
-                "admin_user", app.config.get("ADMIN_USERNAME", "admin")
-            ),
+            "admin_username": session.get("admin_user", app.config.get("ADMIN_USERNAME", "admin")),
         }
 
     # State-Changing Request Security & CSRF Enforcement
@@ -196,7 +196,11 @@ def create_app(config_name: str = None) -> Flask:
         if request.path.startswith("/api/"):
             return (
                 jsonify(
-                    {"status": "error", "message": "Internal server processing failure", "code": 500}
+                    {
+                        "status": "error",
+                        "message": "Internal server processing failure",
+                        "code": 500,
+                    }
                 ),
                 500,
             )

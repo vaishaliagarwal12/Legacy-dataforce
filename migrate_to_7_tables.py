@@ -15,7 +15,6 @@ Requirements:
 """
 
 import argparse
-import sys
 import logging
 from db.connection import get_connection
 
@@ -42,8 +41,11 @@ TABLES_TO_DROP = [
 def check_existing_tables(cur):
     """Finds which tables from TABLES_TO_DROP exist and counts their rows."""
     cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()")
-    all_tables = {row["TABLE_NAME"].upper() if "TABLE_NAME" in row else row["table_name"].upper() for row in cur.fetchall()}
-    
+    all_tables = {
+        row["TABLE_NAME"].upper() if "TABLE_NAME" in row else row["table_name"].upper()
+        for row in cur.fetchall()
+    }
+
     found = {}
     for tbl in TABLES_TO_DROP:
         if tbl in all_tables:
@@ -123,7 +125,9 @@ def run_migration(confirmed: bool):
             logger.info("Updated %d internship rows.", cur.rowcount)
 
             # 2. Update PLACEMENT: rows with Offer_Status = 'Joined' -> Offer_Status = 'Accepted', Joined = 'Yes'
-            logger.info("Migrating PLACEMENT Offer_Status 'Joined' to 'Accepted' with Joined = 'Yes'...")
+            logger.info(
+                "Migrating PLACEMENT Offer_Status 'Joined' to 'Accepted' with Joined = 'Yes'..."
+            )
             # If Offer_Status column has ENUM including 'Joined', alter it first or update rows
             # First check if any rows have Offer_Status = 'Joined'
             try:
@@ -133,7 +137,9 @@ def run_migration(confirmed: bool):
                         Joined = 'Yes'
                     WHERE Offer_Status = 'Joined'
                 """)
-                logger.info("Migrated %d placement rows with Offer_Status = 'Joined'.", cur.rowcount)
+                logger.info(
+                    "Migrated %d placement rows with Offer_Status = 'Joined'.", cur.rowcount
+                )
             except Exception as e:
                 logger.warning(f"Note during Offer_Status update: {e}")
 
@@ -145,13 +151,24 @@ def run_migration(confirmed: bool):
             """)
             inconsistent = cur.fetchall()
             if inconsistent:
-                logger.error("WARNING: Inconsistent placement rows found (Joined = 'Yes' but Offer_Status != 'Accepted'):")
+                logger.error(
+                    "WARNING: Inconsistent placement rows found (Joined = 'Yes' but Offer_Status != 'Accepted'):"
+                )
                 for r in inconsistent:
-                    logger.error("  Placement_ID: %s, Student_ID: %s, Offer_Status: %s, Joined: %s",
-                                 r.get("Placement_ID"), r.get("Student_ID"), r.get("Offer_Status"), r.get("Joined"))
-                raise ValueError("Data consistency violation: Joined = 'Yes' without Offer_Status = 'Accepted'.")
+                    logger.error(
+                        "  Placement_ID: %s, Student_ID: %s, Offer_Status: %s, Joined: %s",
+                        r.get("Placement_ID"),
+                        r.get("Student_ID"),
+                        r.get("Offer_Status"),
+                        r.get("Joined"),
+                    )
+                raise ValueError(
+                    "Data consistency violation: Joined = 'Yes' without Offer_Status = 'Accepted'."
+                )
             else:
-                logger.info("Placement consistency check passed: all Joined = 'Yes' records have Offer_Status = 'Accepted'.")
+                logger.info(
+                    "Placement consistency check passed: all Joined = 'Yes' records have Offer_Status = 'Accepted'."
+                )
 
             # 4. Check for multiple joined offers per student
             cur.execute("""
@@ -165,10 +182,14 @@ def run_migration(confirmed: bool):
             if mult_joined:
                 logger.error("WARNING: Multiple joined offers found for students:")
                 for r in mult_joined:
-                    logger.error("  Student_ID: %s (Joined offers: %s)", r.get("Student_ID"), r.get("cnt"))
+                    logger.error(
+                        "  Student_ID: %s (Joined offers: %s)", r.get("Student_ID"), r.get("cnt")
+                    )
                 raise ValueError("Single-joined-offer rule violated!")
             else:
-                logger.info("Single-joined-offer check passed: no student has multiple joined offers.")
+                logger.info(
+                    "Single-joined-offer check passed: no student has multiple joined offers."
+                )
 
             # 5. Drop foreign keys on columns referencing obsolete tables
             drop_fk_if_exists(cur, "PLACEMENT", "Opportunity_ID")
@@ -235,7 +256,11 @@ def run_migration(confirmed: bool):
                 ORDER BY table_name
             """)
             remaining_tables = [r.get("TABLE_NAME") or r.get("table_name") for r in cur.fetchall()]
-            logger.info("Remaining base tables in database (%d): %s", len(remaining_tables), remaining_tables)
+            logger.info(
+                "Remaining base tables in database (%d): %s",
+                len(remaining_tables),
+                remaining_tables,
+            )
 
         conn.commit()
         logger.info("Migration to canonical 7-table schema completed successfully!")
@@ -244,7 +269,9 @@ def run_migration(confirmed: bool):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Migrate database to canonical 7-table schema")
     parser.add_argument(
-        "--confirm", action="store_true", help="Execute the migration (without this flag, runs in dry-run mode)"
+        "--confirm",
+        action="store_true",
+        help="Execute the migration (without this flag, runs in dry-run mode)",
     )
     args = parser.parse_args()
 

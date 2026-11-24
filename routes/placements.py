@@ -11,7 +11,6 @@ from services import (
     get_offer_distribution_summary,
     get_placement_analytics,
     check_candidate_placement_eligibility,
-    check_candidate_eligibility_for_opportunity,
     admin_required,
 )
 

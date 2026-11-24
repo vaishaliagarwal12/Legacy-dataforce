@@ -47,7 +47,9 @@ class TestTargetedVerificationFeatures:
         res = client.get("/students/1/export-pdf")
         assert res.status_code == 200
         assert res.content_type == "application/pdf"
-        assert "attachment; filename=student_CS202001_profile.pdf" in res.headers.get("Content-Disposition", "")
+        assert "attachment; filename=student_CS202001_profile.pdf" in res.headers.get(
+            "Content-Disposition", ""
+        )
         data = res.get_data()
         assert data.startswith(b"%PDF-")
         assert len(data) > 1000
@@ -57,7 +59,9 @@ class TestTargetedVerificationFeatures:
         res = client.get("/students/1/internship-compliance-pdf")
         assert res.status_code == 200
         assert res.content_type == "application/pdf"
-        assert "attachment; filename=internship_compliance_CS202001.pdf" in res.headers.get("Content-Disposition", "")
+        assert "attachment; filename=internship_compliance_CS202001.pdf" in res.headers.get(
+            "Content-Disposition", ""
+        )
         data = res.get_data()
         assert data.startswith(b"%PDF-")
         assert len(data) > 1000
@@ -67,7 +71,9 @@ class TestTargetedVerificationFeatures:
         res = client.get("/students/1/internships-history-pdf")
         assert res.status_code == 200
         assert res.content_type == "application/pdf"
-        assert "attachment; filename=internship_history_CS202001.pdf" in res.headers.get("Content-Disposition", "")
+        assert "attachment; filename=internship_history_CS202001.pdf" in res.headers.get(
+            "Content-Disposition", ""
+        )
         data = res.get_data()
         assert data.startswith(b"%PDF-")
         assert len(data) > 1000
@@ -77,8 +83,9 @@ class TestTargetedVerificationFeatures:
         res = client.get("/internships/missing-mandatory-pdf")
         assert res.status_code == 200
         assert res.content_type == "application/pdf"
-        assert "attachment; filename=missing_mandatory_audit.pdf" in res.headers.get("Content-Disposition", "")
+        assert "attachment; filename=missing_mandatory_audit.pdf" in res.headers.get(
+            "Content-Disposition", ""
+        )
         data = res.get_data()
         assert data.startswith(b"%PDF-")
         assert len(data) > 1000
-

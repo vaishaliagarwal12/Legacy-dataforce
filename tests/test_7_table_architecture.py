@@ -63,8 +63,12 @@ class TestSevenTableArchitecture:
             FROM information_schema.tables
             WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'
         """)
-        actual_tables = {r["TABLE_NAME"].upper() if "TABLE_NAME" in r else r["table_name"].upper() for r in rows}
-        assert actual_tables == CANONICAL_7_TABLES, f"Mismatch in base tables! Expected {CANONICAL_7_TABLES}, got {actual_tables}"
+        actual_tables = {
+            r["TABLE_NAME"].upper() if "TABLE_NAME" in r else r["table_name"].upper() for r in rows
+        }
+        assert (
+            actual_tables == CANONICAL_7_TABLES
+        ), f"Mismatch in base tables! Expected {CANONICAL_7_TABLES}, got {actual_tables}"
         assert len(actual_tables) == 7
 
     def test_02_all_thirteen_obsolete_tables_are_gone(self, app):
@@ -74,9 +78,13 @@ class TestSevenTableArchitecture:
             FROM information_schema.tables
             WHERE table_schema = DATABASE()
         """)
-        all_names = {r["TABLE_NAME"].upper() if "TABLE_NAME" in r else r["table_name"].upper() for r in rows}
+        all_names = {
+            r["TABLE_NAME"].upper() if "TABLE_NAME" in r else r["table_name"].upper() for r in rows
+        }
         for dropped in DROPPED_13_TABLES:
-            assert dropped not in all_names, f"Obsolete table '{dropped}' still exists in the database!"
+            assert (
+                dropped not in all_names
+            ), f"Obsolete table '{dropped}' still exists in the database!"
 
     def test_03_two_canonical_views_exist_and_function(self, app):
         """Verifies that V_PLACEMENT_DETAIL and V_INTERNSHIP_DETAIL exist and return rows."""
@@ -85,7 +93,9 @@ class TestSevenTableArchitecture:
             FROM information_schema.views
             WHERE table_schema = DATABASE()
         """)
-        view_names = {r["TABLE_NAME"].upper() if "TABLE_NAME" in r else r["table_name"].upper() for r in rows}
+        view_names = {
+            r["TABLE_NAME"].upper() if "TABLE_NAME" in r else r["table_name"].upper() for r in rows
+        }
         assert "V_PLACEMENT_DETAIL" in view_names
         assert "V_INTERNSHIP_DETAIL" in view_names
 
@@ -130,9 +140,14 @@ class TestSevenTableArchitecture:
             WHERE constraint_schema = DATABASE()
         """)
         fk_rules = {
-            (r["TABLE_NAME"].upper() if "TABLE_NAME" in r else r["table_name"].upper(),
-             r["CONSTRAINT_NAME"].lower() if "CONSTRAINT_NAME" in r else r["constraint_name"].lower()):
-            (r["DELETE_RULE"] if "DELETE_RULE" in r else r["delete_rule"]).upper()
+            (
+                r["TABLE_NAME"].upper() if "TABLE_NAME" in r else r["table_name"].upper(),
+                (
+                    r["CONSTRAINT_NAME"].lower()
+                    if "CONSTRAINT_NAME" in r
+                    else r["constraint_name"].lower()
+                ),
+            ): (r["DELETE_RULE"] if "DELETE_RULE" in r else r["delete_rule"]).upper()
             for r in fks
         }
 
@@ -175,10 +190,13 @@ class TestSevenTableArchitecture:
 
             # Attempting a second joined offer for the same student must fail via unique key
             with pytest.raises((DatabaseError, pymysql.MySQLError)):
-                cur.execute("""
+                cur.execute(
+                    """
                     INSERT INTO PLACEMENT (Student_ID, Company_ID, Role, Package, Placement_Year, Offer_Status, Joined)
                     VALUES (%s, 3, 'Second Joined Role', 18.00, 2026, 'Accepted', 'Yes')
-                """, (joined_student,))
+                """,
+                    (joined_student,),
+                )
 
     def test_08_chk_internship_curriculum_and_new_rule(self, app):
         """Verifies chk_internship_curriculum enforces Internship 2 is 8th semester, 4 credits."""
@@ -205,15 +223,17 @@ class TestSevenTableArchitecture:
     def test_09_service_validation_placed_and_joined(self, app):
         """Verifies service layer rejects Joined = 'Yes' when Offer_Status != 'Accepted'."""
         with pytest.raises(ValidationError):
-            create_placement_offer({
-                "Student_ID": 1,
-                "Company_ID": 1,
-                "Role": "Test Engineer",
-                "Package": 11.00,
-                "Placement_Year": 2026,
-                "Offer_Status": "Offered",
-                "Joined": "Yes",
-            })
+            create_placement_offer(
+                {
+                    "Student_ID": 1,
+                    "Company_ID": 1,
+                    "Role": "Test Engineer",
+                    "Package": 11.00,
+                    "Placement_Year": 2026,
+                    "Offer_Status": "Offered",
+                    "Joined": "Yes",
+                }
+            )
 
     def test_10_sql_console_safety_rules(self, app):
         """Verifies SQL console strict safety rules."""

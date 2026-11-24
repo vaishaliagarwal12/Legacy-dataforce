@@ -74,9 +74,7 @@ def get_company(company_id: int) -> Dict[str, Any]:
     company["Placement_Count"] = int(history["total_placements"] or 0)
     company["Internship_Count"] = int(history["total_internships"] or 0)
     company["Total_Offers"] = company["Placement_Count"]
-    company["Is_Deletable"] = (
-        company["Placement_Count"] == 0 and company["Internship_Count"] == 0
-    )
+    company["Is_Deletable"] = company["Placement_Count"] == 0 and company["Internship_Count"] == 0
 
     return company
 

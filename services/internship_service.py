@@ -112,7 +112,9 @@ def check_internship_eligibility(
         prescribed_period = "Summer Vacation after 2nd Year (Semester 5 report, 4 credits)"
         msg = f"Candidate {'is' if is_eligible else 'is not'} eligible for Mandatory Internship #1 (CGPA: {cgpa:.2f}, Backlogs: {backlogs})."
     elif internship_no == 2:
-        prescribed_period = "During 8th semester; report submitted after the end of 8th semester (4 credits)"
+        prescribed_period = (
+            "During 8th semester; report submitted after the end of 8th semester (4 credits)"
+        )
         msg = f"Candidate {'is' if is_eligible else 'is not'} eligible for Mandatory Internship #2 (CGPA: {cgpa:.2f}, Backlogs: {backlogs})."
     else:
         prescribed_period = "Optional Extracurricular / Voluntary"
@@ -183,8 +185,17 @@ def validate_internship_payload(data: Dict[str, Any], is_update: bool = False) -
     if "Internship_No" in data and data["Internship_No"] is not None:
         ino = int(data["Internship_No"])
         itype = str(data.get("Internship_Type") or "").strip()
-        cred = int(data["Credits"]) if data.get("Credits") is not None and str(data["Credits"]).strip() != "" else None
-        rsem = int(data["Report_Semester"]) if data.get("Report_Semester") is not None and str(data["Report_Semester"]).strip() != "" else None
+        cred = (
+            int(data["Credits"])
+            if data.get("Credits") is not None and str(data["Credits"]).strip() != ""
+            else None
+        )
+        rsem = (
+            int(data["Report_Semester"])
+            if data.get("Report_Semester") is not None
+            and str(data["Report_Semester"]).strip() != ""
+            else None
+        )
 
         if ino == 1:
             if itype and itype != "Mandatory":
@@ -192,14 +203,18 @@ def validate_internship_payload(data: Dict[str, Any], is_update: bool = False) -
             if cred is not None and cred != 4:
                 raise ValidationError("Internship #1 must carry exactly 4 credits.")
             if rsem is not None and rsem != 5:
-                raise ValidationError("Internship #1 report must be submitted in Semester 5 (Report_Semester = 5).")
+                raise ValidationError(
+                    "Internship #1 report must be submitted in Semester 5 (Report_Semester = 5)."
+                )
         elif ino == 2:
             if itype and itype != "Mandatory":
                 raise ValidationError("Internship #2 must be of type 'Mandatory'.")
             if cred is not None and cred != 4:
                 raise ValidationError("Internship #2 must carry exactly 4 credits.")
             if rsem is not None and rsem != 8:
-                raise ValidationError("Internship #2 report must be submitted after the end of the 8th semester (Report_Semester = 8).")
+                raise ValidationError(
+                    "Internship #2 report must be submitted after the end of the 8th semester (Report_Semester = 8)."
+                )
         elif ino >= 3:
             if itype and itype != "Additional":
                 raise ValidationError(f"Internship #{ino} must be of type 'Additional'.")
@@ -229,8 +244,17 @@ def create_internship(data: Dict[str, Any]) -> Dict[str, Any]:
         report_sem = 8
     else:
         internship_type = "Additional"
-        credits = int(data["Credits"]) if data.get("Credits") is not None and str(data["Credits"]).strip() != "" else None
-        report_sem = int(data["Report_Semester"]) if data.get("Report_Semester") is not None and str(data["Report_Semester"]).strip() != "" else None
+        credits = (
+            int(data["Credits"])
+            if data.get("Credits") is not None and str(data["Credits"]).strip() != ""
+            else None
+        )
+        report_sem = (
+            int(data["Report_Semester"])
+            if data.get("Report_Semester") is not None
+            and str(data["Report_Semester"]).strip() != ""
+            else None
+        )
 
     report_link = str(data.get("Report_Link", "") or "").strip() or None
     report_grade = str(data.get("Report_Grade", "") or "").strip() or None

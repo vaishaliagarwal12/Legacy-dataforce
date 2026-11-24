@@ -95,7 +95,9 @@ def init(reset: bool = False):
 
         execute_statements(conn, schema_content)
         conn.commit()
-        logger.info("Canonical 7-table schema, views, indexes, and constraints successfully applied.")
+        logger.info(
+            "Canonical 7-table schema, views, indexes, and constraints successfully applied."
+        )
 
         if reset:
             if not os.path.exists(seed_path):
@@ -114,7 +116,9 @@ def init(reset: bool = False):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Initialize canonical 7-table schema and seed data")
+    parser = argparse.ArgumentParser(
+        description="Initialize canonical 7-table schema and seed data"
+    )
     parser.add_argument(
         "--reset", action="store_true", help="Perform full reset and reload canonical seed data"
     )

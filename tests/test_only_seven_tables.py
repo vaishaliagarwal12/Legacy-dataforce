@@ -58,7 +58,10 @@ def _extract_sql_queries_from_services():
             raw = next(s for s in m.groups() if s)
             cleaned = raw.strip()
             first_word = cleaned.split()[0].upper() if cleaned.split() else ""
-            if first_word in ["SELECT", "INSERT", "UPDATE", "DELETE", "WITH"] and len(cleaned.split()) > 2:
+            if (
+                first_word in ["SELECT", "INSERT", "UPDATE", "DELETE", "WITH"]
+                and len(cleaned.split()) > 2
+            ):
                 start_pos = m.start()
                 line_no = content[:start_pos].count("\n") + 1
                 extracted.append((sf, line_no, cleaned))
@@ -73,25 +76,23 @@ class TestOnlySevenTablesArchitecture:
         """Verifies that the database contains strictly 7 base tables and 2 views."""
         with get_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    """
+                cur.execute("""
                     SELECT TABLE_NAME, TABLE_TYPE 
                     FROM information_schema.TABLES 
                     WHERE TABLE_SCHEMA = DATABASE()
                     ORDER BY TABLE_NAME ASC
-                    """
-                )
+                    """)
                 rows = cur.fetchall()
 
         base_tables = {r["TABLE_NAME"].upper() for r in rows if r["TABLE_TYPE"] == "BASE TABLE"}
         views = {r["TABLE_NAME"].upper() for r in rows if r["TABLE_TYPE"] == "VIEW"}
 
-        assert base_tables == CANONICAL_7_BASE_TABLES, (
-            f"Base tables mismatch. Expected {CANONICAL_7_BASE_TABLES}, found {base_tables}"
-        )
-        assert views == CANONICAL_2_VIEWS, (
-            f"Views mismatch. Expected {CANONICAL_2_VIEWS}, found {views}"
-        )
+        assert (
+            base_tables == CANONICAL_7_BASE_TABLES
+        ), f"Base tables mismatch. Expected {CANONICAL_7_BASE_TABLES}, found {base_tables}"
+        assert (
+            views == CANONICAL_2_VIEWS
+        ), f"Views mismatch. Expected {CANONICAL_2_VIEWS}, found {views}"
         assert len(rows) == 9, f"Total tables + views must be exactly 9, found {len(rows)}"
 
     def test_02_service_layer_queries_contain_no_removed_tables(self):
@@ -103,9 +104,15 @@ class TestOnlySevenTablesArchitecture:
         for sf, line, sql in queries:
             for ft in FORBIDDEN_TABLES:
                 if re.search(rf"\b{ft}\b", sql, re.IGNORECASE):
-                    violations.append(f"{sf}:{line} references dropped table '{ft}' in: {sql[:100]}...")
+                    violations.append(
+                        f"{sf}:{line} references dropped table '{ft}' in: {sql[:100]}..."
+                    )
 
-        assert not violations, f"Found {len(violations)} dropped table references in services:\n" + "\n".join(violations)
+        assert (
+            not violations
+        ), f"Found {len(violations)} dropped table references in services:\n" + "\n".join(
+            violations
+        )
 
     def test_03_service_layer_queries_contain_no_removed_columns(self):
         """Verifies that no SQL query in services/*.py references dropped columns or forbidden values."""
@@ -114,11 +121,19 @@ class TestOnlySevenTablesArchitecture:
         for sf, line, sql in queries:
             for fc in FORBIDDEN_COLUMNS:
                 if re.search(rf"\b{fc}\b", sql, re.IGNORECASE):
-                    violations.append(f"{sf}:{line} references dropped column '{fc}' in: {sql[:100]}...")
+                    violations.append(
+                        f"{sf}:{line} references dropped column '{fc}' in: {sql[:100]}..."
+                    )
             if re.search(r"Offer_Status\s*=\s*['\"]Joined['\"]", sql, re.IGNORECASE):
-                violations.append(f"{sf}:{line} uses forbidden value Offer_Status='Joined' in: {sql[:100]}...")
+                violations.append(
+                    f"{sf}:{line} uses forbidden value Offer_Status='Joined' in: {sql[:100]}..."
+                )
 
-        assert not violations, f"Found {len(violations)} forbidden column/value references in services:\n" + "\n".join(violations)
+        assert (
+            not violations
+        ), f"Found {len(violations)} forbidden column/value references in services:\n" + "\n".join(
+            violations
+        )
 
     def test_04_saved_queries_contain_no_removed_tables_or_columns(self):
         """Verifies that all SAVED_QUERIES in sql_report_service use only the 7 tables and 2 views."""
@@ -135,7 +150,9 @@ class TestOnlySevenTablesArchitecture:
             if re.search(r"Offer_Status\s*=\s*['\"]Joined['\"]", sql, re.IGNORECASE):
                 violations.append(f"Saved query '{qid}' uses forbidden value Offer_Status='Joined'")
 
-        assert not violations, f"Found {len(violations)} violations in SAVED_QUERIES:\n" + "\n".join(violations)
+        assert (
+            not violations
+        ), f"Found {len(violations)} violations in SAVED_QUERIES:\n" + "\n".join(violations)
 
     def test_05_saved_queries_categories_cover_seven_required_groups(self):
         """Verifies that SAVED_QUERIES covers the required 7 categories."""
@@ -149,9 +166,9 @@ class TestOnlySevenTablesArchitecture:
             "Analytics",
         }
         actual_groups = {q["group"] for q in srs.SAVED_QUERIES}
-        assert actual_groups == expected_groups, (
-            f"Saved query categories mismatch. Expected {expected_groups}, found {actual_groups}"
-        )
+        assert (
+            actual_groups == expected_groups
+        ), f"Saved query categories mismatch. Expected {expected_groups}, found {actual_groups}"
 
     def test_06_explain_all_saved_queries_on_mysql(self):
         """Executes EXPLAIN on every saved query to confirm MySQL schema validity."""
@@ -164,12 +181,14 @@ class TestOnlySevenTablesArchitecture:
                         test_sql = sql.replace("%s", "'2024-01-01'")
                     else:
                         test_sql = sql.replace("%s", "'1'")
-                    
+
                     try:
                         cur.execute(f"EXPLAIN {test_sql}")
                         cur.fetchall()
                     except Exception as err:
-                        pytest.fail(f"EXPLAIN failed for saved query '{q['id']}': {err}\nSQL:\n{sql}")
+                        pytest.fail(
+                            f"EXPLAIN failed for saved query '{q['id']}': {err}\nSQL:\n{sql}"
+                        )
 
     def test_07_execute_all_saved_queries_with_parameters(self):
         """Executes every saved query with sample parameters via execute_saved_query to ensure zero runtime errors."""
@@ -211,4 +230,6 @@ class TestOnlySevenTablesArchitecture:
             result = srs.execute_saved_query(qid, pvals)
             assert "rows" in result, f"Result for query '{qid}' missing 'rows' key"
             assert "columns" in result, f"Result for query '{qid}' missing 'columns' key"
-            assert result["execution_time_ms"] >= 0, f"Query '{qid}' returned invalid execution time"
+            assert (
+                result["execution_time_ms"] >= 0
+            ), f"Query '{qid}' returned invalid execution time"
